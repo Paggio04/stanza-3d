@@ -68,15 +68,25 @@ if VISTA == "fronte":
         lf.data.use_shadow = False
     except Exception:
         pass
-    # maglia 10: sola, di PETTO (rot Z = 0 = petto +Y verso camera),
-    # gruccia nascosta (hide_render), non davanti al petto
+    # maglia 10: sola, di PETTO (rot Z = 0 = petto +Y verso camera), STACCATA:
+    # si nasconde SOLO il resto dell'attrezzatura (barra, altre maglie/grucce,
+    # staffe, targhe e testi); muro, doghe, pavimento e luci restano accesi
     m10 = bpy.data.objects["Maglia_10"]
-    g10 = bpy.data.objects["Gruccia_10"]
     m10.location = (0, 2.2, 1.35)
     m10.rotation_euler = (0, 0, 0)
-    g10.location = (0, 2.2, 1.35)
-    g10.rotation_euler = (0, 0, 0)
-    g10.hide_render = True
+    nascosti = []
+    for o in bpy.data.objects:
+        if o is m10 or o is cam or o is tgt or o is lf:
+            continue
+        nm = o.name
+        if nm.startswith("Maglia_") or nm.startswith("Gruccia_") or \
+                nm in ("Barra", "Staffa", "Staffa.001") or \
+                nm.startswith("Targa_"):
+            try:
+                o.hide_render = True
+                nascosti.append(o)
+            except Exception:
+                pass
     SC.camera = bpy.data.objects[CAM]
     SC.render.resolution_x, SC.render.resolution_y = RX, RY
     SC.render.resolution_percentage = 100
@@ -84,7 +94,11 @@ if VISTA == "fronte":
     SC.render.filepath = out
     bpy.ops.render.render(write_still=True)
     print("RENDER:", out)
-    g10.hide_render = False
+    for o in nascosti:
+        try:
+            o.hide_render = False
+        except Exception:
+            pass
 elif VISTA == "girata":
     # hover: petto PIENO frontale (rot 0) + 25 cm avanti + luce dedicata
     shot(["Maglia_10", "Gruccia_10"],
@@ -124,5 +138,3 @@ else:
         SC.render.filepath = out
         bpy.ops.render.render(write_still=True)
         print("RENDER:", out)
-    bpy.ops.render.render(write_still=True)
-    print("RENDER:", out)

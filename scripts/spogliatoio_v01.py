@@ -5,7 +5,8 @@ luce sera, 4 render. Esegui da C:\\Progetti\\stanza-3d:
 Geometria maglia (locale): petto = +Y (scudo, interno colletto davanti),
 schiena = -Y, maniche lungo X. Rotazione Z delle maglie: 0 = petto alla
 camera, 115 = tre quarti di schiena (65 dalla schiena), 160 = quasi di
-schiena (20 dalla schiena, prima di ogni reparto), hover ~ -8 petto avanti.
+schiena (20 dalla schiena, prima di ogni reparto), hover 0 = petto pieno
+frontale + 25 cm avanti.
 """
 import bpy, bmesh, json, math, os
 from math import radians, cos, sin, pi
