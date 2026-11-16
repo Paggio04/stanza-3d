@@ -1,0 +1,36 @@
+{
+  "squadra": "Prima Squadra",
+  "colori": {
+    "maglia": "#b02430",
+    "dettagli": "#f4ecd8",
+    "portieri": "#24262b"
+  },
+  "reparti": [
+    { "nome": "PORTIERI", "numeri": [1, 2] },
+    { "nome": "DIFENSORI", "numeri": [3, 4, 5, 6, 7, 8] },
+    { "nome": "CENTROCAMPISTI", "numeri": [9, 10, 11, 12, 13, 14, 15] },
+    { "nome": "ATTACCANTI", "numeri": [16, 17, 18, 19, 20] }
+  ],
+  "giocatori": [
+    { "numero": 1, "nome": "Alessio Bruni", "reparto": "PORTIERI", "stemma": null },
+    { "numero": 2, "nome": "Davide Serra", "reparto": "PORTIERI", "stemma": null },
+    { "numero": 3, "nome": "Marco Ferraro", "reparto": "DIFENSORI", "stemma": null },
+    { "numero": 4, "nome": "Luca Gallo", "reparto": "DIFENSORI", "stemma": null },
+    { "numero": 5, "nome": "Simone Rinaldi", "reparto": "DIFENSORI", "stemma": null },
+    { "numero": 6, "nome": "Andrea Sarti", "reparto": "DIFENSORI", "stemma": null },
+    { "numero": 7, "nome": "Matteo Villa", "reparto": "DIFENSORI", "stemma": null },
+    { "numero": 8, "nome": "Fabio Greco", "reparto": "DIFENSORI", "stemma": null },
+    { "numero": 9, "nome": "Stefano Moretti", "reparto": "CENTROCAMPISTI", "stemma": null },
+    { "numero": 10, "nome": "Lorenzo Vitale", "reparto": "CENTROCAMPISTI", "stemma": null },
+    { "numero": 11, "nome": "Daniele Ricci", "reparto": "CENTROCAMPISTI", "stemma": null },
+    { "numero": 12, "nome": "Paolo Neri", "reparto": "CENTROCAMPISTI", "stemma": null },
+    { "numero": 13, "nome": "Giulio Fontana", "reparto": "CENTROCAMPISTI", "stemma": null },
+    { "numero": 14, "nome": "Tommaso Sala", "reparto": "CENTROCAMPISTI", "stemma": null },
+    { "numero": 15, "nome": "Cristian Piva", "reparto": "CENTROCAMPISTI", "stemma": null },
+    { "numero": 16, "nome": "Nicola Bassani", "reparto": "ATTACCANTI", "stemma": null },
+    { "numero": 17, "nome": "Samuele Oro", "reparto": "ATTACCANTI", "stemma": null },
+    { "numero": 18, "nome": "Filippo Coda", "reparto": "ATTACCANTI", "stemma": null },
+    { "numero": 19, "nome": "Mattia Lusso", "reparto": "ATTACCANTI", "stemma": null },
+    { "numero": 20, "nome": "Elia Marchetti", "reparto": "ATTACCANTI", "stemma": null }
+  ]
+}

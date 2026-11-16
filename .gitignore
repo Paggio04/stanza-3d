@@ -1,0 +1,29 @@
+# Blender: backup automatici e cache (il .blend principale e i PNG restano)
+*.blend1
+*.blend2
+*.blend@
+
+# Cache Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Log e file temporanei di lavoro
+*.log
+*_log.txt
+*_err.txt
+build_log.txt
+build_err.txt
+blender_log.txt
+*.tmp
+*.bak
+*~
+
+# Cache Blender / sistema
+.cache/
+tmp/
+temp/
+.blender/
+Thumbs.db
+.DS_Store
+desktop.ini
