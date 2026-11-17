@@ -40,10 +40,11 @@ Si costruisce tutto da zero, senza codice o materiale di altri.
 | Ciclo | Cosa | Stato |
 |---|---|---|
 | v01 | Spogliatoio in Blender: stanza, barra, 20 maglie | Fatto, da rifare la maglia (vedi v01.md) |
-| v02 | La maglia vera (stoffa, pieghe, nome e numero) | Da fare |
-| v03 | Tunnel e percorso della camera: video 16:9 e 9:16 | Dopo |
-| v04 | Esportazione per il sito (.glb leggeri, texture) | Dopo |
-| v05 | Pagina interattiva nel sito (Three.js), dati dalla rosa | Dopo |
+| v02 | La maglia vera (stoffa, pieghe, nome e numero) | Fatto: scena e scritte ok, maglia ancora da rifare (vedi v02.md) |
+| v03 | La maglia, seconda passata, e correzioni della scena | Da fare |
+| v04 | Tunnel e percorso della camera: video 16:9 e 9:16 | Dopo |
+| v05 | Esportazione per il sito (.glb leggeri, texture) | Dopo |
+| v06 | Pagina interattiva nel sito (Three.js), dati dalla rosa | Dopo |
 
 ## Regole fisse
 
@@ -56,4 +57,4 @@ Si costruisce tutto da zero, senza codice o materiale di altri.
 ## Ancora aperto
 
 - Dal club: stemma ufficiale, colori ufficiali, i 20 giocatori con nome e numero di maglia.
-- Scheda del giocatore: i dati in più (nazionalità, data e luogo di nascita, squadra precedente, altezza) non ci sono ancora nella rosa del sito. Vanno aggiunti e ci vuole il consenso dei giocatori. Se ne parla al v05.
+- Scheda del giocatore: i dati in più (nazionalità, data e luogo di nascita, squadra precedente, altezza) non ci sono ancora nella rosa del sito. Vanno aggiunti e ci vuole il consenso dei giocatori. Se ne parla al v06.
