@@ -791,8 +791,8 @@ if __name__ == "__main__":
         if err_sala:
             sys.exit(1)
         sys.exit(0)
-    px = int(argv[1]) if len(argv) > 1 else 1280
-    camp = int(argv[2]) if len(argv) > 2 else 32
+    px = int(argv[1]) if len(argv) > 1 else 1920  # HD: 1920 di base per il confronto con le foto
+    camp = int(argv[2]) if len(argv) > 2 else 128  # HD: 128 campioni col denoise
     salva = os.path.abspath(argv[3]) if len(argv) > 3 else None
     sc.render.engine = "CYCLES"
     sc.cycles.device = "CPU"
@@ -802,11 +802,16 @@ if __name__ == "__main__":
     luci_e_mondo(sc)
     costruisci_sala(dati)
     sc.cycles.samples = camp
-    sc.render.resolution_x = px
-    sc.render.resolution_y = int(round(px * 9 / 16))
-    sc.camera = camera(sc, "Cam_16x9", (0.0, -3.3, 1.55), (0.0, 4.0, 1.45), 12.0)
-    sc.render.filepath = os.path.join(out, "sala_16x9.png")
-    bpy.ops.render.render(write_still=True)
+    # HD v04: tre inquadrature fisse per il confronto con le foto (niente nomi vecchi sovrascritti)
+    for nome, larg, pos, tgt, foc in (
+            ("v04_16x9", px, (0.0, -3.3, 1.55), (0.0, 4.0, 1.45), 12.0),
+            ("v04_9x16", int(round(px * 9 / 16)), (0.0, -3.3, 1.55), (0.0, 4.0, 1.45), 20.0),
+            ("v04_armadietto", px, (0.0, 0.6, 1.55), (0.0, 4.4, 1.45), 28.0)):
+        sc.render.resolution_x = larg
+        sc.render.resolution_y = int(round(larg * (16 / 9 if nome == "v04_9x16" else 9 / 16)))
+        sc.camera = camera(sc, "Cam_" + nome, pos, tgt, foc)
+        sc.render.filepath = os.path.join(out, nome + ".png")
+        bpy.ops.render.render(write_still=True)
     if salva:
         bpy.ops.wm.save_as_mainfile(filepath=salva)
     print("SALA_OK")
