@@ -18,3 +18,4 @@ All'inizio di ogni ciclo basta scrivere a Cline:
 | [DECISIONI.md](DECISIONI.md) | Cosa stiamo costruendo e le scelte già prese |
 | [v01.md](v01.md) | Audit del ciclo v01 e istruzioni per il ciclo v02 |
 | [v02.md](v02.md) | Audit del ciclo v02 e istruzioni per il ciclo v03 |
+| [v03.md](v03.md) | Audit del ciclo v03 e istruzioni per il ciclo v03b (maglia costruita, non simulata) |

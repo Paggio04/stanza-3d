@@ -1,0 +1,306 @@
+{
+ "squadra": "Resco Reggello",
+ "stagione": "2026/27",
+ "colori": {
+  "maglia": "#ffffff",
+  "dettagli": "#173f9a",
+  "scritte": "#173f9a",
+  "portieri": "#24262b"
+ },
+ "reparti": [
+  "PORTIERI",
+  "DIFENSORI",
+  "CENTROCAMPISTI",
+  "ATTACCANTI"
+ ],
+ "raggio": 4.2,
+ "altezza": 3.0,
+ "fps": 30,
+ "baie": 20,
+ "giocatori": [
+  {
+   "numero": 1,
+   "nome": "GIOCATORE 1",
+   "reparto": "PORTIERI",
+   "titolare": true,
+   "slot": 0,
+   "phi": -1.5707963267948966,
+   "nodo": "Armadietto_01",
+   "maglia": "Maglia_01",
+   "clip": {
+    "hover": "Maglia_01|hover",
+    "selezione": "Maglia_01|selezione"
+   }
+  },
+  {
+   "numero": 4,
+   "nome": "GIOCATORE 4",
+   "reparto": "DIFENSORI",
+   "titolare": true,
+   "slot": 1,
+   "phi": -1.2566370614359172,
+   "nodo": "Armadietto_04",
+   "maglia": "Maglia_04",
+   "clip": {
+    "hover": "Maglia_04|hover",
+    "selezione": "Maglia_04|selezione"
+   }
+  },
+  {
+   "numero": 5,
+   "nome": "GIOCATORE 5",
+   "reparto": "DIFENSORI",
+   "titolare": true,
+   "slot": 2,
+   "phi": -0.9424777960769379,
+   "nodo": "Armadietto_05",
+   "maglia": "Maglia_05",
+   "clip": {
+    "hover": "Maglia_05|hover",
+    "selezione": "Maglia_05|selezione"
+   }
+  },
+  {
+   "numero": 6,
+   "nome": "GIOCATORE 6",
+   "reparto": "DIFENSORI",
+   "titolare": true,
+   "slot": 3,
+   "phi": -0.6283185307179586,
+   "nodo": "Armadietto_06",
+   "maglia": "Maglia_06",
+   "clip": {
+    "hover": "Maglia_06|hover",
+    "selezione": "Maglia_06|selezione"
+   }
+  },
+  {
+   "numero": 7,
+   "nome": "GIOCATORE 7",
+   "reparto": "DIFENSORI",
+   "titolare": true,
+   "slot": 4,
+   "phi": -0.3141592653589793,
+   "nodo": "Armadietto_07",
+   "maglia": "Maglia_07",
+   "clip": {
+    "hover": "Maglia_07|hover",
+    "selezione": "Maglia_07|selezione"
+   }
+  },
+  {
+   "numero": 10,
+   "nome": "GIOCATORE 10",
+   "reparto": "CENTROCAMPISTI",
+   "titolare": true,
+   "slot": 5,
+   "phi": 0.0,
+   "nodo": "Armadietto_10",
+   "maglia": "Maglia_10",
+   "clip": {
+    "hover": "Maglia_10|hover",
+    "selezione": "Maglia_10|selezione"
+   }
+  },
+  {
+   "numero": 11,
+   "nome": "GIOCATORE 11",
+   "reparto": "CENTROCAMPISTI",
+   "titolare": true,
+   "slot": 6,
+   "phi": 0.3141592653589793,
+   "nodo": "Armadietto_11",
+   "maglia": "Maglia_11",
+   "clip": {
+    "hover": "Maglia_11|hover",
+    "selezione": "Maglia_11|selezione"
+   }
+  },
+  {
+   "numero": 12,
+   "nome": "GIOCATORE 12",
+   "reparto": "CENTROCAMPISTI",
+   "titolare": true,
+   "slot": 7,
+   "phi": 0.6283185307179586,
+   "nodo": "Armadietto_12",
+   "maglia": "Maglia_12",
+   "clip": {
+    "hover": "Maglia_12|hover",
+    "selezione": "Maglia_12|selezione"
+   }
+  },
+  {
+   "numero": 16,
+   "nome": "GIOCATORE 16",
+   "reparto": "ATTACCANTI",
+   "titolare": true,
+   "slot": 8,
+   "phi": 0.9424777960769379,
+   "nodo": "Armadietto_16",
+   "maglia": "Maglia_16",
+   "clip": {
+    "hover": "Maglia_16|hover",
+    "selezione": "Maglia_16|selezione"
+   }
+  },
+  {
+   "numero": 17,
+   "nome": "GIOCATORE 17",
+   "reparto": "ATTACCANTI",
+   "titolare": true,
+   "slot": 9,
+   "phi": 1.2566370614359172,
+   "nodo": "Armadietto_17",
+   "maglia": "Maglia_17",
+   "clip": {
+    "hover": "Maglia_17|hover",
+    "selezione": "Maglia_17|selezione"
+   }
+  },
+  {
+   "numero": 18,
+   "nome": "GIOCATORE 18",
+   "reparto": "ATTACCANTI",
+   "titolare": true,
+   "slot": 10,
+   "phi": 1.5707963267948966,
+   "nodo": "Armadietto_18",
+   "maglia": "Maglia_18",
+   "clip": {
+    "hover": "Maglia_18|hover",
+    "selezione": "Maglia_18|selezione"
+   }
+  },
+  {
+   "numero": 2,
+   "nome": "GIOCATORE 2",
+   "reparto": "PORTIERI",
+   "titolare": false,
+   "slot": 11,
+   "phi": 1.8849555921538759,
+   "nodo": "Armadietto_02",
+   "maglia": "Maglia_02",
+   "clip": {
+    "hover": "Maglia_02|hover",
+    "selezione": "Maglia_02|selezione"
+   }
+  },
+  {
+   "numero": 3,
+   "nome": "GIOCATORE 3",
+   "reparto": "PORTIERI",
+   "titolare": false,
+   "slot": 12,
+   "phi": 2.199114857512855,
+   "nodo": "Armadietto_03",
+   "maglia": "Maglia_03",
+   "clip": {
+    "hover": "Maglia_03|hover",
+    "selezione": "Maglia_03|selezione"
+   }
+  },
+  {
+   "numero": 8,
+   "nome": "GIOCATORE 8",
+   "reparto": "DIFENSORI",
+   "titolare": false,
+   "slot": 13,
+   "phi": 2.5132741228718345,
+   "nodo": "Armadietto_08",
+   "maglia": "Maglia_08",
+   "clip": {
+    "hover": "Maglia_08|hover",
+    "selezione": "Maglia_08|selezione"
+   }
+  },
+  {
+   "numero": 9,
+   "nome": "GIOCATORE 9",
+   "reparto": "DIFENSORI",
+   "titolare": false,
+   "slot": 14,
+   "phi": 2.827433388230814,
+   "nodo": "Armadietto_09",
+   "maglia": "Maglia_09",
+   "clip": {
+    "hover": "Maglia_09|hover",
+    "selezione": "Maglia_09|selezione"
+   }
+  },
+  {
+   "numero": 13,
+   "nome": "GIOCATORE 13",
+   "reparto": "CENTROCAMPISTI",
+   "titolare": false,
+   "slot": 15,
+   "phi": 3.141592653589793,
+   "nodo": "Armadietto_13",
+   "maglia": "Maglia_13",
+   "clip": {
+    "hover": "Maglia_13|hover",
+    "selezione": "Maglia_13|selezione"
+   }
+  },
+  {
+   "numero": 14,
+   "nome": "GIOCATORE 14",
+   "reparto": "CENTROCAMPISTI",
+   "titolare": false,
+   "slot": 16,
+   "phi": 3.455751918948772,
+   "nodo": "Armadietto_14",
+   "maglia": "Maglia_14",
+   "clip": {
+    "hover": "Maglia_14|hover",
+    "selezione": "Maglia_14|selezione"
+   }
+  },
+  {
+   "numero": 15,
+   "nome": "GIOCATORE 15",
+   "reparto": "CENTROCAMPISTI",
+   "titolare": false,
+   "slot": 17,
+   "phi": 3.7699111843077517,
+   "nodo": "Armadietto_15",
+   "maglia": "Maglia_15",
+   "clip": {
+    "hover": "Maglia_15|hover",
+    "selezione": "Maglia_15|selezione"
+   }
+  },
+  {
+   "numero": 19,
+   "nome": "GIOCATORE 19",
+   "reparto": "ATTACCANTI",
+   "titolare": false,
+   "slot": 18,
+   "phi": 4.084070449666731,
+   "nodo": "Armadietto_19",
+   "maglia": "Maglia_19",
+   "clip": {
+    "hover": "Maglia_19|hover",
+    "selezione": "Maglia_19|selezione"
+   }
+  },
+  {
+   "numero": 20,
+   "nome": "GIOCATORE 20",
+   "reparto": "ATTACCANTI",
+   "titolare": false,
+   "slot": 19,
+   "phi": 4.39822971502571,
+   "nodo": "Armadietto_20",
+   "maglia": "Maglia_20",
+   "clip": {
+    "hover": "Maglia_20|hover",
+    "selezione": "Maglia_20|selezione"
+   }
+  }
+ ],
+ "clip_secondi": {
+  "hover": 0.43333333333333335,
+  "selezione": 1.7666666666666666
+ }
+}

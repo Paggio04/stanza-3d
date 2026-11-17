@@ -63,17 +63,19 @@ Restano tutte le animazioni del video, portate nella sala circolare. Si costruis
 |---|---|---|
 | v01 | Spogliatoio con la barra in Blender | Superato dal cambio di riferimento |
 | v02 | La maglia vera (stoffa, pieghe, nome e numero) | Fatto, inaccettabile: da rifare (vedi v02.md) |
-| v03 | Un armadietto come nel riferimento, con la maglia vera | Da fare |
-| v04 | La sala circolare: 20 armadietti, soffitto, pavimento con stemma, luci, render 16:9 e 9:16 | Dopo |
+| v03 | Un armadietto come nel riferimento, con la maglia vera | Fatto, non accettato (maglia simulata, armadietto a scatole) |
+| v03b | Lo stesso armadietto, con la maglia costruita da `scripts/maglia.py` (v03.md) | Superato: la sala intera è già fatta (`scripts/sala.py`) |
+| v04 | La sala circolare: 20 armadietti, soffitto, pavimento con stemma, luci, render 16:9 e 9:16 | Prima versione fatta (`scripts/sala.py`); da rifinire |
 | v05 | Tunnel e percorso della camera: video 16:9 e 9:16 | Dopo |
-| v06 | Esportazione per il sito (.glb leggeri, texture) | Dopo |
-| v07 | Pagina interattiva nel sito (Three.js), dati dalla rosa | Dopo |
+| v06 | Esportazione per il sito (.glb leggeri, texture) | Prima versione fatta (`web/sala.glb`, 7 MB) |
+| v07 | Pagina interattiva nel sito (Three.js), dati dalla rosa | Prima versione fatta (`web/sala.js`); da collaudare sul sito |
 
 ## Regole fisse
 
 - Dati della squadra solo in `squadra.json`, mai nello script.
 - Testi segnaposto («GIOCATORE N», scudo grigio «STEMMA», «FOTO») finché il club non manda i dati veri. Niente nomi inventati.
 - Uno script unico e riproducibile, che salva il `.blend` e i render.
+- La maglia si costruisce con `scripts/maglia.py` (congelato). Niente simulazione di stoffa.
 - Niente installazioni né download: solo Blender e quello che c'è nella cartella.
 - A ogni ciclo, prima di chiudere: mettere ogni render accanto alla foto di riferimento, correggere, scrivere in `REGISTRO.md` cosa manca.
 
