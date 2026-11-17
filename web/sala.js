@@ -34,8 +34,8 @@ const dAng = (a, b) => ((b - a + Math.PI) % (2 * Math.PI) + 2 * Math.PI) % (2 * 
 
 const CSS = `
 .sala{position:relative;width:100%;height:100%;min-height:360px;overflow:hidden;background:#cfd3d8;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:#fff;touch-action:pan-y}
-.sala canvas{display:block;width:100%;height:100%}
-.sala .top{position:absolute;left:0;right:0;top:0;padding:14px 18px;display:flex;flex-direction:column;gap:10px;align-items:center;pointer-events:none;background:linear-gradient(#0009,#0000)}
+.sala canvas{display:block;width:100%;height:100%} /* HD: il ridimensionamento usa clientWidth/Height * pixelRatio */
+.sala .top{position:absolute;left:0;right:0;top:0;padding:14px 18px;display:flex;flex-direction:column;gap:10px;align-items:center;pointer-events:none;background:linear-gradient(#0009,#0000);z-index:3}
 .sala .titolo{font-weight:700;letter-spacing:.04em;font-size:18px;text-transform:uppercase}
 .sala .sotto{font-size:12px;opacity:.85;letter-spacing:.08em;text-transform:uppercase}
 .sala .pillole{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;pointer-events:auto}
@@ -102,16 +102,16 @@ export async function avviaSala(host, opz = {}) {
 
   // ---- scena
   const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, alta ? 3 : 2)); // HD: tetto 3 in alta, 2 in bassa
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 0.7;
+  renderer.toneMappingExposure = alta ? 1.0 : 0.9; // HD: esposizione piena in alta (prima 0.7, troppo scuro)
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   host.insertBefore(renderer.domElement, host.firstChild);
   const scena = new THREE.Scene();
   scena.background = new THREE.Color(0x9aa0a6);
   const pm = new THREE.PMREMGenerator(renderer);
   scena.environment = pm.fromScene(new RoomEnvironment(), 0.04).texture;
-  scena.environmentIntensity = alta ? 0.28 : 0.8;
+  scena.environmentIntensity = alta ? 0.38 : 0.8; // HD: ambiente leggermente piu presente in alta (prima 0.28)
   // luce dal centro del soffitto: la sala e' circolare, ogni armadietto la riceve dalla stessa parte
   const centro = new THREE.PointLight(0xfff3e6, alta ? 22 : 0, 16, 1.8);
   centro.position.set(0, 2.8, 0);
@@ -119,10 +119,10 @@ export async function avviaSala(host, opz = {}) {
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     centro.castShadow = true;
-    centro.shadow.mapSize.set(2048, 2048);
-    centro.shadow.bias = -0.0008;
-    centro.shadow.normalBias = 0.03;
-    centro.shadow.radius = 4;
+    centro.shadow.mapSize.set(alta ? 4096 : 2048, alta ? 4096 : 2048); // HD: ombre piu nitide in alta
+    centro.shadow.bias = -0.0005;
+    centro.shadow.normalBias = 0.02;
+    centro.shadow.radius = alta ? 2 : 4; // HD: raggio piu stretto in alta = bordi piu definiti
   }
   const dall = new THREE.DirectionalLight(0xffffff, alta ? 0.18 : 1.1);
   dall.position.set(0, 6, 8);
@@ -136,6 +136,16 @@ export async function avviaSala(host, opz = {}) {
   };
   scena.add(gltf.scene);
   const SENZA_OMBRA = /^Fisso_(Soffitto|SoffittoC|Faretto|Parete|Pavimento)/;
+  // HD: anisotropia massima su tutte le texture della sala (non solo maglie): legno e pavimento restano nitidi di sbieco
+  const maxAniso = renderer.capabilities.getMaxAnisotropy();
+  gltf.scene.traverse((o) => {
+    if (!o.isMesh) return;
+    const ms = Array.isArray(o.material) ? o.material : [o.material];
+    for (const mm of ms) {
+      const maps = [mm.map, mm.roughnessMap, mm.metalnessMap, mm.normalMap, mm.emissiveMap];
+      for (const t of maps) if (t && t.isTexture) t.anisotropy = maxAniso;
+    }
+  });
   gltf.scene.traverse((o) => {
     if (!o.isMesh) return;
     o.castShadow = alta && !SENZA_OMBRA.test(o.name);
@@ -145,20 +155,20 @@ export async function avviaSala(host, opz = {}) {
   let specchio = null;
   if (alta) {
     const sh = Reflector.ReflectorShader;
-    specchio = new Reflector(new THREE.CircleGeometry(dati.raggio + 0.3, 64), {
-      textureWidth: 1024, textureHeight: 1024, clipBias: 0.003,
+    specchio = new Reflector(new THREE.CircleGeometry(dati.raggio + 0.3, 96), { // HD: 96 segmenti = bordo piu liscio
+      textureWidth: 2048, textureHeight: 2048, clipBias: 0.003, // HD: specchio a 2048 (prima 1024)
       shader: {
         name: 'RiflessoPavimento',
-        uniforms: { color: { value: null }, tDiffuse: { value: null }, textureMatrix: { value: null }, forza: { value: 0.30 } },
+        uniforms: { color: { value: null }, tDiffuse: { value: null }, textureMatrix: { value: null }, forza: { value: 0.20 } }, // HD: 0.20, prima 0.30 troppo lattiginoso
         vertexShader: sh.vertexShader,
         fragmentShader: `
           uniform sampler2D tDiffuse; uniform float forza; varying vec4 vUv;
           void main() {
             vec4 uv = vUv; vec2 p = uv.xy / uv.w;
             vec3 c = vec3(0.0); float w = 0.0;
-            for (int i = -2; i <= 2; i++) for (int j = -2; j <= 2; j++) {
+            for (int i = -1; i <= 1; i++) for (int j = -1; j <= 1; j++) { // HD: sfocatura 3x3 (prima 5x5) = riflesso piu nitido
               float k = 1.0 / (1.0 + float(i*i + j*j));
-              c += texture2D(tDiffuse, p + vec2(float(i), float(j)) * 0.0018).rgb * k; w += k;
+              c += texture2D(tDiffuse, p + vec2(float(i), float(j)) * 0.0012).rgb * k; w += k;
             }
             gl_FragColor = vec4(c / w, forza);
           }`,
@@ -173,16 +183,18 @@ export async function avviaSala(host, opz = {}) {
   }
   const cam = new THREE.PerspectiveCamera(80, 16 / 9, 0.1, 60);
   let composer = null;
+  let saoPass = null; // HD: serve per la discesa automatica (spegni SAO se il telefono non regge)
   if (alta) {
     composer = new EffectComposer(renderer);
+    composer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 3)); // HD: anche il composer in alta (altrimenti SAO resta a 1x)
     composer.addPass(new RenderPass(scena, cam));
-    const sao = new SAOPass(scena, cam);
-    sao.params.saoBias = 0.5;
-    sao.params.saoIntensity = 0.018;
-    sao.params.saoScale = 3;
-    sao.params.saoKernelRadius = 24;
-    sao.params.saoBlurRadius = 6;
-    composer.addPass(sao);
+    saoPass = new SAOPass(scena, cam);
+    saoPass.params.saoBias = 0.5;
+    saoPass.params.saoIntensity = 0.022; // HD: occlusione un filo piu presente (prima 0.018, troppo leggera)
+    saoPass.params.saoScale = 3;
+    saoPass.params.saoKernelRadius = 24;
+    saoPass.params.saoBlurRadius = 6;
+    composer.addPass(saoPass);
     composer.addPass(new OutputPass());
   }
   const disegna = () => (composer ? composer.render() : renderer.render(scena, cam));
@@ -612,6 +624,7 @@ export async function avviaSala(host, opz = {}) {
   const aggiornaHover = () => {
     if (!sporco || scelta !== null) return;
     sporco = false;
+    if (perc && perc.attivo) return; // HD: niente raycast mentre la camera del tunnel si muove
     scena.updateMatrixWorld();
     cam.updateMatrixWorld();
     ray.setFromCamera(ndc, cam);
@@ -646,6 +659,27 @@ export async function avviaSala(host, opz = {}) {
   window.addEventListener('resize', ridim);
   let ultimo = performance.now();
   let raf = 0;
+  // HD: discesa automatica se il telefono non regge: prima via la SAO, poi lo specchio, poi le ombre. Niente ricarica.
+  let cali = 0, tempoFps = 0, contaFps = 0;
+  const segnaFps = (dt) => {
+    if (!alta) return;
+    tempoFps += dt; contaFps++;
+    if (tempoFps < 2) return;
+    const fps = contaFps / tempoFps;
+    tempoFps = 0; contaFps = 0;
+    if (fps >= 45 || cali >= 3) return;
+    cali++;
+    if (cali === 1 && composer) {
+      const senzaSao = composer.passes.filter((p) => p !== saoPass);
+      composer.passes.length = 0;
+      for (const p of senzaSao) composer.addPass(p);
+    } else if (cali === 2 && specchio) {
+      scena.remove(specchio);
+    } else if (cali === 3) {
+      centro.castShadow = false;
+      gltf.scene.traverse((o) => { if (o.isMesh) { o.castShadow = false; o.receiveShadow = false; } });
+    }
+  };
   const passo = (now, dt) => {
     ora = now;
     if (perc && perc._f) perc._f();
@@ -675,6 +709,7 @@ export async function avviaSala(host, opz = {}) {
     const dt = Math.min(0.25, (now - ultimo) / 1000);
     ultimo = now;
     passo(now, dt);
+    segnaFps(dt); // HD: calo di qualita automatico se fps < 45
     disegna();
   };
   applica(vista);

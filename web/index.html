@@ -30,7 +30,7 @@
     glb: 'sala.glb?' + v, glbBassa: 'sala_bassa.glb?' + v, dati: 'sala.json?' + v,
     tunnel: 'tunnel.glb?' + v, percorso: 'tunnel.json?' + v,
     qualita: qs.get('q') || 'auto',
-    video: qs.get('video') ? { src: qs.get('video') } : null,   // il video del drone, quando c'e'
+    video: qs.get('video') ? { src: qs.get('video'), preload: 'auto', poster: qs.get('poster') || null } : null,   // HD: preload cosi l'intro non scatta
   });
   if (qs.get('intro')) window.sala.percorso.introduzione();     // ?intro=1: video (se c'e') + tunnel a tempo
   if (qs.get('scroll')) window.sala.percorso.collegaScorrimento();
