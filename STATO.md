@@ -19,3 +19,17 @@ Ancora diverso dalle foto:
 - Fps reali non misurabili dal pannello del browser (senza GPU): non dichiarati.
 
 Nota: `scripts/maglia.py` non e' piu' congelato per Claude Code; ogni modifica aggiorna l'hash in `revisioni/v03.md` con `scripts/hash_maglia.py`.
+
+## Stato del 17/11/2026 sera (lavoro Cline: HD + fluidita, NON collaudato nel browser 3D)
+
+Fatto e pushato su `main`:
+- **Pacchetto A (solo `web/sala.js` + `web/index.html`)**: pixel-ratio fino a 3 col composer HD, specchio pavimento 2048 meno lattiginoso (forza 0,20, sfocatura 3x3), ombre 4096, luce riequilibrata (exposure 1,0 / ambiente 0,38 in alta), anisotropia su tutte le texture, discesa automatica se fps <45 o un frame supera 120 ms (via SAO, specchio, ombre), `window.sala.ultimoControllo` in console.
+- **Fluidita (fix freeze)**: in `auto` niente SAO, ombre 2048, specchio 1024, pixel-ratio max 2; il massimo (SAO + 4096 + specchio 2048 + pixel-ratio 3) solo con `?q=alta`.
+- **Pacchetto B (`.glb` rigenerati)**: legno 1024 con venatura incisa (curva a S, contrasto), 21 trapezi luminosi separati 8 mm sotto l'anello (anti z-fighting), 12 faretti, stemma rialzato (8/11 mm), fughe scure fra pannelli, tunnel con texture 1024 e JPEG 90. Pesi: sala 5,57 MB / 404k tri, bassa 2,34 MB / 165k tri, tunnel 754 KB / 1051 facce — tutti nei budget, zero `SALA_ERRORE`.
+- **Cartelli tunnel rimossi**: `SPOGLIATOIO`/`CAMPO` sfarfallavano dopo 2 fix (mesh condivisa, poi z-fighting) — pareti lisce, nota da mettere in `REGISTRO.md` dal revisore.
+- **Render HD v04** (`scripts/sala.py`): tre inquadrature 1920/128 scritte (`v04_16x9`, `v04_9x16`, `v04_armadietto` in `render/`), MAI ESEGUITE — il render 1920/128 su CPU non ha prodotto output in ~1h, fermato. Da lanciare di notte o a 1280/64.
+
+Da verificare nel browser (io non ho GPU, non li ho visti):
+1. freeze spariti in `auto`, `window.sala.ultimoControllo` dopo ~10 s;
+2. sfarfallio trapezi/fughe sparito, legno piu inciso (`?q=alta` per il confronto);
+3. `window.sala.stat()` per triangoli e chiamate reali.
