@@ -91,7 +91,9 @@ export async function avviaSala(host, opz = {}) {
   const q = (s) => host.querySelector(s);
 
   const debole = window.matchMedia('(pointer: coarse)').matches || (navigator.hardwareConcurrency || 8) <= 4;
-  const alta = opz.qualita === 'alta' || ((opz.qualita || 'auto') === 'auto' && !debole);
+  const esplicita = opz.qualita === 'alta'; // ?q=alta: l'utente chiede il massimo e accetta il costo
+  const alta = esplicita || ((opz.qualita || 'auto') === 'auto' && !debole);
+  // In auto si parte leggeri (niente freeze): ombre 1024, specchio 1024, niente SAO. Il massimo solo con ?q=alta.
   const dati = await (await fetch(urlDati)).json();
   const caricatore = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
   const [gltf, tunnelGltf, tunnelDati] = await Promise.all([
@@ -102,7 +104,7 @@ export async function avviaSala(host, opz = {}) {
 
   // ---- scena
   const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, alta ? 3 : 2)); // HD: tetto 3 in alta, 2 in bassa
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, esplicita ? 3 : alta ? 2 : 1.5)); // fluidita: in auto mai sopra 2
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = alta ? 1.0 : 0.9; // HD: esposizione piena in alta (prima 0.7, troppo scuro)
   renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -119,10 +121,11 @@ export async function avviaSala(host, opz = {}) {
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     centro.castShadow = true;
-    centro.shadow.mapSize.set(alta ? 4096 : 2048, alta ? 4096 : 2048); // HD: ombre piu nitide in alta
+    const lato = esplicita ? 4096 : 2048; // fluidita: 4096 solo con ?q=alta, in auto 2048 bastano
+    centro.shadow.mapSize.set(lato, lato);
     centro.shadow.bias = -0.0005;
     centro.shadow.normalBias = 0.02;
-    centro.shadow.radius = alta ? 2 : 4; // HD: raggio piu stretto in alta = bordi piu definiti
+    centro.shadow.radius = esplicita ? 2 : 4; // HD: raggio piu stretto in alta = bordi piu definiti
   }
   const dall = new THREE.DirectionalLight(0xffffff, alta ? 0.18 : 1.1);
   dall.position.set(0, 6, 8);
@@ -155,8 +158,9 @@ export async function avviaSala(host, opz = {}) {
   let specchio = null;
   if (alta) {
     const sh = Reflector.ReflectorShader;
+    const latoSp = esplicita ? 2048 : 1024; // fluidita: specchio 2048 solo con ?q=alta, in auto 1024 (era il freeze)
     specchio = new Reflector(new THREE.CircleGeometry(dati.raggio + 0.3, 96), { // HD: 96 segmenti = bordo piu liscio
-      textureWidth: 2048, textureHeight: 2048, clipBias: 0.003, // HD: specchio a 2048 (prima 1024)
+      textureWidth: latoSp, textureHeight: latoSp, clipBias: 0.003,
       shader: {
         name: 'RiflessoPavimento',
         uniforms: { color: { value: null }, tDiffuse: { value: null }, textureMatrix: { value: null }, forza: { value: 0.20 } }, // HD: 0.20, prima 0.30 troppo lattiginoso
@@ -184,7 +188,7 @@ export async function avviaSala(host, opz = {}) {
   const cam = new THREE.PerspectiveCamera(80, 16 / 9, 0.1, 60);
   let composer = null;
   let saoPass = null; // HD: serve per la discesa automatica (spegni SAO se il telefono non regge)
-  if (alta) {
+  if (esplicita) { // fluidita: SAO solo con ?q=alta, in auto niente (era il freeze ogni secondo)
     composer = new EffectComposer(renderer);
     composer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 3)); // HD: anche il composer in alta (altrimenti SAO resta a 1x)
     composer.addPass(new RenderPass(scena, cam));
@@ -661,13 +665,18 @@ export async function avviaSala(host, opz = {}) {
   let raf = 0;
   // HD: discesa automatica se il telefono non regge: prima via la SAO, poi lo specchio, poi le ombre. Niente ricarica.
   let cali = 0, tempoFps = 0, contaFps = 0;
+  const frameIstallazioni = []; // ultimi 120 frame (ms): se uno supera 120ms e scatta, scatta il calo anche con fps medi buoni
   const segnaFps = (dt) => {
-    if (!alta) return;
+    if (!alta || RIDUCI()) return;
     tempoFps += dt; contaFps++;
+    frameIstallazioni.push(dt * 1000); // fluidita: ultimi 120 frame per trovare i freeze
+    if (frameIstallazioni.length > 120) frameIstallazioni.shift();
     if (tempoFps < 2) return;
     const fps = contaFps / tempoFps;
+    const peggiore = Math.max(...frameIstallazioni);
     tempoFps = 0; contaFps = 0;
-    if (fps >= 45 || cali >= 3) return;
+    api.ultimoControllo = { fps: Math.round(fps * 10) / 10, peggioreMs: Math.round(peggiore * 10) / 10, cali }; // lo leggi in console
+    if ((fps >= 45 && peggiore < 120) || cali >= 3) return;
     cali++;
     if (cali === 1 && composer) {
       const senzaSao = composer.passes.filter((p) => p !== saoPass);
@@ -730,7 +739,7 @@ export async function avviaSala(host, opz = {}) {
     });
     return { triangoli: Math.round(tri), mesh, per, chiamate: mesh };
   };
-  Object.assign(api, { THREE, scena, cam, maglie, renderer, dati, stat, percorso: perc, // per i collaudi: avanza di `ms` millisecondi senza aspettare il disegno
+  Object.assign(api, { THREE, scena, cam, maglie, renderer, dati, stat, percorso: perc, ultimoControllo: null, // fluidita: ultimo controllo fps (ogni 2s) — in console: window.sala.ultimoControllo
     _avanza: (ms) => { passo(ora + ms, ms / 1000); disegna(); } });
   return api;
 }
