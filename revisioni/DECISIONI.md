@@ -17,8 +17,11 @@ Stile: realistico, come la foto di riferimento.
 
 ## Il riferimento
 
-Dal 17/11/2026 il riferimento è la foto di uno spogliatoio circolare di una squadra professionistica: `riferimenti/spogliatoio_circolare.png`.
-La foto è solo in locale: è di terzi, quindi non va nel repository.
+Dal 17/11/2026 i riferimenti sono due foto di spogliatoi di una squadra professionistica, in `riferimenti/`:
+- `spogliatoio_circolare.png`: **il riferimento principale**, per armadietti, targhe, sedute, soffitto e luce;
+- `spogliatoio_vista_larga.png`: solo per come appare la sala intera vista da un capo: l'arco degli armadietti che si chiude, lo stemma grande in primo piano sul pavimento, il lettino da massaggi al centro. Pannelli neri, panca continua e striscia di luce a pavimento di questa foto **non** si prendono.
+
+Le foto sono solo in locale: sono di terzi, quindi non vanno nel repository.
 
 **Lo spogliatoio deve venire così.** Della foto si prendono forma, disposizione, materiali e luce. Non si copiano stemma, sponsor, nomi e foto di quella squadra: al loro posto vanno i dati di `squadra.json` e i segnaposto.
 
@@ -30,7 +33,7 @@ Cosa c'è nella foto:
   - nicchia con il fondo scuro, dove la maglia pende da una gruccia, di schiena: nome sopra e numero grande sotto, centrati;
   - seduta imbottita bianca, con sopra il completo piegato e una borraccia;
   - zoccolo in legno con un vano per le scarpe.
-- **Pavimento** chiaro e lucido, con lo stemma della squadra grande al centro.
+- **Pavimento** chiaro e lucido, con lo stemma della squadra grande al centro. Al centro della sala un lettino da massaggi (dalla seconda foto).
 - **Soffitto** bianco: travi scure a raggiera che convergono su un anello centrale con faretti; fra le travi, pannelli luminosi.
 - **Luce** chiara e uniforme, dal soffitto. I colori vivi stanno solo su targhe, maglie e stemma.
 
