@@ -27,3 +27,6 @@ temp/
 Thumbs.db
 .DS_Store
 desktop.ini
+
+# Foto di riferimento (copyright di terzi): solo in locale
+riferimenti/
