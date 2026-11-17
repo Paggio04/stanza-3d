@@ -4,7 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Spogliatoio</title>
-<style>html,body{margin:0;height:100%;background:#0b0d10}#sala{width:100vw;height:100vh}</style>
+<style>
+  html,body{margin:0;height:100%;background:#0b0d10}
+  #sala{width:100vw;height:100vh}
+  /* ?scroll=1: il tunnel si percorre scorrendo la pagina */
+  body.scorri #pagina{height:600vh}
+  body.scorri #sala{position:sticky;top:0}
+</style>
 <script type="importmap">
 { "imports": {
   "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
@@ -13,10 +19,20 @@
 </script>
 </head>
 <body>
-<div id="sala"></div>
+<div id="pagina"><div id="sala"></div></div>
 <script type="module">
   import { avviaSala } from './sala.js';
-  window.sala = await avviaSala(document.getElementById('sala'), { glb: 'sala.glb?' + Date.now(), dati: 'sala.json?' + Date.now(), qualita: new URLSearchParams(location.search).get('q') || 'auto' });
+  const qs = new URLSearchParams(location.search);
+  const v = Date.now();   // solo per le prove: niente cache
+  if (qs.get('scroll')) document.body.classList.add('scorri');
+  window.sala = await avviaSala(document.getElementById('sala'), {
+    glb: 'sala.glb?' + v, dati: 'sala.json?' + v,
+    tunnel: 'tunnel.glb?' + v, percorso: 'tunnel.json?' + v,
+    qualita: qs.get('q') || 'auto',
+    video: qs.get('video') ? { src: qs.get('video') } : null,   // il video del drone, quando c'e'
+  });
+  if (qs.get('intro')) window.sala.percorso.introduzione();     // ?intro=1: video (se c'e') + tunnel a tempo
+  if (qs.get('scroll')) window.sala.percorso.collegaScorrimento();
 </script>
 </body>
 </html>

@@ -57,6 +57,12 @@ const CSS = `
 @keyframes sala-scorri{to{transform:translateX(-100%)}}
 @media (prefers-reduced-motion:reduce){.sala .nastro span{animation:none;padding-left:18px}.sala .scheda{transition:none}}
 .sala .carico{position:absolute;inset:0;display:grid;place-items:center;background:#0b0d10;font-size:15px;letter-spacing:.1em;transition:opacity .5s}
+.sala .top,.sala .nastro,.sala .etichetta{transition:opacity .7s}
+.sala.intro .top,.sala.intro .nastro,.sala.intro .etichetta{opacity:0;pointer-events:none}
+.sala .salta{all:unset;cursor:pointer;position:absolute;right:16px;bottom:48px;padding:8px 16px;border-radius:999px;background:#0009;border:1px solid #fff5;font-size:13px;opacity:0;pointer-events:none;transition:opacity .5s;backdrop-filter:blur(6px)}
+.sala.intro.corre .salta{opacity:1;pointer-events:auto}
+.sala .intro-video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;pointer-events:none;transition:opacity 1.2s;background:#000}
+@media (max-aspect-ratio:1/1){.sala .scheda{top:auto;left:0;width:100%;max-height:46%;padding:18px 20px;transform:translateY(105%)}.sala .scheda.aperta{transform:none}.sala .scheda .num{font-size:64px;margin-top:0}.sala .scheda .nome{font-size:20px}}
 `;
 
 export async function avviaSala(host, opz = {}) {
@@ -78,11 +84,17 @@ export async function avviaSala(host, opz = {}) {
       <button class="torna">Torna alla sala (Esc)</button>
     </aside>
     <div class="nastro"><span></span></div>
+    <button class="salta">Salta l'ingresso ›</button>
     <div class="carico">Carico la sala…</div>`;
   const q = (s) => host.querySelector(s);
 
   const dati = await (await fetch(urlDati)).json();
-  const gltf = await new GLTFLoader().loadAsync(urlGlb);
+  const caricatore = new GLTFLoader();
+  const [gltf, tunnelGltf, tunnelDati] = await Promise.all([
+    caricatore.loadAsync(urlGlb),
+    opz.tunnel ? caricatore.loadAsync(opz.tunnel).catch((e) => { console.warn('tunnel non caricato', e); return null; }) : null,
+    opz.tunnel ? fetch(opz.percorso || 'tunnel.json').then((r) => r.json()).catch(() => null) : null,
+  ]);
 
   // ---- scena
   const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
@@ -255,6 +267,131 @@ export async function avviaSala(host, opz = {}) {
     if (u >= 1) tween = null;
   };
 
+  // ---- percorso: dal bordo campo, lungo il tunnel, fino alla posa iniziale della sala
+  // API: sala.percorso.progresso(p) (0..1, anche a scorrimento), .avvia({durata}), .collegaScorrimento(el),
+  //      .introduzione() (video del drone se c'e', poi il tunnel), .ferma(), .attivo
+  let perc = null;
+  if (tunnelGltf && tunnelDati) {
+    const V3 = THREE.Vector3;
+    const GAIN = 1.3;
+    tunnelGltf.scene.traverse((o) => {
+      if (!o.isMesh) return;
+      const m = o.material;
+      const b = new THREE.MeshBasicMaterial({ map: m.map || null, vertexColors: !!o.geometry.attributes.color, side: m.side });
+      b.color.copy(m.color).multiplyScalar(/Luce/.test(m.name) ? 3.2 : GAIN);
+      o.material = b;
+      o.castShadow = o.receiveShadow = false;
+      if (m.map) m.map.anisotropy = renderer.capabilities.getMaxAnisotropy();
+    });
+    scena.add(tunnelGltf.scene);
+    // cielo e foschia in lontananza (la sala sta entro 12 m: non ne risente)
+    const cv = document.createElement('canvas');
+    cv.width = 4; cv.height = 256;
+    const cx = cv.getContext('2d'), gr = cx.createLinearGradient(0, 0, 0, 256);
+    gr.addColorStop(0, '#5f93d1'); gr.addColorStop(0.55, '#a9c9e8'); gr.addColorStop(1, '#dfe9f2');
+    cx.fillStyle = gr; cx.fillRect(0, 0, 4, 256);
+    const cielo = new THREE.CanvasTexture(cv);
+    cielo.colorSpace = THREE.SRGBColorSpace;
+    scena.background = cielo;
+    scena.fog = new THREE.Fog(0xcfdfee, 45, 120);
+    const S = VISTE.sala;
+    const fin = { p: gl(S.r, S.a), t: gl(S.tr, S.ta) };
+    const pos = [...tunnelDati.percorso.map((k) => new V3(...k.p)), new V3(fin.p.x, S.y, fin.p.z)];
+    const tgt = [...tunnelDati.percorso.map((k) => new V3(...k.t)), new V3(fin.t.x, S.ty, fin.t.z)];
+    const fovs = [...tunnelDati.percorso.map((k) => k.fov), S.fov];
+    const cp = new THREE.CatmullRomCurve3(pos, false, 'centripetal');
+    const ct = new THREE.CatmullRomCurve3(tgt, false, 'centripetal');
+    const lung = cp.getLength();
+    const liscio = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+    const tmp = new V3(), tmpT = new V3();
+    const bottone = q('.salta');
+    let video = null;
+    if (opz.video) {
+      video = document.createElement('video');
+      Object.assign(video, { className: 'intro-video', muted: true, playsInline: true, preload: 'auto', poster: opz.video.poster || '' });
+      video.setAttribute('playsinline', '');
+      video.src = opz.video.src;
+      host.appendChild(video);
+    }
+    perc = {
+      esiste: true, attivo: false, p: 1, anim: null, lunghezza: lung,
+      applica() {
+        const p = this.p;
+        const t = cp.getUtoTmapping(p);
+        cp.getPoint(t, tmp); ct.getPoint(t, tmpT);
+        const env = RIDUCI() ? 0 : liscio(0, 0.03, p) * (1 - liscio(0.9, 0.995, p));
+        const d = (p * lung) / (tunnelDati.passo || 0.75);
+        tmp.y += env * (tunnelDati.ampiezza_bob || 0.014) * Math.sin(2 * Math.PI * d);
+        tmp.x += env * 0.006 * Math.sin(Math.PI * d);
+        cam.position.copy(tmp);
+        cam.lookAt(tmpT);
+        const k = t * (fovs.length - 1), i = Math.min(fovs.length - 2, Math.floor(k));
+        const f = fovEff({ fov: fovs[i] + (fovs[i + 1] - fovs[i]) * (k - i) });
+        if (cam.fov !== f) { cam.fov = f; cam.updateProjectionMatrix(); }
+      },
+      progresso(p) {
+        p = Math.min(1, Math.max(0, p));
+        this.p = p;
+        if (p >= 1) {
+          if (this.attivo) {
+            this.attivo = false;
+            host.classList.remove('intro', 'corre');
+            vista = { ...VISTE.sala }; tween = null; applica(vista);
+          }
+          return;
+        }
+        if (!this.attivo) {
+          if (scelta !== null) api.torna();
+          sopra = null; etichetta.style.opacity = 0;
+          this.attivo = true;
+          host.classList.add('intro');
+        }
+        this.applica();
+      },
+      avvia(o = {}) {
+        const durata = o.durata || 14000, da = o.da || 0;
+        if (RIDUCI()) { this.progresso(1); return Promise.resolve(); }
+        this.progresso(Math.min(da, 0.9999));
+        host.classList.add('corre');
+        return new Promise((res) => { this.anim = { t: 0, durata, da, res }; });
+      },
+      ferma() {
+        if (this.anim) { const r = this.anim.res; this.anim = null; host.classList.remove('corre'); r(); }
+      },
+      salta() { this.ferma(); this.progresso(1); },
+      async introduzione() {
+        if (RIDUCI()) { this.progresso(1); return; }
+        this.progresso(0);
+        if (video) {
+          video.style.opacity = 1;
+          try { await video.play(); await new Promise((res) => { video.addEventListener('ended', res, { once: true }); video.addEventListener('error', res, { once: true }); this._saltaVideo = res; }); } catch (e) { /* senza video si parte dal tunnel */ }
+          video.style.opacity = 0;
+        }
+        await this.avvia({ durata: opz.durataPercorso || 14000 });
+      },
+      collegaScorrimento(el = host.parentElement) {
+        const f = () => {
+          const r = el.getBoundingClientRect();
+          const tot = r.height - window.innerHeight;
+          this.ferma();
+          this.progresso(tot > 0 ? -r.top / tot : 1);
+        };
+        window.addEventListener('scroll', f, { passive: true });
+        f();
+        return () => window.removeEventListener('scroll', f);
+      },
+      passo(dt) {
+        if (!this.anim) return;
+        const a = this.anim;
+        a.t += dt * 1000;
+        const u = Math.min(1, a.t / a.durata);
+        this.progresso(a.da + (1 - a.da) * ease(u));
+        if (u >= 1) { this.anim = null; host.classList.remove('corre'); a.res(); }
+      },
+    };
+    bottone.addEventListener('click', () => { if (video && perc._saltaVideo) perc._saltaVideo(); perc.salta(); });
+  }
+
   // ---- clip avanti / indietro
   const corri = (azione, dir, da = null) => {
     if (RIDUCI()) {
@@ -398,6 +535,7 @@ export async function avviaSala(host, opz = {}) {
   renderer.domElement.addEventListener('pointerdown', (e) => { giu = { x: e.clientX, mosso: false }; });
   window.addEventListener('pointerup', () => { setTimeout(() => { giu = null; }, 0); });
   renderer.domElement.addEventListener('click', () => {
+    if (perc && perc.attivo) return;
     if (giu && giu.mosso) return;
     scena.updateMatrixWorld();
     cam.updateMatrixWorld();
@@ -437,15 +575,19 @@ export async function avviaSala(host, opz = {}) {
     if (composer) composer.setSize(w, h);
     cam.aspect = w / h;
     cam.updateProjectionMatrix();
-    applica(vista);
+    if (perc && perc.attivo) perc.applica(); else applica(vista);
   };
   window.addEventListener('resize', ridim);
   let ultimo = performance.now();
   let raf = 0;
   const passo = (now, dt) => {
     ora = now;
-    passoTween(now);
-    aggiornaHover();
+    if (perc && perc.attivo) {
+      perc.passo(dt);
+    } else {
+      passoTween(now);
+      aggiornaHover();
+    }
     mixer.update(dt);
     for (const m of maglie.values()) {
       if (Math.abs(m.k - m.kTarget) > 0.002) {
@@ -480,7 +622,7 @@ export async function avviaSala(host, opz = {}) {
     });
     return { triangoli: Math.round(tri), mesh, per, chiamate: mesh };
   };
-  Object.assign(api, { THREE, scena, cam, maglie, renderer, dati, stat, // per i collaudi: avanza di `ms` millisecondi senza aspettare il disegno
+  Object.assign(api, { THREE, scena, cam, maglie, renderer, dati, stat, percorso: perc, // per i collaudi: avanza di `ms` millisecondi senza aspettare il disegno
     _avanza: (ms) => { passo(ora + ms, ms / 1000); disegna(); } });
   return api;
 }

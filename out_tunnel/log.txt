@@ -1,0 +1,51 @@
+C:\Progetti\stanza-3d\scripts\tunnel.py:127: DeprecationWarning: 'Material.use_nodes' is expected to be removed in Blender 6.0
+  m.use_nodes = True
+INFO Draco is available, use library at C:\Program Files\Blender Foundation\Blender 5.3\blender.shared\bf_intern_draco_bridge.dll
+INFO MeshOptimizer is available, use library at C:\Program Files\Blender Foundation\Blender 5.3\blender.shared\bf_intern_meshopt_bridge.dll
+16:18:47 | INFO: Starting glTF 2.0 export
+16:18:47 | INFO: Extracting primitive: StemmaB1
+16:18:47 | INFO: Primitives created: 1
+16:18:47 | INFO: Extracting primitive: StemmaB-1
+16:18:47 | INFO: Primitives created: 1
+16:18:47 | INFO: Extracting primitive: StemmaC1
+16:18:47 | INFO: Primitives created: 1
+16:18:47 | INFO: Extracting primitive: StemmaC-1
+16:18:47 | INFO: Primitives created: 1
+16:18:47 | INFO: Extracting primitive: T_Esterno_Asfalto
+16:18:47 | INFO: Primitives created: 1
+16:18:47 | INFO: Extracting primitive: T_Esterno_Cartelloni
+16:18:47 | INFO: Primitives created: 1
+16:18:47 | INFO: Extracting primitive: T_Esterno_Cemento
+16:18:47 | INFO: Primitives created: 1
+16:18:47 | INFO: Extracting primitive: T_Esterno_Erba
+16:18:47 | INFO: Primitives created: 1
+16:18:47 | INFO: Extracting primitive: T_Esterno_Linea
+16:18:47 | INFO: Primitives created: 1
+16:18:47 | INFO: Extracting primitive: T_Esterno_Spalti
+16:18:47 | INFO: Primitives created: 1
+16:18:47 | INFO: Extracting primitive: T_Esterno_Tettoia
+16:18:47 | INFO: Primitives created: 1
+16:18:47 | INFO: Extracting primitive: T_Tunnel_Corsia
+16:18:47 | INFO: Primitives created: 1
+16:18:47 | INFO: Extracting primitive: T_Tunnel_Fascia
+16:18:47 | INFO: Primitives created: 1
+16:18:47 | INFO: Extracting primitive: T_Tunnel_Filetto
+16:18:47 | INFO: Primitives created: 1
+16:18:47 | INFO: Extracting primitive: T_Tunnel_Luce
+16:18:47 | INFO: Primitives created: 1
+16:18:47 | INFO: Extracting primitive: T_Tunnel_Muro
+16:18:47 | INFO: Primitives created: 1
+16:18:47 | INFO: Extracting primitive: T_Tunnel_Pavimento
+16:18:47 | INFO: Primitives created: 1
+16:18:47 | INFO: Extracting primitive: T_Tunnel_Scuro
+16:18:47 | INFO: Primitives created: 1
+16:18:47 | INFO: Extracting primitive: T_Tunnel_Soffitto
+16:18:47 | INFO: Primitives created: 1
+16:18:47 | INFO: Extracting primitive: tmp_testo
+16:18:47 | INFO: Primitives created: 1
+16:18:47 | INFO: Finished glTF 2.0 export in 0.16188383102416992 s
+
+TUNNEL_OK C:\Progetti\stanza-3d\out_tunnel\tunnel.glb 284972 facce 1051
+Blender 5.3.0 (hash 02f0899d78e3 built 2026-11-10 01:33:43)
+
+Blender quit

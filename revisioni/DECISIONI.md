@@ -67,7 +67,7 @@ Restano tutte le animazioni del video, portate nella sala circolare. Si costruis
 | v03b | Lo stesso armadietto, con la maglia costruita da `scripts/maglia.py` (v03.md) | Superato: la sala intera è già fatta (`scripts/sala.py`) |
 | v04 | La sala circolare: 20 armadietti, soffitto, pavimento con stemma, luci, render 16:9 e 9:16 | Prima versione fatta (`scripts/sala.py`); da rifinire |
 | v04b | Sala a 21 slot (20 armadietti + porta del tunnel), soffitto con anello, guance a trapezio, pilastri con incavo, pavimento a specchio; maglia con colletto a nastro, ombre a vertici, maniche svasate | Fatto (17/11), da rifinire |
-| v05 | Tunnel e percorso della camera: video 16:9 e 9:16 | In corso |
+| v05 | Tunnel (`scripts/tunnel.py`, `web/tunnel.glb`), percorso di camera (`tunnel.json`) con API `sala.percorso` (tempo, scorrimento, video del drone) | Prima versione fatta e collaudata in 16:9 e 9:16 (17/11); da rifinire |
 | v06 | Esportazione per il sito (.glb leggeri, texture) | Prima versione fatta (`web/sala.glb`, 8 MB) |
 | v07 | Pagina interattiva nel sito (Three.js), dati dalla rosa | Prima versione fatta (`web/sala.js`); da collaudare sul sito |
 
