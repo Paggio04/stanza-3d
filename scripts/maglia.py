@@ -592,15 +592,16 @@ def _mesh_testo(testo, altezza, larghezza_max, bold=0.012, passo=0.005):
 def _proietta(me, lato, cx, cz, mat, nome, padre, coll):
     """Appoggia una mesh piatta (piano XY) sulla superficie, senza specchi."""
     G = geom()
-    X = np.array([cx + v.co.x for v in me.vertices])
+    # davanti si guarda da +Y: la destra di chi guarda e' -X, quindi la scritta va specchiata in X
+    # (e cosi' le facce guardano gia' fuori: niente inversione); dietro si guarda da -Y: destra = +X
+    segno = -1.0 if lato > 0 else 1.0
+    X = np.array([cx + segno * v.co.x for v in me.vertices])
     Z = np.array([cz + v.co.y for v in me.vertices])
     Y = G.superficie(X, Z, lato) + lato * 0.0015
     bm = bmesh.new()
     bm.from_mesh(me)
     for i, v in enumerate(bm.verts):
         v.co = (float(X[i]), float(Y[i]), float(Z[i]))
-    if lato > 0:
-        bmesh.ops.reverse_faces(bm, faces=bm.faces[:])
     bm.to_mesh(me)
     bm.free()
     for p in me.polygons:

@@ -306,7 +306,7 @@ def baia(i, g, col_maglia, dettagli, scritte_col, base_m, phi, _non_usato):
 
     # zoccolo e vano scarpe
     box("Zoccolo", (w, 0.46, 0.08), (0, 0.23, 0.04), nero, em, 0.004)
-    box("VanoFondo", (w - 0.16, 0.02, 0.32), (0, 0.03, 0.24), nero, em, 0)
+    box("VanoFondo", (w - 0.16, 0.02, 0.32), (0, 0.03, 0.24), mat("VanoLuce", "#dde7f2", 0.5, emis=1.25), em, 0)
     box("VanoSx", (0.08, 0.50, 0.34), (-(w / 2 - 0.04), 0.25, 0.25), legno, em, 0.005)
     box("VanoDx", (0.08, 0.50, 0.34), ((w / 2 - 0.04), 0.25, 0.25), legno, em, 0.005)
     box("Piano", (w, 0.56, 0.06), (0, 0.28, 0.43), legno, em, 0.006)
@@ -591,7 +591,7 @@ def costruisci_sala(dati):
     cilindro_parete("Parete", RAGGIO + 0.02, 0.0, ALTEZZA, mat("Parete", "#f1f1f2", 0.7),
                     segm=126, buco=(math.pi, hw, PORTA_H))
     R_C, Z_C = 2.0, 0.24
-    anello("Soffitto", R_C, RAGGIO + 0.3, ALTEZZA, mat("Soffitto", "#ffffff", 0.5, emis=1.05))
+    anello("Soffitto", R_C, RAGGIO + 0.3, ALTEZZA, mat("Soffitto", "#ffffff", 0.5, emis=1.2))
     anello("SoffittoCentro", 0.0001, R_C, ALTEZZA + Z_C, mat("SoffittoC", "#fff6ee", 0.5, emis=0.65))
     cilindro_parete("Tamburo", R_C, ALTEZZA, ALTEZZA + Z_C, mat("Tamburo", "#f4f1ec", 0.6, emis=0.35))
     faretto = mat("Faretto", "#fff2e0", 0.5, emis=14.0)
@@ -620,7 +620,7 @@ def costruisci_sala(dati):
         phi = phi_slot(j)
         cm = C["portieri"] if col_rep[g["reparto"]] == "portieri" else col_maglia
         det = dettagli if cm == col_maglia else "#9aa0a6"
-        baia(k, g, cm, det, scritte, None, phi, None)
+        baia(k, g, cm, det, scritte if cm == col_maglia else "#f2f3f5", None, phi, None)   # portiere: scritte chiare
         lista.append((g, j, phi))
     for j in range(N_SLOT):
         pilastro(phi_slot(j) + PASSO / 2)

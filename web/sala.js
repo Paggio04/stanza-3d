@@ -456,7 +456,8 @@ export async function avviaSala(host, opz = {}) {
         };
         window.addEventListener('scroll', f, { passive: true });
         f();
-        return () => window.removeEventListener('scroll', f);
+        this._scorrimento = () => window.removeEventListener('scroll', f);
+        return this._scorrimento;
       },
       passo(dt) {
         if (!this.anim) return;
@@ -554,6 +555,7 @@ export async function avviaSala(host, opz = {}) {
     },
     distruggi() {
       cancelAnimationFrame(raf);
+      if (perc) { perc.ferma(); if (perc._scorrimento) perc._scorrimento(); }
       window.removeEventListener('resize', ridim);
       window.removeEventListener('keydown', tasto);
       renderer.dispose();
