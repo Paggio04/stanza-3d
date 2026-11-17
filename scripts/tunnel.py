@@ -320,8 +320,10 @@ def costruisci(dati, cartella):
         for (u_cart, txt) in ((L * 0.45, "SPOGLIATOIO"), (L * 0.75, "CAMPO")):
             R.parete(m_cartello, x, x, u_cart - 1.1, u_cart + 1.1, 1.55, 1.95, (nx, 0, 0), mx=0.6)
     for (u_cart, txt) in ((L * 0.45, "SPOGLIATOIO"), (L * 0.75, "CAMPO")):
-        me = maglia._mesh_testo(txt, 0.22, 2.0, bold=0.012, passo=1.0)
+        # NOTA: una mesh per parete (non condivisa): _piano crea il layer Col sulla mesh,
+        # riusarla per due oggetti speculari dava sfarfallio / facce sparite
         for sg, nx in ((-1, 1), (1, -1)):
+            me = maglia._mesh_testo(txt, 0.22, 2.0, bold=0.012, passo=1.0)
             _piano(me, (math.pi / 2 if sg < 0 else -math.pi / 2, 0.0, math.pi / 2 if sg > 0 else 0.0),
                    tuple(w((sg * (hw - 0.02), u_cart, 1.75))), m_testo_b, "Cartello_%s_%d" % (txt, sg))
     # parete di fondo (u = 0) con il varco della porta; la porta e' PORTA_W x PORTA_H

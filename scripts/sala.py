@@ -53,7 +53,7 @@ def _immagine_legno(cartella):
     """Venatura verticale del legno, ripetibile. Salvata e incorporata nel .glb (HD 1024)."""
     if "legno_tex" in bpy.data.images:
         return bpy.data.images["legno_tex"]
-    n = 1024 # HD: 1024 invece di 512, la venatura resta leggibile in primo piano
+    n = 512 if LOD else 1024 # HD: 1024 in alta, 512 nella bassa per restare nel budget (su telefono non si vede)
     U, V = np.meshgrid(np.arange(n) / n, np.arange(n) / n)
     rng = np.random.default_rng(7)
 
@@ -68,8 +68,9 @@ def _immagine_legno(cartella):
 
     grana = fibra(28, 0.34, 1) + fibra(120, 0.30, 2) + fibra(460, 0.18, 3) + fibra(60, 0.18, 5) + 0.05 * rng.random((n, n))
     grana = np.clip((grana - grana.min()) / (grana.max() - grana.min()), 0, 1)
-    scuro = np.array([0.27, 0.125, 0.052])
-    chiaro = np.array([0.56, 0.30, 0.125])
+    grana = grana * grana * (3 - 2 * grana)  # HD: curva a S = venatura piu incisa, si vede anche da lontano
+    scuro = np.array([0.22, 0.095, 0.038])  # HD: scuro piu profondo (prima 0.27/0.125/0.052, troppo slavato)
+    chiaro = np.array([0.62, 0.345, 0.15])  # HD: chiaro piu caldo
     rgb = scuro[None, None, :] * (1 - grana[..., None]) + chiaro[None, None, :] * grana[..., None]
     rgba = np.concatenate([rgb, np.ones((n, n, 1))], axis=2).astype(np.float32)
     img = bpy.data.images.new("legno_tex", n, n, alpha=False)
@@ -107,6 +108,10 @@ def mat(nome, colore, rough=0.5, metal=0.0, emis=0.0, bump=None, spec=0.5):
         it = nt.nodes.new("ShaderNodeTexImage")
         it.image = _immagine_legno(OUT_TEX)
         nt.links.new(it.outputs["Color"], pb.inputs["Base Color"])
+        # HD: in glTF niente bump da nodi: si alza il contrasto via roughness bassa e speculare alto
+        pb.inputs["Roughness"].default_value = 0.28
+        if "Specular IOR Level" in pb.inputs:
+            pb.inputs["Specular IOR Level"].default_value = 0.7
     elif bump == "legno":
         tc = nt.nodes.new("ShaderNodeTexCoord")
         mp = nt.nodes.new("ShaderNodeMapping")
@@ -343,8 +348,9 @@ def baia(i, g, col_maglia, dettagli, scritte_col, base_m, phi, _non_usato):
            0.46, 2.12, legno, em, chiave="gdx")
     box("Pannello", (w, 0.52, 0.88), (0, 0.26, 2.56), legno, em, 0.006)
     fuga = mat("Fuga", "#1c1410", 0.9)  # HD: fuga scura 2 mm fra i pannelli, non sembra piu un blocco unico
-    box("FugaSx", (0.002, 0.52, 0.88), (-w / 2 + 0.001, 0.26, 2.56), fuga, em, 0)
-    box("FugaDx", (0.002, 0.52, 0.88), (w / 2 - 0.001, 0.26, 2.56), fuga, em, 0)
+    # NOTA: 1 mm fuori dal pannello su ogni lato, mai a filo (era z-fighting = sfarfallio)
+    box("FugaSx", (0.002, 0.52, 0.88), (-w / 2 - 0.001, 0.26, 2.56), fuga, em, 0)
+    box("FugaDx", (0.002, 0.52, 0.88), (w / 2 + 0.001, 0.26, 2.56), fuga, em, 0)
     # nicchia nera
     box("NicchiaFondo", (w - 0.26, 0.02, 1.08), (0, 0.02, 1.60), nero, em, 0)
     box("NicchiaSopra", (w - 0.26, 0.40, 0.02), (0, 0.22, 2.13), nero, em, 0)
@@ -598,6 +604,7 @@ def costruisci_sala(dati):
     anello("SoffittoCentro", 0.0001, R_C, ALTEZZA + Z_C, mat("SoffittoC", "#fff6ee", 0.5, emis=0.65))
     cilindro_parete("Tamburo", R_C, ALTEZZA, ALTEZZA + Z_C, mat("Tamburo", "#f4f1ec", 0.6, emis=0.35))
     # HD: 21 trapezi luminosi separati fra le travi (prima una fascia unica), con gradiente centro-bordo
+    # NOTA: faccia alta a ALTEZZA-8mm, mai a filo con l'anello (era z-fighting = sfarfallio)
     m_trap_c = mat("TrapezioC", "#fffdf8", 0.5, emis=1.2)
     m_trap_b = mat("TrapezioB", "#f2ede6", 0.5, emis=0.8)
     for j in range(N_SLOT):
@@ -609,8 +616,8 @@ def costruisci_sala(dati):
         Lb = RAGGIO + 0.05 - R_C - 0.20
         poly_c = [(Lc, -0.055), (Lc, 0.055), (Lc + Lb / 2, 0.075), (Lc + Lb / 2, -0.075)]
         poly_b = [(Lc + Lb / 2, -0.075), (Lc + Lb / 2, 0.075), (Lc + Lb, 0.10), (Lc + Lb, -0.10)]
-        prisma("TrapC", poly_c, ALTEZZA - 0.005, ALTEZZA, m_trap_c, em, bevel=0.002, chiave="TrapC%d" % j)
-        prisma("TrapB", poly_b, ALTEZZA - 0.005, ALTEZZA, m_trap_b, em, bevel=0.002, chiave="TrapB%d" % j)
+        prisma("TrapC", poly_c, ALTEZZA - 0.013, ALTEZZA - 0.008, m_trap_c, em, bevel=0.002, chiave="TrapC%d" % j)
+        prisma("TrapB", poly_b, ALTEZZA - 0.013, ALTEZZA - 0.008, m_trap_b, em, bevel=0.002, chiave="TrapB%d" % j)
     faretto = mat("Faretto", "#fff2e0", 0.5, emis=14.0)
     for k in range(12):  # HD: 12 faretti invece di 8
         a = 2 * math.pi * k / 12 + math.pi / 12
