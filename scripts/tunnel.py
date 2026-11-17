@@ -304,8 +304,6 @@ def costruisci(dati, cartella):
     m_cem = mat("Esterno_Cemento", "#d9dce1", None, 0.9)
     m_tetto = mat("Esterno_Tettoia", "#585d66", None, 0.7)
     m_testo = mat("Esterno_Testo", dati["colori"]["dettagli"], None, 0.6)
-    m_testo_b = mat("Tunnel_TestoBianco", "#ffffff", None, 0.5)
-    m_cartello = mat("Tunnel_Cartello", "#101418", None, 0.5)  # HD: fondo dei cartelli dentro il tunnel
     hw = W / 2
     # ---- interno del tunnel
     R.parete(m_pav, -hw, hw, 0.0, L, 0.0, 0.0, (0, 0, 1), mx=0.8, uvs=(3.2, 3.2))
@@ -316,16 +314,7 @@ def costruisci(dati, cartella):
         R.parete(m_blu, x, x, 0.0, L, 0.0, 1.05, (nx, 0, 0), mx=0.8)
         R.parete(m_filo, x, x, 0.0, L, 1.05, 1.12, (nx, 0, 0), mx=1.0)
         R.parete(m_alto, x, x, 0.0, L, 1.12, H, (nx, 0, 0), mx=0.8)
-        # HD: cartelli neutri a meta tunnel (niente marchi): SPOGLIATOIO verso la sala, CAMPO verso la bocca
-        for (u_cart, txt) in ((L * 0.45, "SPOGLIATOIO"), (L * 0.75, "CAMPO")):
-            R.parete(m_cartello, x, x, u_cart - 1.1, u_cart + 1.1, 1.55, 1.95, (nx, 0, 0), mx=0.6)
-    for (u_cart, txt) in ((L * 0.45, "SPOGLIATOIO"), (L * 0.75, "CAMPO")):
-        # NOTA: una mesh per parete (non condivisa): _piano crea il layer Col sulla mesh,
-        # riusarla per due oggetti speculari dava sfarfallio / facce sparite
-        for sg, nx in ((-1, 1), (1, -1)):
-            me = maglia._mesh_testo(txt, 0.22, 2.0, bold=0.012, passo=1.0)
-            _piano(me, (math.pi / 2 if sg < 0 else -math.pi / 2, 0.0, math.pi / 2 if sg > 0 else 0.0),
-                   tuple(w((sg * (hw - 0.02), u_cart, 1.75))), m_testo_b, "Cartello_%s_%d" % (txt, sg))
+    # NOTA 17/11: cartelli interni SPOGLIATOIO/CAMPO rimossi dopo 2 tentativi (sfarfallio nel sito) - pareti lisce
     # parete di fondo (u = 0) con il varco della porta; la porta e' PORTA_W x PORTA_H
     pw, ph = sala.PORTA_W / 2, sala.PORTA_H
     for (xa, xb) in ((-hw, -pw), (pw, hw)):
