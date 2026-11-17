@@ -42,6 +42,7 @@ def phi_slot(j):
 
 
 WEB = False           # True = materiali e mesh adatti a glTF (sito)
+LOD = False           # True = versione leggera per telefoni (sala_bassa.glb)
 OUT_TEX = "."
 FPS = 30
 ESEMPLARI = {}
@@ -190,12 +191,12 @@ def box(nome, size, loc, m, parent, bevel=0.006, seg=2, rot=None, subdiv=0):
     if bevel:
         bv = ob.modifiers.new("Smusso", "BEVEL")
         bv.width = bevel
-        bv.segments = seg
+        bv.segments = 1 if LOD else seg
         bv.limit_method = "ANGLE"
     if subdiv:
         sd = ob.modifiers.new("Subdiv", "SUBSURF")
-        sd.levels = subdiv
-        sd.render_levels = subdiv
+        sd.levels = max(0, subdiv - 1) if LOD else subdiv
+        sd.render_levels = sd.levels
     return ob
 
 
@@ -682,11 +683,12 @@ def esporta_web(out, dati, lista):
     sc = bpy.context.scene
     sc.frame_start, sc.frame_end = 1, 60
     sc.render.fps = FPS
-    glb = os.path.join(out, "sala.glb")
+    glb = os.path.join(out, "sala_bassa.glb" if LOD else "sala.glb")
     bpy.ops.export_scene.gltf(
         filepath=glb, export_format="GLB", export_apply=True, export_yup=True,
         export_animations=False, export_extras=True,
-        export_cameras=False, export_lights=False, export_materials="EXPORT")
+        export_cameras=False, export_lights=False, export_materials="EXPORT",
+        export_meshopt_compression_enable=True)
     man = {
         "squadra": dati["nome"], "stagione": dati["stagione"], "colori": dati["colori"],
         "reparti": [r["nome"] for r in dati["reparti"]],
@@ -707,7 +709,8 @@ def esporta_web(out, dati, lista):
             "altezza_gancio": maglia.ALTEZZA_GANCIO,
         },
     }
-    json.dump(man, open(os.path.join(out, "sala.json"), "w", encoding="utf-8"), ensure_ascii=False, indent=1)
+    if not LOD:
+        json.dump(man, open(os.path.join(out, "sala.json"), "w", encoding="utf-8"), ensure_ascii=False, indent=1)
     print("WEB_OK", glb, os.path.getsize(glb))
 
 
@@ -725,8 +728,11 @@ if __name__ == "__main__":
     sc = bpy.context.scene
     if modo == "web":
         WEB = True
+        LOD = "lod" in argv[1:]
         OUT_TEX = out
-        maglia.PASSO_TESTO = 0.014
+        maglia.PASSO_TESTO = 0.030 if LOD else 0.014
+        if LOD:
+            maglia.STEP = 0.017          # maglia con triangoli di 1,7 cm invece di 1 cm: circa un terzo
         lista = costruisci_sala(dati)
         unisci_statico()
         esporta_web(out, dati, lista)

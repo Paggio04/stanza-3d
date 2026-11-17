@@ -95,8 +95,9 @@ def _hem_z(x):
             + 0.009 * np.sin(2 * math.pi * np.asarray(x) / 0.53 * 1.3 + 0.5) * env)
 
 
-def _seg(p0, p1, n=None, step=STEP):
+def _seg(p0, p1, n=None, step=None):
     """Punti da p0 a p1 (p1 escluso). Stessi argomenti = stessi punti."""
+    step = step or STEP
     L = math.hypot(p1[0] - p0[0], p1[1] - p0[1])
     n = n or max(1, int(round(L / step)))
     return [(p0[0] + (p1[0] - p0[0]) * k / n, p0[1] + (p1[1] - p0[1]) * k / n)
@@ -316,9 +317,10 @@ def _dentro(poly, P):
     return ins
 
 
-def riempi(poly, step=STEP, bbox=None):
+def riempi(poly, step=None, bbox=None):
     """Triangola un poligono (lista di (x,z)) con punti interni a reticolo
     esagonale. Ritorna (punti Nx2, triangoli Mx3)."""
+    step = step or STEP
     poly = np.asarray(poly, float)
     n = len(poly)
     dense = []

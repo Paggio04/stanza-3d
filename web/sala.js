@@ -11,7 +11,8 @@
  *
  * Uso nel sito:
  *   import { avviaSala } from './sala.js';
- *   const sala = await avviaSala(document.getElementById('sala'), { glb: 'sala.glb', dati: 'sala.json', qualita: 'auto' });
+ *   const sala = await avviaSala(document.getElementById('sala'), { glb: 'sala.glb', glbBassa: 'sala_bassa.glb', dati: 'sala.json', qualita: 'auto',
+ *     tunnel: 'tunnel.glb', percorso: 'tunnel.json' });   // tunnel e percorso: facoltativi
  *   // qualita: 'alta' (ombre + occlusione ambientale), 'bassa' (telefoni) o 'auto'.
  *   sala.seleziona(10); sala.filtra('DIFENSORI'); sala.torna(); sala.distruggi();
  * Three.js va risolto dal bundler (o da un importmap): 'three' e 'three/addons/'.
@@ -24,6 +25,7 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { SAOPass } from 'three/addons/postprocessing/SAOPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { Reflector } from 'three/addons/objects/Reflector.js';
+import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 
 const RIDUCI = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
@@ -88,10 +90,12 @@ export async function avviaSala(host, opz = {}) {
     <div class="carico">Carico la sala…</div>`;
   const q = (s) => host.querySelector(s);
 
+  const debole = window.matchMedia('(pointer: coarse)').matches || (navigator.hardwareConcurrency || 8) <= 4;
+  const alta = opz.qualita === 'alta' || ((opz.qualita || 'auto') === 'auto' && !debole);
   const dati = await (await fetch(urlDati)).json();
-  const caricatore = new GLTFLoader();
+  const caricatore = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
   const [gltf, tunnelGltf, tunnelDati] = await Promise.all([
-    caricatore.loadAsync(urlGlb),
+    caricatore.loadAsync(!alta && opz.glbBassa ? opz.glbBassa : urlGlb),
     opz.tunnel ? caricatore.loadAsync(opz.tunnel).catch((e) => { console.warn('tunnel non caricato', e); return null; }) : null,
     opz.tunnel ? fetch(opz.percorso || 'tunnel.json').then((r) => r.json()).catch(() => null) : null,
   ]);
@@ -107,8 +111,6 @@ export async function avviaSala(host, opz = {}) {
   scena.background = new THREE.Color(0x9aa0a6);
   const pm = new THREE.PMREMGenerator(renderer);
   scena.environment = pm.fromScene(new RoomEnvironment(), 0.04).texture;
-  const debole = window.matchMedia('(pointer: coarse)').matches || (navigator.hardwareConcurrency || 8) <= 4;
-  const alta = opz.qualita === 'alta' || ((opz.qualita || 'auto') === 'auto' && !debole);
   scena.environmentIntensity = alta ? 0.28 : 0.8;
   // luce dal centro del soffitto: la sala e' circolare, ogni armadietto la riceve dalla stessa parte
   const centro = new THREE.PointLight(0xfff3e6, alta ? 22 : 0, 16, 1.8);
@@ -210,11 +212,20 @@ export async function avviaSala(host, opz = {}) {
   };
   const maglie = new Map();
   for (const g of dati.giocatori) {
-    const nodo = gltf.scene.getObjectByName(g.maglia);
+    // `corpo` e' la mesh della maglia (con le scritte e la gruccia come figli); `nodo` e' il gruppo che la porta
+    // (posa, molle) e `gira` quello che ruota col trascinamento: tutto il corpo, non solo i figli.
+    const corpo = gltf.scene.getObjectByName(g.maglia);
+    const nodo = new THREE.Group();
+    nodo.name = g.maglia + '_posa';
+    nodo.position.copy(corpo.position);
+    nodo.quaternion.copy(corpo.quaternion);
+    nodo.scale.copy(corpo.scale);
+    corpo.parent.add(nodo);
+    corpo.position.set(0, 0, 0); corpo.quaternion.identity(); corpo.scale.set(1, 1, 1);
     const gira = new THREE.Group();
     gira.name = 'gira';
-    [...nodo.children].forEach((c) => gira.add(c));
     nodo.add(gira);
+    gira.add(corpo);
     const mats = [];
     const meshes = [];
     gira.traverse((o) => {

@@ -26,7 +26,7 @@
   const v = Date.now();   // solo per le prove: niente cache
   if (qs.get('scroll')) document.body.classList.add('scorri');
   window.sala = await avviaSala(document.getElementById('sala'), {
-    glb: 'sala.glb?' + v, dati: 'sala.json?' + v,
+    glb: 'sala.glb?' + v, glbBassa: 'sala_bassa.glb?' + v, dati: 'sala.json?' + v,
     tunnel: 'tunnel.glb?' + v, percorso: 'tunnel.json?' + v,
     qualita: qs.get('q') || 'auto',
     video: qs.get('video') ? { src: qs.get('video') } : null,   // il video del drone, quando c'e'
