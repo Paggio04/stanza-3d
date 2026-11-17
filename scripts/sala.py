@@ -50,10 +50,10 @@ ESEMPLARI = {}
 
 # ------------------------------------------------------------------ materiali
 def _immagine_legno(cartella):
-    """Venatura verticale del legno, ripetibile. Salvata e incorporata nel .glb."""
+    """Venatura verticale del legno, ripetibile. Salvata e incorporata nel .glb (HD 1024)."""
     if "legno_tex" in bpy.data.images:
         return bpy.data.images["legno_tex"]
-    n = 512
+    n = 1024 # HD: 1024 invece di 512, la venatura resta leggibile in primo piano
     U, V = np.meshgrid(np.arange(n) / n, np.arange(n) / n)
     rng = np.random.default_rng(7)
 
@@ -66,7 +66,7 @@ def _immagine_legno(cartella):
         t = t * t * (3 - 2 * t)
         return peso * (val[i0] * (1 - t) + val[(i0 + 1) % nodi] * t)
 
-    grana = fibra(14, 0.40, 1) + fibra(60, 0.35, 2) + fibra(230, 0.20, 3) + 0.05 * rng.random((n, n))
+    grana = fibra(28, 0.34, 1) + fibra(120, 0.30, 2) + fibra(460, 0.18, 3) + fibra(60, 0.18, 5) + 0.05 * rng.random((n, n))
     grana = np.clip((grana - grana.min()) / (grana.max() - grana.min()), 0, 1)
     scuro = np.array([0.27, 0.125, 0.052])
     chiaro = np.array([0.56, 0.30, 0.125])
@@ -342,6 +342,9 @@ def baia(i, g, col_maglia, dettagli, scritte_col, base_m, phi, _non_usato):
     prisma("GuanciaDx", [(hw, 0.0), (hw, 0.56), (hw - 0.075, 0.56), (hw - 0.17, 0.0)],
            0.46, 2.12, legno, em, chiave="gdx")
     box("Pannello", (w, 0.52, 0.88), (0, 0.26, 2.56), legno, em, 0.006)
+    fuga = mat("Fuga", "#1c1410", 0.9)  # HD: fuga scura 2 mm fra i pannelli, non sembra piu un blocco unico
+    box("FugaSx", (0.002, 0.52, 0.88), (-w / 2 + 0.001, 0.26, 2.56), fuga, em, 0)
+    box("FugaDx", (0.002, 0.52, 0.88), (w / 2 - 0.001, 0.26, 2.56), fuga, em, 0)
     # nicchia nera
     box("NicchiaFondo", (w - 0.26, 0.02, 1.08), (0, 0.02, 1.60), nero, em, 0)
     box("NicchiaSopra", (w - 0.26, 0.40, 0.02), (0, 0.22, 2.13), nero, em, 0)
@@ -577,26 +580,40 @@ def costruisci_sala(dati):
     ris = [g for g in gioc if not g["titolare"]]
     assert len(tit) == len(SLOT_TITOLARI) and len(ris) == len(SLOT_RISERVE), "rosa diversa da 11 + 9"
     # pavimento lucido con lo stemma (segnaposto: scudo nel colore della squadra con bordo bianco)
-    pav = mat("Pavimento", "#cdd0d5", 0.07, bump="pavimento")
+    pav = mat("Pavimento", "#cdd0d5", 0.07, bump="pavimento HD")
     anello("Pavimento", 0.0001, RAGGIO + 0.3, 0.0, pav)
-    scudo_pavimento("StemmaBordo", STEMMA_K * 0.95, 0.003, mat("StemmaBordo", "#f4f4f4", 0.12))
-    scudo_pavimento("StemmaCampo", STEMMA_K * 0.86, 0.0042, mat("StemmaCampo", dettagli, 0.12))
+    scudo_pavimento("StemmaBordo", STEMMA_K * 0.95, 0.008, mat("StemmaBordo", "#f4f4f4", 0.10))  # HD: bordo rialzato 8 mm, piu lucido
+    scudo_pavimento("StemmaCampo", STEMMA_K * 0.86, 0.011, mat("StemmaCampo", dettagli, 0.10))   # HD: campo rialzato 11 mm
     tp = maglia._mesh_testo("STEMMA", 0.42, 1.9, bold=0.02, passo=(1.0 if WEB else 0.005))
     to = bpy.data.objects.new("StemmaTesto", tp)
     bpy.context.scene.collection.objects.link(to)
-    to.location = (0.0, 0.3, 0.0065)
+    to.location = (0.0, 0.3, 0.012)  # HD: sopra il campo rialzato
     to.data.materials.append(mat("TestoBianco", "#ffffff", 0.5))
-    # pareti (con il varco della porta), soffitto con anello centrale rialzato
+    # pareti (con il varco della porta), soffitto con anello centrale rialzato e pannelli luminosi a trapezi separati
     hw = math.asin((PORTA_W / 2) / (RAGGIO + 0.02))
     cilindro_parete("Parete", RAGGIO + 0.02, 0.0, ALTEZZA, mat("Parete", "#f1f1f2", 0.7),
                     segm=126, buco=(math.pi, hw, PORTA_H))
     R_C, Z_C = 2.0, 0.24
-    anello("Soffitto", R_C, RAGGIO + 0.3, ALTEZZA, mat("Soffitto", "#ffffff", 0.5, emis=1.2))
+    anello("Soffitto", R_C, RAGGIO + 0.3, ALTEZZA, mat("Soffitto", "#ffffff", 0.5, emis=0.85))  # HD: anello meno abbagliante dei trapezi
     anello("SoffittoCentro", 0.0001, R_C, ALTEZZA + Z_C, mat("SoffittoC", "#fff6ee", 0.5, emis=0.65))
     cilindro_parete("Tamburo", R_C, ALTEZZA, ALTEZZA + Z_C, mat("Tamburo", "#f4f1ec", 0.6, emis=0.35))
+    # HD: 21 trapezi luminosi separati fra le travi (prima una fascia unica), con gradiente centro-bordo
+    m_trap_c = mat("TrapezioC", "#fffdf8", 0.5, emis=1.2)
+    m_trap_b = mat("TrapezioB", "#f2ede6", 0.5, emis=0.8)
+    for j in range(N_SLOT):
+        pp = phi_slot(j) + PASSO / 2
+        em = bpy.data.objects.new("Trapezio%d" % j, None)
+        bpy.context.scene.collection.objects.link(em)
+        em.rotation_euler = (0, 0, math.pi / 2 - pp)
+        Lc = R_C + 0.10
+        Lb = RAGGIO + 0.05 - R_C - 0.20
+        poly_c = [(Lc, -0.055), (Lc, 0.055), (Lc + Lb / 2, 0.075), (Lc + Lb / 2, -0.075)]
+        poly_b = [(Lc + Lb / 2, -0.075), (Lc + Lb / 2, 0.075), (Lc + Lb, 0.10), (Lc + Lb, -0.10)]
+        prisma("TrapC", poly_c, ALTEZZA - 0.005, ALTEZZA, m_trap_c, em, bevel=0.002, chiave="TrapC%d" % j)
+        prisma("TrapB", poly_b, ALTEZZA - 0.005, ALTEZZA, m_trap_b, em, bevel=0.002, chiave="TrapB%d" % j)
     faretto = mat("Faretto", "#fff2e0", 0.5, emis=14.0)
-    for k in range(8):
-        a = 2 * math.pi * k / 8 + math.pi / 8
+    for k in range(12):  # HD: 12 faretti invece di 8
+        a = 2 * math.pi * k / 12 + math.pi / 12
         cilindro("Faretto%d" % k, 0.07, 0.01, (1.2 * math.cos(a), 1.2 * math.sin(a), ALTEZZA + Z_C - 0.01), faretto, None, bevel=0)
     trave = mat("Trave", "#2b2320", 0.5)
     for j in range(N_SLOT):

@@ -64,7 +64,7 @@ def _lin(h):
     return np.array([int(h[i:i + 2], 16) / 255.0 for i in (0, 2, 4)])
 
 
-def tex_erba(cartella, n=512):
+def tex_erba(cartella, n=1024):  # HD: 1024 invece di 512
     rng = np.random.default_rng(3)
     V = np.arange(n)[:, None] / n
     fascia = (np.floor(V * 2.0) % 2)                     # 2 strisce per tile (4 m)
@@ -75,7 +75,7 @@ def tex_erba(cartella, n=512):
     return _img("erba", np.clip(base * fine * zolle, 0, 1), cartella)
 
 
-def tex_spalti(cartella, w_=512, h_=256):
+def tex_spalti(cartella, w_=1024, h_=512):  # HD: 1024x512 invece di 512x256
     rng = np.random.default_rng(5)
     blu, chiaro, bianco = _lin("#1d3f96"), _lin("#3566c9"), _lin("#e9edf3")
     img = np.zeros((h_, w_, 3)) + _lin("#14161a")
@@ -305,6 +305,7 @@ def costruisci(dati, cartella):
     m_tetto = mat("Esterno_Tettoia", "#585d66", None, 0.7)
     m_testo = mat("Esterno_Testo", dati["colori"]["dettagli"], None, 0.6)
     m_testo_b = mat("Tunnel_TestoBianco", "#ffffff", None, 0.5)
+    m_cartello = mat("Tunnel_Cartello", "#101418", None, 0.5)  # HD: fondo dei cartelli dentro il tunnel
     hw = W / 2
     # ---- interno del tunnel
     R.parete(m_pav, -hw, hw, 0.0, L, 0.0, 0.0, (0, 0, 1), mx=0.8, uvs=(3.2, 3.2))
@@ -315,6 +316,14 @@ def costruisci(dati, cartella):
         R.parete(m_blu, x, x, 0.0, L, 0.0, 1.05, (nx, 0, 0), mx=0.8)
         R.parete(m_filo, x, x, 0.0, L, 1.05, 1.12, (nx, 0, 0), mx=1.0)
         R.parete(m_alto, x, x, 0.0, L, 1.12, H, (nx, 0, 0), mx=0.8)
+        # HD: cartelli neutri a meta tunnel (niente marchi): SPOGLIATOIO verso la sala, CAMPO verso la bocca
+        for (u_cart, txt) in ((L * 0.45, "SPOGLIATOIO"), (L * 0.75, "CAMPO")):
+            R.parete(m_cartello, x, x, u_cart - 1.1, u_cart + 1.1, 1.55, 1.95, (nx, 0, 0), mx=0.6)
+    for (u_cart, txt) in ((L * 0.45, "SPOGLIATOIO"), (L * 0.75, "CAMPO")):
+        me = maglia._mesh_testo(txt, 0.22, 2.0, bold=0.012, passo=1.0)
+        for sg, nx in ((-1, 1), (1, -1)):
+            _piano(me, (math.pi / 2 if sg < 0 else -math.pi / 2, 0.0, math.pi / 2 if sg > 0 else 0.0),
+                   tuple(w((sg * (hw - 0.02), u_cart, 1.75))), m_testo_b, "Cartello_%s_%d" % (txt, sg))
     # parete di fondo (u = 0) con il varco della porta; la porta e' PORTA_W x PORTA_H
     pw, ph = sala.PORTA_W / 2, sala.PORTA_H
     for (xa, xb) in ((-hw, -pw), (pw, hw)):
@@ -417,7 +426,7 @@ if __name__ == "__main__":
     bpy.ops.export_scene.gltf(
         filepath=glb, export_format="GLB", export_apply=True, export_yup=True, export_animations=False,
         export_cameras=False, export_lights=False, export_materials="EXPORT", export_vertex_color="ACTIVE",
-        export_image_format="JPEG", export_image_quality=82)
+        export_image_format="JPEG", export_image_quality=90)  # HD: 90 invece di 82
     man = {"u0": T0, "larghezza": W, "altezza": H, "lunghezza": L,
            "bocca": {"z": T0 + L}, "percorso": percorso(),
            "passo": 0.75, "ampiezza_bob": 0.014}
