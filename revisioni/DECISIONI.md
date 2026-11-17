@@ -67,7 +67,7 @@ Restano tutte le animazioni del video, portate nella sala circolare. Si costruis
 | v03b | Lo stesso armadietto, con la maglia costruita da `scripts/maglia.py` (v03.md) | Superato: la sala intera è già fatta (`scripts/sala.py`) |
 | v04 | La sala circolare: 20 armadietti, soffitto, pavimento con stemma, luci, render 16:9 e 9:16 | Prima versione fatta (`scripts/sala.py`); da rifinire |
 | v05 | Tunnel e percorso della camera: video 16:9 e 9:16 | Dopo |
-| v06 | Esportazione per il sito (.glb leggeri, texture) | Prima versione fatta (`web/sala.glb`, 7 MB) |
+| v06 | Esportazione per il sito (.glb leggeri, texture) | Prima versione fatta (`web/sala.glb`, 8 MB) |
 | v07 | Pagina interattiva nel sito (Three.js), dati dalla rosa | Prima versione fatta (`web/sala.js`); da collaudare sul sito |
 
 ## Regole fisse

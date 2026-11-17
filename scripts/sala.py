@@ -54,8 +54,8 @@ def _immagine_legno(cartella):
 
     grana = fibra(14, 0.40, 1) + fibra(60, 0.35, 2) + fibra(230, 0.20, 3) + 0.05 * rng.random((n, n))
     grana = np.clip((grana - grana.min()) / (grana.max() - grana.min()), 0, 1)
-    scuro = np.array([0.20, 0.105, 0.05])
-    chiaro = np.array([0.40, 0.235, 0.12])
+    scuro = np.array([0.17, 0.09, 0.045])
+    chiaro = np.array([0.36, 0.205, 0.10])
     rgb = scuro[None, None, :] * (1 - grana[..., None]) + chiaro[None, None, :] * grana[..., None]
     rgba = np.concatenate([rgb, np.ones((n, n, 1))], axis=2).astype(np.float32)
     img = bpy.data.images.new("legno_tex", n, n, alpha=False)
@@ -236,7 +236,7 @@ def baia(i, g, col_maglia, dettagli, scritte_col, base_m, phi, _non_usato):
     em.location = P
     em.rotation_euler = (0, 0, alpha)
 
-    legno = mat("Legno", "#7a4a26", 0.42, bump="legno")
+    legno = mat("Legno", "#6a3d1e", 0.36, bump="legno")
     legno_s = mat("LegnoScuro", "#4a2c16", 0.5, bump="legno")
     nero = mat("Nicchia", "#0a0a0b", 0.85)
     bianco = mat("BiancoLucido", "#f3f3f4", 0.28)
@@ -245,7 +245,7 @@ def baia(i, g, col_maglia, dettagli, scritte_col, base_m, phi, _non_usato):
     testo = mat("TestoBianco", "#ffffff", 0.5)
     foto = mat("Foto", "#9aa0a6", 0.8)
     cromo = mat("Cromo", "#c9ccd0", 0.15, metal=1.0)
-    led = mat("LED", "#ffcf8a", 0.5, emis=6.0)
+    led = mat("LED", "#eaf4ff", 0.5, emis=5.0)
     w = BAIA_W
 
     # zoccolo e vano scarpe
@@ -256,7 +256,8 @@ def baia(i, g, col_maglia, dettagli, scritte_col, base_m, phi, _non_usato):
     box("Piano", (w, 0.56, 0.06), (0, 0.28, 0.43), legno, em, 0.006)
     box("Led", (w - 0.20, 0.012, 0.012), (0, 0.46, 0.395), led, em, 0)
     # scarpe (suola chiara + tomaia scura, smussate)
-    scarpa_t = mat("Scarpa", "#18191c", 0.55)
+    accenti = ["#d9ea3c", "#2f6bd6", "#f2f2f2", "#e8742c", "#18191c", "#e23b3b"]
+    scarpa_t = mat("Scarpa_" + accenti[i % 6], accenti[i % 6], 0.5)
     suola = mat("Suola", "#e8e8e8", 0.6)
     for sgn in (-1.0, 1.0):
         x = sgn * 0.20
@@ -269,11 +270,12 @@ def baia(i, g, col_maglia, dettagli, scritte_col, base_m, phi, _non_usato):
     col_a, col_b = _hex(col_maglia), _hex(dettagli)
     m_a = mat("Kit_maglia_" + col_maglia, col_maglia, 0.7)
     m_b = mat("Kit_dett_" + dettagli, dettagli, 0.7)
-    m_n = mat("Kit_nero", "#1a1a1d", 0.7)
+    m_n = mat("Kit_nero", "#17181b", 0.7)
     rj = ((i * 37) % 7 - 3) * 0.012
     box("Kit1", (0.34, 0.27, 0.035), (-0.08, 0.30, 0.595), m_n, em, 0.012, 3, rot=(0, 0, rj), subdiv=1)
     box("Kit2", (0.32, 0.25, 0.035), (-0.07, 0.30, 0.63), m_b, em, 0.012, 3, rot=(0, 0, -rj), subdiv=1)
-    box("Kit3", (0.30, 0.24, 0.035), (-0.075, 0.30, 0.665), m_a, em, 0.012, 3, rot=(0, 0, rj * 0.5), subdiv=1)
+    box("Kit3", (0.30, 0.24, 0.035), (-0.075, 0.30, 0.665), m_n, em, 0.012, 3, rot=(0, 0, rj * 0.5), subdiv=1)
+    box("Calze", (0.16, 0.07, 0.04), (0.20, 0.34, 0.60), m_a, em, 0.015, 3, rot=(0, 0, 0.4 + rj), subdiv=1)
     bott = mat("Borraccia", "#9cc4e4", 0.2)
     cilindro("Borraccia", 0.032, 0.20, (-(w / 2 - 0.12), 0.20, 0.68), bott, em)
     cilindro("Tappo", 0.022, 0.03, (-(w / 2 - 0.12), 0.20, 0.795), mat("Tappo", "#2a2a2e", 0.5), em)
@@ -287,7 +289,9 @@ def baia(i, g, col_maglia, dettagli, scritte_col, base_m, phi, _non_usato):
     # cornice e foto
     box("Cornice", (0.34, 0.03, 0.44), (0, 0.535, 2.40), bianco, em, 0.004)
     box("Foto", (0.30, 0.012, 0.40), (0, 0.553, 2.40), foto, em, 0)
-    testo_piano("FOTO", 0.05, 0.22, testo, (0, 0.562, 2.40), em, 0.002)
+    silh = mat("Sagoma", "#68707a", 0.7)
+    cilindro("Testa", 0.050, 0.004, (0, 0.5585, 2.445), silh, em, rot=(math.pi / 2, 0, 0), bevel=0)
+    box("Spalle", (0.22, 0.004, 0.10), (0, 0.5585, 2.255), silh, em, 0.04, 4)
     # targa col nome
     box("Targa", (0.70, 0.03, 0.15), (0, 0.51, 2.76), targa, em, 0.006)
     testo_piano(g["nome"].upper(), 0.06, 0.60, testo, (0, 0.528, 2.76), em, 0.003)
@@ -302,7 +306,7 @@ def baia(i, g, col_maglia, dettagli, scritte_col, base_m, phi, _non_usato):
                               col_maglia, dettagli, scritte_col, coll=None, con_scudo=True)
         sh, gr = m.shirt, m.gruccia
         if WEB:
-            maglia.prepara_web(sh, col_maglia, dettagli)
+            maglia.prepara_web(sh, col_maglia, dettagli, OUT_TEX)
             gr = m.gruccia = _gruccia_mesh(m.gruccia)
         ESEMPLARI[key] = m
     else:
@@ -480,13 +484,13 @@ def costruisci_sala(dati):
         a = 2 * math.pi * k / 8
         cilindro("Faretto%d" % k, 0.07, 0.01, (1.0 * math.cos(a), 1.0 * math.sin(a), ALTEZZA - 0.03), faretto, None, bevel=0)
     trave = mat("Trave", "#202226", 0.5)
-    for k in range(10):
-        a = 2 * math.pi * k / 10 + math.pi / 10
+    for k in range(N_BAIE):
+        a = math.pi / 2 - ((k - 5) * 2 * math.pi / N_BAIE + math.pi / N_BAIE)
         em = bpy.data.objects.new("Trave%d" % k, None)
         bpy.context.scene.collection.objects.link(em)
         em.rotation_euler = (0, 0, a)
         L = RAGGIO - 1.5
-        box("Tr", (L + 0.05, 0.14, 0.14), (1.5 + L / 2, 0, ALTEZZA - 0.07), trave, em, 0.008)
+        box("Tr", (L + 0.05, 0.09, 0.15), (1.5 + L / 2, 0, ALTEZZA - 0.075), trave, em, 0.006)
     anello("AnelloCentro", 1.42, 1.54, ALTEZZA - 0.04, trave)
     # armadietti: titolari nell'arco davanti alla camera, riserve nel resto del cerchio
     for k, g in enumerate(gioc):

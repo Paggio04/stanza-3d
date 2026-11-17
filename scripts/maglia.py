@@ -43,18 +43,18 @@ NECK_X = 0.095                            # mezza apertura del collo
 NECK_Z = -NECK_X * TAN12
 SH_X = 0.230                              # punto spalla
 SH_Z = -SH_X * TAN12
-NECK_DROP_F = 0.150                       # scollo davanti: a V (>= 0,10 = V, altrimenti girocollo)
+NECK_DROP_F = 0.135                       # scollo davanti: a V (>= 0,10 = V, altrimenti girocollo)
 NECK_DROP_B = 0.030                       # scollo dietro: tondo
 SLEEVE_LEN = 0.20
-SLEEVE_ANG = math.radians(38.0)           # manica sotto l'orizzontale
-CUFF_W = 0.18                             # larghezza del polsino da piatto
+SLEEVE_ANG = math.radians(46.0)           # manica sotto l'orizzontale
+CUFF_W = 0.135                            # larghezza del polsino da piatto
 ARMPIT = (0.262, -0.270)                  # ascella
 HEM_Z = -0.74
 HEM_X = 0.275
 STEP = 0.010                              # lato dei triangoli (1 cm)
 ALTEZZA_GANCIO = 0.060                    # asse asta sopra l'origine
 RAGGIO_ASTA = 0.0125
-COLL_W = 0.030                            # altezza del bordo del colletto
+COLL_W = 0.036                            # altezza del bordo del colletto
 CUFF_RIB = 0.030                          # altezza costine polsino
 POLSINI = False                           # True = polsini a costine nel colore dettagli
 
@@ -696,7 +696,35 @@ def duplica(base, nome, nome_giocatore, numero, colore_scritte, coll=None, mater
 
 
 # ------------------------------------------------------------------ per il sito
-def prepara_web(shirt, colore, dettagli):
+def _immagine_trama(cartella):
+    """Normal map di un jersey (maglie in fila di punti a V), ripetibile."""
+    if "trama_jersey" in bpy.data.images:
+        return bpy.data.images["trama_jersey"]
+    n = 512
+    U, V = np.meshgrid(np.arange(n) / n, np.arange(n) / n)
+    col, riga = 24, 24
+    cu, cv = U * col, V * riga
+    fu = cu - np.floor(cu)
+    h = np.sin(2 * math.pi * (cv + 0.9 * np.abs(fu - 0.5))) * 0.5 + 0.5
+    h = h * (0.55 + 0.45 * np.cos(math.pi * (fu - 0.5)))
+    gy, gx = np.gradient(h)
+    k = 6.0
+    nx, ny = -gx * k * 25, -gy * k * 25
+    nz = np.ones_like(nx)
+    ln = np.sqrt(nx * nx + ny * ny + nz * nz)
+    rgb = np.stack([nx / ln, ny / ln, nz / ln], 2) * 0.5 + 0.5
+    rgba = np.concatenate([rgb, np.ones((n, n, 1))], axis=2).astype(np.float32)
+    img = bpy.data.images.new("trama_jersey", n, n, alpha=False)
+    img.colorspace_settings.name = "Non-Color"
+    img.pixels.foreach_set(rgba[::-1].ravel())
+    img.filepath_raw = os.path.join(cartella, "trama.png")
+    img.file_format = "PNG"
+    img.save()
+    img.pack()
+    return img
+
+
+def prepara_web(shirt, colore, dettagli, cartella="."):
     """Versione leggera per glTF: niente modificatori (la mesh e' gia' fitta),
     colore del bordo del colletto a vertici, materiale semplice, doppia faccia."""
     me = shirt.data
@@ -714,6 +742,10 @@ def prepara_web(shirt, colore, dettagli):
     for nm in ("rib", "dseam", "dhem"):
         if nm in me.attributes:
             me.attributes.remove(me.attributes[nm])
+    uvl = me.uv_layers.new(name="UVMap")
+    for lp in me.loops:
+        v = me.vertices[lp.vertex_index].co
+        uvl.data[lp.index].uv = (v.x * 10.0, v.z * 10.0)       # una trama ogni 10 cm
     nm = "W_Maglia_" + colore.lstrip("#") + dettagli.lstrip("#")
     m = bpy.data.materials.get(nm)
     if m is None:
@@ -724,7 +756,13 @@ def prepara_web(shirt, colore, dettagli):
         ca = nt.nodes.new("ShaderNodeVertexColor")
         ca.layer_name = "Col"
         nt.links.new(ca.outputs["Color"], pb.inputs["Base Color"])
-        pb.inputs["Roughness"].default_value = 0.55
+        it = nt.nodes.new("ShaderNodeTexImage")
+        it.image = _immagine_trama(cartella)
+        nm_ = nt.nodes.new("ShaderNodeNormalMap")
+        nm_.inputs["Strength"].default_value = 0.09
+        nt.links.new(it.outputs["Color"], nm_.inputs["Color"])
+        nt.links.new(nm_.outputs["Normal"], pb.inputs["Normal"])
+        pb.inputs["Roughness"].default_value = 0.5
         if "Sheen Weight" in pb.inputs:
             pb.inputs["Sheen Weight"].default_value = 0.4
         m.use_backface_culling = False

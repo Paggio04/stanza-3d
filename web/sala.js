@@ -11,13 +11,18 @@
  *
  * Uso nel sito:
  *   import { avviaSala } from './sala.js';
- *   const sala = await avviaSala(document.getElementById('sala'), { glb: 'sala.glb', dati: 'sala.json' });
+ *   const sala = await avviaSala(document.getElementById('sala'), { glb: 'sala.glb', dati: 'sala.json', qualita: 'auto' });
+ *   // qualita: 'alta' (ombre + occlusione ambientale), 'bassa' (telefoni) o 'auto'.
  *   sala.seleziona(10); sala.filtra('DIFENSORI'); sala.torna(); sala.distruggi();
  * Three.js va risolto dal bundler (o da un importmap): 'three' e 'three/addons/'.
  */
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { SAOPass } from 'three/addons/postprocessing/SAOPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
 const RIDUCI = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
@@ -82,18 +87,53 @@ export async function avviaSala(host, opz = {}) {
   const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 0.85;
+  renderer.toneMappingExposure = 0.7;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   host.insertBefore(renderer.domElement, host.firstChild);
   const scena = new THREE.Scene();
-  scena.background = new THREE.Color(0xe9ebee);
+  scena.background = new THREE.Color(0x9aa0a6);
   const pm = new THREE.PMREMGenerator(renderer);
   scena.environment = pm.fromScene(new RoomEnvironment(), 0.04).texture;
-  const luce = new THREE.DirectionalLight(0xffffff, 1.1);
-  luce.position.set(0, 6, 8);
-  scena.add(luce, new THREE.HemisphereLight(0xffffff, 0xcfd3d8, 0.5));
+  const debole = window.matchMedia('(pointer: coarse)').matches || (navigator.hardwareConcurrency || 8) <= 4;
+  const alta = opz.qualita === 'alta' || ((opz.qualita || 'auto') === 'auto' && !debole);
+  scena.environmentIntensity = alta ? 0.28 : 0.8;
+  // luce dal centro del soffitto: la sala e' circolare, ogni armadietto la riceve dalla stessa parte
+  const centro = new THREE.PointLight(0xfff3e6, alta ? 22 : 0, 16, 1.8);
+  centro.position.set(0, 2.8, 0);
+  if (alta) {
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    centro.castShadow = true;
+    centro.shadow.mapSize.set(2048, 2048);
+    centro.shadow.bias = -0.0008;
+    centro.shadow.normalBias = 0.03;
+    centro.shadow.radius = 4;
+  }
+  const dall = new THREE.DirectionalLight(0xffffff, alta ? 0.18 : 1.1);
+  dall.position.set(0, 6, 8);
+  scena.add(centro, dall, new THREE.HemisphereLight(0xffffff, 0xcfd3d8, alta ? 0.18 : 0.5));
   scena.add(gltf.scene);
+  const SENZA_OMBRA = /^Fisso_(Soffitto|SoffittoC|Faretto|Parete|Pavimento)/;
+  gltf.scene.traverse((o) => {
+    if (!o.isMesh) return;
+    o.castShadow = alta && !SENZA_OMBRA.test(o.name);
+    o.receiveShadow = alta;
+  });
   const cam = new THREE.PerspectiveCamera(80, 16 / 9, 0.1, 60);
+  let composer = null;
+  if (alta) {
+    composer = new EffectComposer(renderer);
+    composer.addPass(new RenderPass(scena, cam));
+    const sao = new SAOPass(scena, cam);
+    sao.params.saoBias = 0.5;
+    sao.params.saoIntensity = 0.018;
+    sao.params.saoScale = 3;
+    sao.params.saoKernelRadius = 24;
+    sao.params.saoBlurRadius = 6;
+    composer.addPass(sao);
+    composer.addPass(new OutputPass());
+  }
+  const disegna = () => (composer ? composer.render() : renderer.render(scena, cam));
 
   // ---- maglie: gruppo che gira per il trascinamento, materiali propri per scurirle
   const maglie = new Map();
@@ -110,6 +150,7 @@ export async function avviaSala(host, opz = {}) {
     gira.traverse((o) => {
       if (!o.isMesh) return;
       o.material = o.material.clone();
+      if (o.material.normalMap) o.material.normalMap.anisotropy = renderer.capabilities.getMaxAnisotropy();
       o.material.userData.base = o.material.color.clone();
       mats.push(o.material);
       meshes.push(o);
@@ -354,6 +395,7 @@ export async function avviaSala(host, opz = {}) {
   const ridim = () => {
     const w = host.clientWidth || 800, h = host.clientHeight || 450;
     renderer.setSize(w, h, false);
+    if (composer) composer.setSize(w, h);
     cam.aspect = w / h;
     const base = vista.fov;
     cam.fov = w / h < 1 ? Math.min(100, base * 1.35) : base;
@@ -380,7 +422,7 @@ export async function avviaSala(host, opz = {}) {
     const dt = Math.min(0.25, (now - ultimo) / 1000);
     ultimo = now;
     passo(now, dt);
-    renderer.render(scena, cam);
+    disegna();
   };
   applica(vista);
   ridim();
@@ -389,6 +431,6 @@ export async function avviaSala(host, opz = {}) {
   carico.style.opacity = 0;
   setTimeout(() => carico.remove(), 600);
   Object.assign(api, { THREE, scena, cam, maglie, renderer, dati, // per i collaudi: avanza di `ms` millisecondi senza aspettare il disegno
-    _avanza: (ms) => { passo(ora + ms, ms / 1000); renderer.render(scena, cam); } });
+    _avanza: (ms) => { passo(ora + ms, ms / 1000); disegna(); } });
   return api;
 }
