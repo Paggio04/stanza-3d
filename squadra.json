@@ -15,7 +15,8 @@
         1,
         2,
         3
-      ]
+      ],
+      "colore": "portieri"
     },
     {
       "nome": "DIFENSORI",
@@ -26,7 +27,8 @@
         7,
         8,
         9
-      ]
+      ],
+      "colore": "maglia"
     },
     {
       "nome": "CENTROCAMPISTI",
@@ -37,7 +39,8 @@
         13,
         14,
         15
-      ]
+      ],
+      "colore": "maglia"
     },
     {
       "nome": "ATTACCANTI",
@@ -47,109 +50,130 @@
         18,
         19,
         20
-      ]
+      ],
+      "colore": "maglia"
     }
   ],
   "giocatori": [
     {
       "numero": 1,
       "nome": "GIOCATORE 1",
-      "reparto": "PORTIERI"
+      "reparto": "PORTIERI",
+      "titolare": true
     },
     {
       "numero": 2,
       "nome": "GIOCATORE 2",
-      "reparto": "PORTIERI"
+      "reparto": "PORTIERI",
+      "titolare": false
     },
     {
       "numero": 3,
       "nome": "GIOCATORE 3",
-      "reparto": "PORTIERI"
+      "reparto": "PORTIERI",
+      "titolare": false
     },
     {
       "numero": 4,
       "nome": "GIOCATORE 4",
-      "reparto": "DIFENSORI"
+      "reparto": "DIFENSORI",
+      "titolare": true
     },
     {
       "numero": 5,
       "nome": "GIOCATORE 5",
-      "reparto": "DIFENSORI"
+      "reparto": "DIFENSORI",
+      "titolare": true
     },
     {
       "numero": 6,
       "nome": "GIOCATORE 6",
-      "reparto": "DIFENSORI"
+      "reparto": "DIFENSORI",
+      "titolare": true
     },
     {
       "numero": 7,
       "nome": "GIOCATORE 7",
-      "reparto": "DIFENSORI"
+      "reparto": "DIFENSORI",
+      "titolare": true
     },
     {
       "numero": 8,
       "nome": "GIOCATORE 8",
-      "reparto": "DIFENSORI"
+      "reparto": "DIFENSORI",
+      "titolare": false
     },
     {
       "numero": 9,
       "nome": "GIOCATORE 9",
-      "reparto": "DIFENSORI"
+      "reparto": "DIFENSORI",
+      "titolare": false
     },
     {
       "numero": 10,
       "nome": "GIOCATORE 10",
-      "reparto": "CENTROCAMPISTI"
+      "reparto": "CENTROCAMPISTI",
+      "titolare": true
     },
     {
       "numero": 11,
       "nome": "GIOCATORE 11",
-      "reparto": "CENTROCAMPISTI"
+      "reparto": "CENTROCAMPISTI",
+      "titolare": true
     },
     {
       "numero": 12,
       "nome": "GIOCATORE 12",
-      "reparto": "CENTROCAMPISTI"
+      "reparto": "CENTROCAMPISTI",
+      "titolare": true
     },
     {
       "numero": 13,
       "nome": "GIOCATORE 13",
-      "reparto": "CENTROCAMPISTI"
+      "reparto": "CENTROCAMPISTI",
+      "titolare": false
     },
     {
       "numero": 14,
       "nome": "GIOCATORE 14",
-      "reparto": "CENTROCAMPISTI"
+      "reparto": "CENTROCAMPISTI",
+      "titolare": false
     },
     {
       "numero": 15,
       "nome": "GIOCATORE 15",
-      "reparto": "CENTROCAMPISTI"
+      "reparto": "CENTROCAMPISTI",
+      "titolare": false
     },
     {
       "numero": 16,
       "nome": "GIOCATORE 16",
-      "reparto": "ATTACCANTI"
+      "reparto": "ATTACCANTI",
+      "titolare": true
     },
     {
       "numero": 17,
       "nome": "GIOCATORE 17",
-      "reparto": "ATTACCANTI"
+      "reparto": "ATTACCANTI",
+      "titolare": true
     },
     {
       "numero": 18,
       "nome": "GIOCATORE 18",
-      "reparto": "ATTACCANTI"
+      "reparto": "ATTACCANTI",
+      "titolare": true
     },
     {
       "numero": 19,
       "nome": "GIOCATORE 19",
-      "reparto": "ATTACCANTI"
+      "reparto": "ATTACCANTI",
+      "titolare": false
     },
     {
       "numero": 20,
       "nome": "GIOCATORE 20",
-      "reparto": "ATTACCANTI"
+      "reparto": "ATTACCANTI",
+      "titolare": false
     }
   ]
 }

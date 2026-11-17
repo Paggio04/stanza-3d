@@ -21,7 +21,29 @@ l'ultima revisione). Non modificare mai `revisioni/`.
 - A fine ciclo: commit con il nome del ciclo (es. `Ciclo v02`) e push
   su main.
 
-## Convenzioni scena v02 (unita in metri, Z su)
+## Convenzioni scena v03 (unita in metri, Z su) — MAGLIA NON ACCETTATA
+
+- Un armadietto (vano 0.95x2.6x0.55 legno, pilastri bianchi 12 cm),
+  targa dettagli 0.60x0.12 con nome da `squadra.json`, cornice
+  0.32x0.40 con FOTO grigia, nicchia fondo scuro 0.80x1.10, asta
+  cromo a z=1.72, seduta bianca a 0.45, kit piegato + borraccia,
+  zoccolo con 2 vani e scarpe.
+- Geometria maglia (locale): petto = +Y (scudo a x=+0.13),
+  schiena = -Y (nome alto 6 cm + numero 25 cm, max 80% schiena).
+  Contorno campionato ogni 1.5 cm, triangle_fill, lati<=2 cm,
+  saldature solo cuciture 1a1 (fondo/collo/polsi aperti),
+  pin spalla dal collo a -3 cm, gruccia dentro (bracci lungo X),
+  cloth 100 frame + subdivision 1 + solidify 2 mm.
+- Tessuto tecnico: roughness 0.5, sheen 0.3, bump maglia fine.
+  Colletto e polsini a costine colore dettagli (da rifare: tubo
+  r=6 mm lungo i bordi, non torus).
+- Luce chiara dall'alto (SUN 3.0 + riempimento 1.0 + POINT nicchia),
+  pavimento chiaro lucido. Niente AREA.
+- Render (Cycles 128, denoise): v03_prova_maglia(+lato) 800x800 32
+  campioni, v03_armadietto 1200x1800, v03_armadietto_34 1600x1200,
+  v03_maglia_retro/fronte 1080x1080. Salta i render esistenti.
+- Da rifare (vedi REGISTRO): maniche, scritte leggibili solo dietro,
+  targa/FOTO non specchiate, un solo gancio dentro le spalle.
 
 - Camera a +Y che guarda verso il muro (muro a y=0, barra a y=0.42, z=1.78).
 - Geometria maglia (locale): petto = +Y (scudo + interno colletto davanti),

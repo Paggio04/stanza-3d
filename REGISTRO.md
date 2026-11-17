@@ -1,72 +1,78 @@
-# REGISTRO.md — Ciclo v02 (la maglia vera)
+# REGISTRO.md — Ciclo v03 (un armadietto con la maglia vera) — MAGLIA NON ACCETTATA
 
-Dati: `bake_all ok, 100 frame`; scala maglia 0.836; span 10.54 m
-(oltre gli 8 m: barra piu' lunga del limite, da accorciare nel v03
-con rotazioni piu' di taglio o passo ridotto).
+Dati: bake_all ok 100f; mesh 7429V/8863F sald=157; pin spalla 120;
+alt=0.763 larg=0.776 prof=0.064 (spessore vero 6.4 cm, nel range 4-12).
 
-## v02_prova_maglia.png (800x800, 3/4, luce neutra)
+8 giri fatti, nessuno passa tutti e 5 i punti della prova maglia.
+L'armadietto non si costruisce sopra una maglia non accettata:
+fermo qui come da revisione. Script unico
+`scripts/spogliatoio.py`, dati da `squadra.json`
+(titolari 1 4 5 6 7 10 11 12 16 17 18, colori reparto maglia/portieri).
 
-Maglia bianca appesa alla gruccia, intera nel quadro.
-Pende rigida a tavoletta: fondo piatto e dritto, spalle a spigolo,
-nessuna piega naturale sotto ascelle e fondo. Il volume al petto
-(7 cm) viene dalla pressione, non dalla caduta libera. Da rifare
-nel ciclo dopo con pin solo spalle + caduta senza pressione.
+## v03_prova_maglia.png (800x800)
 
-## v02_prova_maglia_lato.png (800x800, di fianco)
+Maglia bianca intera dalla testa al fondo, in asse, pieghe verticali
+morbide, fondo curvo, bordi lisci senza denti, nessun lembo
+accartocciato. Gronde: gruccia grigia dentro le spalle con gancio che
+sale verso l'asta (ma il tubo scende troppo e buca la schiena al
+centro), colletto ad anello ma in tinta maglia (doveva essere blu
+dettagli) e troppo spesso (ciambella azzurra appoggiata sopra).
 
-Lama verticale con zona chiara frastagliata in alto (maniche e
-spalle accartocciate) e cubetto scuro incastrato (tappo interno
-collo troppo alto). Sotto, pannello unico piatto fino al fondo.
-Volume quasi zero di lato: segue le pieghe solo di nome.
+Punti: 1 si (spalle/gancio ok) — 2 problema (manica sx gonfia sul
+fianco, non scende) — 3 si (bordi lisci) — 4 si (pieghe + fondo
+curvo) — 5 no (non si giudica qui, vedi lato). NON passa.
 
-## v02_barra.png (1920x1080, prospettiva lungo la barra)
+## v03_prova_maglia_lato.png (800x800, camera a +X)
 
-Tutte e 20 le maglie visibili: portieri scuri a destra (1 2 3),
-bianche 4-20 con nomi (GIOCATORE N) e numeri blu leggibili da
-vicino sulle prime, targhe di reparto leggibili sopra i gruppi
-(PORTIERI 3, DIFENSORI 6, CENTROCAMPISTI 6, ATTACCANTI 5), striscia
-calda sopra e blu sotto. Difetti: maglie ancora di taglio (45 gradi
-dalla schiena ma schiacciate dalla prospettiva), testi piccoli da
-lontano, grucce sottili appena visibili.
+Lama bianca verticale alta il giusto, spessore misurato 6.4 cm:
+nella norma 4-12, ma solo perche' il pannello resta quasi piatto.
+Difetti bloccanti: la manica destra si piega all'indietro a 90 gradi
+e resta orizzontale (braccio spezzato); un lembo di stoffa penzola
+dalla manica fino al fianco; il busto e' girato di taglio con le
+braccia a croce invece di scendere lungo i fianchi come nella foto.
 
-## v02_reparto.png (1920x1080, frontale centrocampisti)
+Punti: 5 NO (lama da tavoletta con manica rotta, non volume vero).
 
-Vista principale del sito: le 6 maglie 10-15 riempiono la
-larghezza, numeri grandi dritti e leggibili (10 11 12 13 14 15),
-nomi sopra i numeri (GIOCATORE N, i lunghi escono dal fianco
-destro: ancorati a sinistra per restare dentro). Portieri scuri
-a destra, bianche a sinistra. Difetti: maglie piatte senza pieghe,
-nomi lunghi troncati, maniche a lembi.
+## v03_maglia_retro.png (1080x1080, da -Y)
 
-## v02_9x16.png (1080x1920, verticale difensori)
+Nome GIOCATORE 10 in alto centrato e numero 10 sotto, blu, corti
+(w=0.308, niente ritaglio) — ma illeggibili nel render: controluce,
+la stoffa resta scura con alone. Lo scudo grigio e' finito dietro.
+Numero 25 cm ok come misura, non come vista.
 
-Difensori 4-9 interi nel quadro verticale, nomi e numeri leggibili
-(6 7 8 in vista), targa DIFENSORI 6 sopra. Stessi difetti del
-reparto: piatte, nomi lunghi fuori fianco.
+Punti (scritte): no — si' solo per misura, no per leggibilita'.
 
-## v02_retro.png (1080x1080, maglia 10 da dietro)
+## v03_maglia_fronte.png (1080x1080, da +Y)
 
-Nome GIOCATORE 10 e numero 10 grandi, dritti e leggibili sulle
-pieghe (le uniche vere pieghe del ciclo, dal cloth). Maglia
-staccata su fondo grigio. Difetti: spalle a punta, fondo dritto.
+Petto bianco col scudo grigio visibile, colletto ad anello troppo in
+vista, riga di scritte del retro in trasparenza sul petto (si vede
+a specchio). Numero e nome non devono vedersi dal davanti: NO.
 
-## v02_fronte.png (1080x1080, maglia 10 davanti)
+## v03_armadietto.png (1200x1800) e v03_armadietto_34.png (1600x1200)
 
-Petto bianco con scudo grigio a sinistra di chi la indossa, righe
-blu sulle maniche, interno collo scuro visibile dallo scollo.
-Maglia intera nel quadro. Difetti: colletto a ellisse teorica
-troppo regolare, maniche a tubi, niente pieghe sul petto.
+Armadietto leggibile: vano legno chiaro, pilastri bianchi, targa blu
+con scritta (specchiata, da girare), cornice legno con FOTO grigia
+(specchiata), nicchia scura, seduta bianca, kit piegato blu/bianco,
+borraccia, scarpe nere nei vani. Maglia appesa all'asta di schiena
+ma: pende dal tubo che esce dalle spalle (la gruccia vera resta
+dentro e non si vede), scritte del retro assenti nel vano,
+colletto azzurro fuori scala. Confronto foto: manca la caduta
+naturale, gancio esile, niente spessore maniche; nel complesso
+sembra una scatola con maglietta stampata, non il riferimento.
 
-## v02_girata.png (1920x1080, reparto con 10 girata)
+## Cosa blocca (al ciclo dopo)
 
-La 10 ruotata a petto pieno e 25 cm avanti: petto bianco con scudo
-e numero 10 visibile, le altre di schiena coi numeri. Funziona
-come hover del sito. Difetti: la 10 fluttua senza gruccia visibile.
+1. Lato: manica a 90 gradi + stoffa piatta = rifare caduta maniche
+   (spalla 40 gradi, bending 0.4, niente pressione oltre 0.02).
+2. Scritte: nome/numero sulla schiena restano ombra — servono luci
+   dietro (-Y) piu' forti e materiale emissive leggero, oppure scritte
+   come mesh piana sopra stoffa con offset 5 mm invece di shrinkwrap.
+3. Fronte pulito: il retro non deve vedersi — scritte solo su un
+   lato, materiale stoffa double-side off o spessore che copre.
+4. Targa/FOTO specchiate (rot Z 180 di troppo).
+5. Colletto/polsini a costine blu vere, non torus azzurro: tubo
+   sottile (r=6 mm) lungo il bordo scollo e polsi, colore dettagli.
+6. Gruccia: un solo oggetto dentro le spalle, gancio corto che esce
+   dal collo e abbraccia l'asta; niente tubi che bucano la stoffa.
+7. Scarpe e borraccia: solo forme semplici, ma sopra il pavimento.
 
-## Difetti noti (al ciclo dopo)
-
-Bordi a dente di sega su spalle e maniche (griglia a gradini,
-lisciatura solo teorica); maniche accartocciate invece che
-appese; gruccia-col lider e gruccia-render erano due oggetti
-diversi (ora unita); span 10.54 m oltre gli 8 m; nomi lunghi
-fuori fianco; pieghe assenti (pressione al posto della caduta).
