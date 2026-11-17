@@ -19,13 +19,26 @@ from mathutils import Vector
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import maglia  # noqa: E402
 
-RAGGIO = 4.2          # parete interna
+RAGGIO = 4.5          # parete interna
 ALTEZZA = 3.0         # soffitto
-N_BAIE = 20
+N_BAIE = 20           # armadietti (uno per giocatore)
+N_SLOT = 21           # armadietti + la porta del tunnel (slot 0, a phi = 180 gradi)
+PASSO = 2 * math.pi / N_SLOT
 BAIA_W = 1.10         # larghezza di un armadietto
 PILASTRO_W = 0.22
+PORTA_W = 1.20        # luce della porta
+PORTA_H = 2.35
+SPESSORE_MURO = 0.55  # imbotte della porta
 Z_ASTA = 2.02
 Y_ASTA = 0.20
+SLOT_TITOLARI = list(range(5, 16))                  # 11 titolari: arco davanti alla camera
+SLOT_RISERVE = [16, 17, 18, 19, 20, 1, 2, 3, 4]    # 9 riserve: il resto, a destra e sinistra della porta
+
+
+def phi_slot(j):
+    """Angolo (convenzione Blender: P = R*(sin, cos)) dello slot j; la porta (0) sta a phi = pi."""
+    a = math.pi + j * PASSO
+    return (a + math.pi) % (2 * math.pi) - math.pi if j else math.pi
 
 
 WEB = False           # True = materiali e mesh adatti a glTF (sito)
@@ -54,8 +67,8 @@ def _immagine_legno(cartella):
 
     grana = fibra(14, 0.40, 1) + fibra(60, 0.35, 2) + fibra(230, 0.20, 3) + 0.05 * rng.random((n, n))
     grana = np.clip((grana - grana.min()) / (grana.max() - grana.min()), 0, 1)
-    scuro = np.array([0.17, 0.09, 0.045])
-    chiaro = np.array([0.36, 0.205, 0.10])
+    scuro = np.array([0.27, 0.125, 0.052])
+    chiaro = np.array([0.56, 0.30, 0.125])
     rgb = scuro[None, None, :] * (1 - grana[..., None]) + chiaro[None, None, :] * grana[..., None]
     rgba = np.concatenate([rgb, np.ones((n, n, 1))], axis=2).astype(np.float32)
     img = bpy.data.images.new("legno_tex", n, n, alpha=False)
@@ -186,6 +199,48 @@ def box(nome, size, loc, m, parent, bevel=0.006, seg=2, rot=None, subdiv=0):
     return ob
 
 
+def prisma(nome, poly, z0, z1, m, parent, bevel=0.005, chiave=None):
+    """Prisma verticale con base poligonale (x, y) locale al genitore, da z0 a z1."""
+    k = chiave or nome
+    if k not in _MESH:
+        bm = bmesh.new()
+        vb = [bm.verts.new((x, y, z0)) for x, y in poly]
+        vt = [bm.verts.new((x, y, z1)) for x, y in poly]
+        n = len(poly)
+        bm.faces.new(vb)
+        bm.faces.new(vt)
+        for q in range(n):
+            bm.faces.new((vb[q], vb[(q + 1) % n], vt[(q + 1) % n], vt[q]))
+        bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])
+        uvl = bm.loops.layers.uv.new("UVMap")
+        for f in bm.faces:
+            nn = f.normal
+            for lp in f.loops:
+                c = lp.vert.co
+                if abs(nn.z) > 0.7:
+                    lp[uvl].uv = (c.x * 1.6, c.y * 1.6)
+                elif abs(nn.x) > abs(nn.y):
+                    lp[uvl].uv = (c.y * 1.6, c.z * 1.6)
+                else:
+                    lp[uvl].uv = (c.x * 1.6, c.z * 1.6)
+        me = bpy.data.meshes.new("prisma_" + k)
+        me.materials.append(m)
+        bm.to_mesh(me)
+        bm.free()
+        for p in me.polygons:
+            p.use_smooth = True
+        _MESH[k] = me
+    ob = bpy.data.objects.new(nome, _MESH[k])
+    bpy.context.scene.collection.objects.link(ob)
+    ob.parent = parent
+    if bevel:
+        bv = ob.modifiers.new("Smusso", "BEVEL")
+        bv.width = bevel
+        bv.segments = 2
+        bv.limit_method = "ANGLE"
+    return ob
+
+
 def cilindro(nome, r, h, loc, m, parent, rot=None, vertici=24, bevel=0.002):
     bm = bmesh.new()
     bmesh.ops.create_cone(bm, cap_ends=True, cap_tris=False, segments=vertici,
@@ -280,9 +335,12 @@ def baia(i, g, col_maglia, dettagli, scritte_col, base_m, phi, _non_usato):
     cilindro("Borraccia", 0.032, 0.20, (-(w / 2 - 0.12), 0.20, 0.68), bott, em)
     cilindro("Tappo", 0.022, 0.03, (-(w / 2 - 0.12), 0.20, 0.795), mat("Tappo", "#2a2a2e", 0.5), em)
     # fianchi e testata in legno
-    box("GuanciaSx", (0.13, 0.56, 1.72), (-(w / 2 - 0.065), 0.28, 1.34), legno, em, 0.006)
-    box("GuanciaDx", (0.13, 0.56, 1.72), ((w / 2 - 0.065), 0.28, 1.34), legno, em, 0.006)
-    box("Pannello", (w, 0.52, 0.56), (0, 0.26, 2.40), legno, em, 0.006)
+    hw = w / 2        # guance a trapezio: la faccia interna si apre verso la stanza
+    prisma("GuanciaSx", [(-hw, 0.0), (-hw + 0.17, 0.0), (-hw + 0.075, 0.56), (-hw, 0.56)],
+           0.46, 2.12, legno, em, chiave="gsx")
+    prisma("GuanciaDx", [(hw, 0.0), (hw, 0.56), (hw - 0.075, 0.56), (hw - 0.17, 0.0)],
+           0.46, 2.12, legno, em, chiave="gdx")
+    box("Pannello", (w, 0.52, 0.88), (0, 0.26, 2.56), legno, em, 0.006)
     # nicchia nera
     box("NicchiaFondo", (w - 0.26, 0.02, 1.08), (0, 0.02, 1.60), nero, em, 0)
     box("NicchiaSopra", (w - 0.26, 0.40, 0.02), (0, 0.22, 2.13), nero, em, 0)
@@ -293,8 +351,8 @@ def baia(i, g, col_maglia, dettagli, scritte_col, base_m, phi, _non_usato):
     cilindro("Testa", 0.050, 0.004, (0, 0.5585, 2.445), silh, em, rot=(math.pi / 2, 0, 0), bevel=0)
     box("Spalle", (0.22, 0.004, 0.10), (0, 0.5585, 2.255), silh, em, 0.04, 4)
     # targa col nome
-    box("Targa", (0.70, 0.03, 0.15), (0, 0.51, 2.76), targa, em, 0.006)
-    testo_piano(g["nome"].upper(), 0.06, 0.60, testo, (0, 0.528, 2.76), em, 0.003)
+    box("Targa", (0.70, 0.03, 0.15), (0, 0.51, 2.84), targa, em, 0.006)
+    testo_piano(g["nome"].upper(), 0.06, 0.60, testo, (0, 0.528, 2.84), em, 0.003)
     # asta
     cilindro("Asta", maglia.RAGGIO_ASTA, w - 0.28, (0, Y_ASTA, Z_ASTA), cromo, em, rot=(0, math.pi / 2, 0), bevel=0)
 
@@ -318,8 +376,9 @@ def baia(i, g, col_maglia, dettagli, scritte_col, base_m, phi, _non_usato):
         bpy.context.scene.collection.objects.link(gr)
         gr.parent = sh
         for c in base.shirt.children:
-            if c.name.endswith("_Scudo"):
-                sc_ = bpy.data.objects.new("Maglia_%02d_Scudo" % g["numero"], c.data)
+            suff = next((x for x in maglia.PARTI_FISSE if x in c.name), None)
+            if suff:
+                sc_ = bpy.data.objects.new("Maglia_%02d%s" % (g["numero"], c.name[c.name.index(suff):]), c.data)
                 bpy.context.scene.collection.objects.link(sc_)
                 sc_.parent = sh
                 for mod in c.modifiers:
@@ -392,12 +451,20 @@ def anima(sh):
 
 # ------------------------------------------------------------------ sala
 def pilastro(phi):
+    """Pilastro bianco lucido, dal pavimento al soffitto, con un incavo all'altezza delle maglie."""
     P = (RAGGIO * math.sin(phi), RAGGIO * math.cos(phi), 0.0)
     em = bpy.data.objects.new("Pilastro", None)
     bpy.context.scene.collection.objects.link(em)
     em.location = P
     em.rotation_euler = (0, 0, math.pi - phi)
-    box("Pil", (PILASTRO_W, 0.64, ALTEZZA - 0.1), (0, 0.32, (ALTEZZA - 0.1) / 2), mat("BiancoLucido", "#f3f3f4", 0.28), em, 0.02, 4)
+    bianco = mat("BiancoLucido", "#f3f3f4", 0.28)
+    incavo = mat("Incavo", "#dcdee2", 0.55)
+    w, h = PILASTRO_W, ALTEZZA - 0.04
+    box("PilBasso", (w, 0.64, 0.92), (0, 0.32, 0.46), bianco, em, 0.012, 3)
+    box("PilAlto", (w, 0.64, h - 2.30), (0, 0.32, 2.30 + (h - 2.30) / 2), bianco, em, 0.012, 3)
+    for sg in (-1.0, 1.0):
+        box("PilAla", (0.05, 0.64, 1.38), (sg * (w / 2 - 0.025), 0.32, 1.61), bianco, em, 0.008, 2)
+    box("PilFondo", (w - 0.10, 0.50, 1.38), (0, 0.25, 1.61), incavo, em, 0, 0)
 
 
 def anello(nome, r_in, r_out, z, m, segm=96, spessore=0.0):
@@ -419,16 +486,25 @@ def anello(nome, r_in, r_out, z, m, segm=96, spessore=0.0):
     return ob
 
 
-def cilindro_parete(nome, r, h, m, segm=120):
+def cilindro_parete(nome, r, z0, z1, m, segm=120, buco=None):
+    """Parete cilindrica (normali verso l'interno) da z0 a z1. `buco` = (phi, mezzo angolo, quota):
+    nel varco della porta resta solo l'architrave sopra `quota`."""
     bm = bmesh.new()
-    a_l, b_l = [], []
-    for k in range(segm):
-        a = 2 * math.pi * k / segm
-        a_l.append(bm.verts.new((r * math.cos(a), r * math.sin(a), 0.0)))
-        b_l.append(bm.verts.new((r * math.cos(a), r * math.sin(a), h)))
-    for k in range(segm):
-        k2 = (k + 1) % segm
-        bm.faces.new((a_l[k2], a_l[k], b_l[k], b_l[k2]))   # normali verso l'interno
+    if buco is None:
+        angoli = [2 * math.pi * k / segm for k in range(segm + 1)]
+        spezzoni = [(angoli, z0, z1)]
+    else:
+        phi_b, mezzo, quota = buco
+        a0 = math.pi / 2 - phi_b                      # angolo (da asse X) del centro del varco
+        n_arco = segm - int(segm * 2 * mezzo / (2 * math.pi))
+        arco = [a0 + mezzo + (2 * math.pi - 2 * mezzo) * k / n_arco for k in range(n_arco + 1)]
+        trave = [a0 - mezzo + 2 * mezzo * k / 4 for k in range(5)]
+        spezzoni = [(arco, z0, z1), (trave, quota, z1)]
+    for angoli, za, zb in spezzoni:
+        a_l = [bm.verts.new((r * math.cos(a), r * math.sin(a), za)) for a in angoli]
+        b_l = [bm.verts.new((r * math.cos(a), r * math.sin(a), zb)) for a in angoli]
+        for k in range(len(angoli) - 1):
+            bm.faces.new((a_l[k + 1], a_l[k], b_l[k], b_l[k + 1]))   # normali verso l'interno
     me = bpy.data.meshes.new(nome)
     bm.to_mesh(me)
     bm.free()
@@ -438,26 +514,57 @@ def cilindro_parete(nome, r, h, m, segm=120):
     return ob
 
 
-def scudo_pavimento(m):
+STEMMA_K = 1.15          # scala dello stemma a pavimento (segnaposto)
+
+
+def _sagoma_scudo(k, dy=0.0):
     pts = [(-1.0, 1.1), (1.0, 1.1), (1.0, 0.0)]
-    for k in range(1, 16):
-        a = math.pi * k / 16 / 2
+    for q in range(1, 16):
+        a = math.pi * q / 16 / 2
         pts.append((math.cos(a), -1.5 * math.sin(a)))
     pts.append((0.0, -1.5))
-    for k in range(15, 0, -1):
-        a = math.pi * k / 16 / 2
+    for q in range(15, 0, -1):
+        a = math.pi * q / 16 / 2
         pts.append((-math.cos(a), -1.5 * math.sin(a)))
     pts.append((-1.0, 0.0))
+    return [(p[0] * k, p[1] * k + dy) for p in pts]
+
+
+def scudo_pavimento(nome, k, z, m):
     bm = bmesh.new()
-    vs = [bm.verts.new((p[0] * 0.95, p[1] * 0.95 + 0.2, 0.003)) for p in pts]
+    vs = [bm.verts.new((x, y, z)) for x, y in _sagoma_scudo(k)]
     bm.faces.new(vs)
-    me = bpy.data.meshes.new("StemmaPavimento")
+    me = bpy.data.meshes.new(nome)
     bm.to_mesh(me)
     bm.free()
-    ob = bpy.data.objects.new("StemmaPavimento", me)
+    ob = bpy.data.objects.new(nome, me)
     bpy.context.scene.collection.objects.link(ob)
     ob.data.materials.append(m)
     return ob
+
+
+def porta(dettagli):
+    """La porta del tunnel (slot 0, phi = 180): imbotte, cornice di legno, insegna di uscita."""
+    em = bpy.data.objects.new("Porta", None)
+    bpy.context.scene.collection.objects.link(em)
+    em.location = (0.0, -RAGGIO, 0.0)
+    em.rotation_euler = (0, 0, 0.0)
+    bianco = mat("BiancoLucido", "#f3f3f4", 0.28)
+    legno = mat("Legno", "#6a3d1e", 0.36, bump="legno")
+    cromo = mat("Cromo", "#c9ccd0", 0.15, metal=1.0)
+    verde = mat("Uscita", "#19c45a", 0.5, emis=3.0)
+    nero = mat("Nicchia", "#0a0a0b", 0.85)
+    hw = PORTA_W / 2
+    L = SPESSORE_MURO
+    for sg in (-1.0, 1.0):                      # stipiti
+        box("Stipite", (0.30, L + 0.10, ALTEZZA - 0.04), (sg * (hw + 0.15), (0.10 - L) / 2, (ALTEZZA - 0.04) / 2), bianco, em, 0.01, 3)
+        box("CorniceLat", (0.07, 0.04, PORTA_H + 0.07), (sg * (hw + 0.035), 0.12, (PORTA_H + 0.07) / 2), legno, em, 0.005)
+    box("Architrave", (PORTA_W + 0.60, L + 0.10, ALTEZZA - 0.04 - PORTA_H), (0, (0.10 - L) / 2, PORTA_H + (ALTEZZA - 0.04 - PORTA_H) / 2), bianco, em, 0.01, 3)
+    box("CorniceAlta", (PORTA_W + 0.14, 0.04, 0.07), (0, 0.12, PORTA_H + 0.035), legno, em, 0.005)
+    box("InsegnaUscita", (0.46, 0.04, 0.16), (0, 0.13, PORTA_H + 0.20), nero, em, 0.006)
+    box("InsegnaLuce", (0.40, 0.01, 0.10), (0, 0.155, PORTA_H + 0.20), verde, em, 0)
+    box("Soglia", (PORTA_W, L + 0.1, 0.01), (0, (0.10 - L) / 2, 0.005), cromo, em, 0.002)
+    return em
 
 
 def costruisci_sala(dati):
@@ -467,39 +574,58 @@ def costruisci_sala(dati):
     col_rep = {r["nome"]: r["colore"] for r in reparti}
     ordine_rep = {r["nome"]: k for k, r in enumerate(reparti)}
     gioc = sorted(dati["giocatori"], key=lambda g: (not g["titolare"], ordine_rep[g["reparto"]], g["numero"]))
-    # pavimento, muro, soffitto
-    pav = mat("Pavimento", "#d4d7db", 0.10, bump="pavimento")
+    tit = [g for g in gioc if g["titolare"]]
+    ris = [g for g in gioc if not g["titolare"]]
+    assert len(tit) == len(SLOT_TITOLARI) and len(ris) == len(SLOT_RISERVE), "rosa diversa da 11 + 9"
+    # pavimento lucido con lo stemma (segnaposto: scudo nel colore della squadra con bordo bianco)
+    pav = mat("Pavimento", "#cdd0d5", 0.07, bump="pavimento")
     anello("Pavimento", 0.0001, RAGGIO + 0.3, 0.0, pav)
-    scudo_pavimento(mat("StemmaPav", "#8f959c", 0.25))
-    tp = maglia._mesh_testo("STEMMA", 0.34, 1.4, bold=0.02, passo=(1.0 if WEB else 0.005))
+    scudo_pavimento("StemmaBordo", STEMMA_K * 0.95, 0.003, mat("StemmaBordo", "#f4f4f4", 0.12))
+    scudo_pavimento("StemmaCampo", STEMMA_K * 0.86, 0.0042, mat("StemmaCampo", dettagli, 0.12))
+    tp = maglia._mesh_testo("STEMMA", 0.42, 1.9, bold=0.02, passo=(1.0 if WEB else 0.005))
     to = bpy.data.objects.new("StemmaTesto", tp)
     bpy.context.scene.collection.objects.link(to)
-    to.location = (0.0, 0.25, 0.008)
+    to.location = (0.0, 0.3, 0.0065)
     to.data.materials.append(mat("TestoBianco", "#ffffff", 0.5))
-    cilindro_parete("Parete", RAGGIO + 0.02, ALTEZZA, mat("Parete", "#f1f1f2", 0.7))
-    anello("Soffitto", 1.5, RAGGIO + 0.3, ALTEZZA, mat("Soffitto", "#ffffff", 0.5, emis=1.05))
-    anello("SoffittoCentro", 0.0001, 1.5, ALTEZZA - 0.01, mat("SoffittoC", "#fff6ee", 0.5, emis=0.6))
+    # pareti (con il varco della porta), soffitto con anello centrale rialzato
+    hw = math.asin((PORTA_W / 2) / (RAGGIO + 0.02))
+    cilindro_parete("Parete", RAGGIO + 0.02, 0.0, ALTEZZA, mat("Parete", "#f1f1f2", 0.7),
+                    segm=126, buco=(math.pi, hw, PORTA_H))
+    R_C, Z_C = 2.0, 0.24
+    anello("Soffitto", R_C, RAGGIO + 0.3, ALTEZZA, mat("Soffitto", "#ffffff", 0.5, emis=1.05))
+    anello("SoffittoCentro", 0.0001, R_C, ALTEZZA + Z_C, mat("SoffittoC", "#fff6ee", 0.5, emis=0.65))
+    cilindro_parete("Tamburo", R_C, ALTEZZA, ALTEZZA + Z_C, mat("Tamburo", "#f4f1ec", 0.6, emis=0.35))
     faretto = mat("Faretto", "#fff2e0", 0.5, emis=14.0)
     for k in range(8):
-        a = 2 * math.pi * k / 8
-        cilindro("Faretto%d" % k, 0.07, 0.01, (1.0 * math.cos(a), 1.0 * math.sin(a), ALTEZZA - 0.03), faretto, None, bevel=0)
-    trave = mat("Trave", "#202226", 0.5)
-    for k in range(N_BAIE):
-        a = math.pi / 2 - ((k - 5) * 2 * math.pi / N_BAIE + math.pi / N_BAIE)
-        em = bpy.data.objects.new("Trave%d" % k, None)
+        a = 2 * math.pi * k / 8 + math.pi / 8
+        cilindro("Faretto%d" % k, 0.07, 0.01, (1.2 * math.cos(a), 1.2 * math.sin(a), ALTEZZA + Z_C - 0.01), faretto, None, bevel=0)
+    trave = mat("Trave", "#2b2320", 0.5)
+    for j in range(N_SLOT):
+        pp = phi_slot(j) + PASSO / 2
+        em = bpy.data.objects.new("Trave%d" % j, None)
         bpy.context.scene.collection.objects.link(em)
-        em.rotation_euler = (0, 0, a)
-        L = RAGGIO - 1.5
-        box("Tr", (L + 0.05, 0.09, 0.15), (1.5 + L / 2, 0, ALTEZZA - 0.075), trave, em, 0.006)
-    anello("AnelloCentro", 1.42, 1.54, ALTEZZA - 0.04, trave)
-    # armadietti: titolari nell'arco davanti alla camera, riserve nel resto del cerchio
-    for k, g in enumerate(gioc):
-        phi = (k - 5) * 2 * math.pi / N_BAIE
+        em.rotation_euler = (0, 0, math.pi / 2 - pp)
+        L = RAGGIO + 0.05 - R_C
+        box("Tr", (L, 0.07, 0.14), (R_C + L / 2, 0, ALTEZZA - 0.07), trave, em, 0.005)
+    anello("AnelloCentro", R_C - 0.02, R_C + 0.06, ALTEZZA - 0.02, trave)
+    # armadietti e porta; un pilastro fra ogni coppia di slot
+    porta(dettagli)
+    slot_di = {}
+    for g, j in zip(tit, SLOT_TITOLARI):
+        slot_di[g["numero"]] = j
+    for g, j in zip(ris, SLOT_RISERVE):
+        slot_di[g["numero"]] = j
+    lista = []
+    for k, g in enumerate(tit + ris):
+        j = slot_di[g["numero"]]
+        phi = phi_slot(j)
         cm = C["portieri"] if col_rep[g["reparto"]] == "portieri" else col_maglia
         det = dettagli if cm == col_maglia else "#9aa0a6"
         baia(k, g, cm, det, scritte, None, phi, None)
-        pilastro(phi + math.pi / N_BAIE)
-    return gioc
+        lista.append((g, j, phi))
+    for j in range(N_SLOT):
+        pilastro(phi_slot(j) + PASSO / 2)
+    return lista
 
 
 def luci_e_mondo(sc):
@@ -553,7 +679,7 @@ def unisci_statico():
     return list(gruppi)
 
 
-def esporta_web(out, dati, gioc):
+def esporta_web(out, dati, lista):
     os.makedirs(out, exist_ok=True)
     sc = bpy.context.scene
     sc.frame_start, sc.frame_end = 1, 60
@@ -566,15 +692,15 @@ def esporta_web(out, dati, gioc):
     man = {
         "squadra": dati["nome"], "stagione": dati["stagione"], "colori": dati["colori"],
         "reparti": [r["nome"] for r in dati["reparti"]],
-        "raggio": RAGGIO, "altezza": ALTEZZA, "fps": FPS, "baie": N_BAIE,
+        "raggio": RAGGIO, "altezza": ALTEZZA, "fps": FPS, "baie": N_BAIE, "slot": N_SLOT,
+        "porta": {"phi": math.pi, "larghezza": PORTA_W, "altezza": PORTA_H, "spessore": SPESSORE_MURO},
         "giocatori": [
             {"numero": g["numero"], "nome": g["nome"], "reparto": g["reparto"],
-             "titolare": g["titolare"], "slot": k,
-             "phi": (k - 5) * 2 * math.pi / N_BAIE,
+             "titolare": g["titolare"], "slot": j, "phi": phi,
              "nodo": "Armadietto_%02d" % g["numero"], "maglia": "Maglia_%02d" % g["numero"],
              "clip": {"hover": "Maglia_%02d|hover" % g["numero"],
                       "selezione": "Maglia_%02d|selezione" % g["numero"]}}
-            for k, g in enumerate(gioc)],
+            for g, j, phi in lista],
         "clip_secondi": {n: (c[-1][0] - c[0][0]) / FPS for n, c in CLIP.items()},
     }
     json.dump(man, open(os.path.join(out, "sala.json"), "w", encoding="utf-8"), ensure_ascii=False, indent=1)
@@ -597,9 +723,9 @@ if __name__ == "__main__":
         WEB = True
         OUT_TEX = out
         maglia.PASSO_TESTO = 0.014
-        gioc = costruisci_sala(dati)
+        lista = costruisci_sala(dati)
         unisci_statico()
-        esporta_web(out, dati, gioc)
+        esporta_web(out, dati, lista)
         sys.exit(0)
     px = int(argv[1]) if len(argv) > 1 else 1280
     camp = int(argv[2]) if len(argv) > 2 else 32

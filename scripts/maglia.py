@@ -1,6 +1,6 @@
 """maglia.py - maglia da calcio appesa a una gruccia. COSTRUITA, NON SIMULATA.
 
-Modulo congelato: non si modifica e non si "ottimizza". Si usa cosi':
+Si usa cosi':
 
     import sys, os
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -57,6 +57,8 @@ RAGGIO_ASTA = 0.0125
 COLL_W = 0.036                            # altezza del bordo del colletto
 CUFF_RIB = 0.030                          # altezza costine polsino
 POLSINI = False                           # True = polsini a costine nel colore dettagli
+SVASATURA = 0.026                         # quanto la bocca della manica si stacca dal busto (m)
+PARTI_FISSE = ("_Scudo", "_Colletto", "_Filetto", "_Sponsor")   # figli uguali per tutte le copie
 
 _CT = (SH_X + SLEEVE_LEN * math.cos(SLEEVE_ANG),
        SH_Z - SLEEVE_LEN * math.sin(SLEEVE_ANG))           # polsino, bordo alto
@@ -478,13 +480,24 @@ def mesh_maglia(nome, coll=None, colore="#ffffff", dettagli="#173f9a"):
     rib = bm.verts.layers.float.new("rib")
     lseam = bm.verts.layers.float.new("dseam")
     lhem = bm.verts.layers.float.new("dhem")
+    lao = bm.verts.layers.float.new("ao")
     for lato in (+1, -1):
         ol = G.outline[lato]["pts"]
         P, T = riempi(ol)
         X = P[:, 0]
         Z = P[:, 1]
         d = G._mindist(P, G.seam)
-        y = lato * (G.mezzo_spessore(X, Z, d) + G.piega(X, Z, lato, d))
+        pf = G.piega(X, Z, lato, d)
+        b = G._sleeve_blend(X, Z)
+        v_man = (np.abs(X) - SH_X) * math.cos(SLEEVE_ANG) - (Z - SH_Z) * math.sin(SLEEVE_ANG)
+        svasa = SVASATURA * b * _smooth(0.02, 0.20, v_man)       # la bocca della manica si apre verso chi guarda
+        y = lato * (G.mezzo_spessore(X, Z, d) + pf + svasa)
+        # ombreggiatura "cotta" nei vertici: valli delle pieghe, ascelle, interno manica
+        ao = 0.20 * np.clip(-pf / 0.010, 0.0, 1.0)
+        for sx in (+1.0, -1.0):
+            ao = ao + 0.22 * np.exp(-np.hypot(X - sx * ARMPIT[0], Z - ARMPIT[1]) / 0.045)
+        ao = ao + 0.10 * b * _smooth(0.06, 0.20, v_man)
+        ao = np.clip(ao, 0.0, 0.45)
         dn = G._mindist(P, G.neck[lato])
         dc = G._mindist(P, G.cuff)
         dh = G._mindist(P, G.hem)
@@ -496,6 +509,7 @@ def mesh_maglia(nome, coll=None, colore="#ffffff", dettagli="#173f9a"):
             v[rib] = float(rv[i])
             v[lseam] = float(d[i])
             v[lhem] = float(dh[i])
+            v[lao] = float(ao[i])
             vs.append(v)
         for t in T:
             a, b, c = vs[t[0]], vs[t[1]], vs[t[2]]
@@ -634,6 +648,78 @@ def scudo(shirt, coll=None, colore="#9aa0a6"):
     return _proietta(me, +1, -0.115, -0.150, mat, shirt.name + "_Scudo", shirt, coll)
 
 
+def _nastro_curva(shirt, lato, curva, normali, d0, d1, sollevo, mat, nome, coll):
+    """Nastro che segue una curva del piano (x, z), da d0 a d1 di distanza lungo la normale,
+    appoggiato sulla superficie con un piccolo rilievo a cupola."""
+    G = geom()
+    nc = max(3, int(round((d1 - d0) / 0.004)) + 1)
+    dd = np.linspace(d0, d1, nc)
+    X = curva[:, 0, None] + normali[:, 0, None] * dd[None, :]
+    Z = curva[:, 1, None] + normali[:, 1, None] * dd[None, :]
+    ext = np.abs(X) > NECK_X - 0.002                       # sulla spalla il nastro non sale oltre il bordo
+    Z = np.where(ext, np.minimum(Z, -np.abs(X) * TAN12 - 0.0012), Z)
+    t = (dd - d0) / (d1 - d0)
+    lift = sollevo * (0.40 + 0.60 * np.sqrt(np.clip(1.0 - (2.0 * t - 1.0) ** 2, 0.0, 1.0)))
+    Y = G.superficie(X, Z, lato) + lato * lift[None, :]
+    n = len(curva)
+    bm = bmesh.new()
+    vs = [[bm.verts.new((float(X[i, j]), float(Y[i, j]), float(Z[i, j]))) for j in range(nc)] for i in range(n)]
+    for i in range(n - 1):
+        for j in range(nc - 1):
+            a, b, c, d = vs[i][j], vs[i + 1][j], vs[i + 1][j + 1], vs[i][j + 1]
+            ny = (b.co.z - a.co.z) * (d.co.x - a.co.x) - (b.co.x - a.co.x) * (d.co.z - a.co.z)
+            bm.faces.new((a, b, c, d) if (ny > 0) == (lato > 0) else (a, d, c, b))
+    me = bpy.data.meshes.new(nome + "_mesh")
+    bm.to_mesh(me)
+    bm.free()
+    for p in me.polygons:
+        p.use_smooth = True
+    ob = bpy.data.objects.new(nome, me)
+    _collezione(coll).objects.link(ob)
+    ob.parent = shirt
+    ob.data.materials.append(mat)
+    return ob
+
+
+def _curva_collo(drop, passo=0.004):
+    """Collo ricampionato a passo costante: punti e normali che guardano verso il busto."""
+    P, cum = _Geom._neck_curve(drop)
+    n = max(8, int(round(cum[-1] / passo)))
+    s = np.linspace(0.0, cum[-1], n)
+    pts = np.stack([np.interp(s, cum, P[:, 0]), np.interp(s, cum, P[:, 1])], 1)
+    tg = np.gradient(pts, axis=0)
+    tg /= np.linalg.norm(tg, axis=1)[:, None] + 1e-12
+    nor = np.stack([tg[:, 1], -tg[:, 0]], 1)
+    C = np.array([0.0, NECK_Z + 0.03])
+    gira = ((pts - C) * nor).sum(1) < 0
+    nor[gira] *= -1.0
+    return pts, nor
+
+
+def colletto(shirt, colore, filetto="#ffffff", coll=None):
+    """Bordo del colletto: nastro nel colore dettagli (davanti a V, dietro tondo) con un filetto
+    bianco sul bordo esterno. Ritorna i figli creati."""
+    mc = _materiale_semplice("M_Colletto_" + colore.lstrip("#"), colore, 0.72)
+    mf = _materiale_semplice("M_Filetto_" + filetto.lstrip("#"), filetto, 0.6)
+    out = []
+    for lato, drop, nm in ((+1, NECK_DROP_F, "Davanti"), (-1, NECK_DROP_B, "Dietro")):
+        pts, nor = _curva_collo(drop)
+        out.append(_nastro_curva(shirt, lato, pts, nor, -0.0015, COLL_W, 0.0032, mc, shirt.name + "_Colletto" + nm, coll))
+        out.append(_nastro_curva(shirt, lato, pts, nor, COLL_W, COLL_W + 0.0036, 0.0036, mf, shirt.name + "_Filetto" + nm, coll))
+    return out
+
+
+def sponsor(shirt, coll=None, colore="#8c929a"):
+    """Sponsor segnaposto: scritta grande al centro del petto, piccola in basso dietro."""
+    mt = _materiale_semplice("M_Sponsor", colore, 0.7)
+    out = []
+    me = _mesh_testo("SPONSOR", 0.050, 0.26, passo=PASSO_TESTO)
+    out.append(_proietta(me, +1, 0.0, -0.285, mt, shirt.name + "_SponsorPetto", shirt, coll))
+    me = _mesh_testo("SPONSOR", 0.022, 0.12, passo=PASSO_TESTO)
+    out.append(_proietta(me, -1, 0.0, -0.585, mt, shirt.name + "_SponsorDietro", shirt, coll))
+    return out
+
+
 def gruccia(nome, coll=None):
     """Gruccia: due bracci a 12 gradi sotto le spalle, gancio che avvolge l'asta."""
     cu = bpy.data.curves.new(nome + "_curva", "CURVE")
@@ -673,6 +759,8 @@ def costruisci(nome, nome_giocatore, numero, colore, dettagli, colore_scritte,
     m.figli = scritte(m.shirt, nome_giocatore, numero, colore_scritte, coll)
     if con_scudo:
         m.figli.append(scudo(m.shirt, coll))
+    m.figli += colletto(m.shirt, dettagli, coll=coll)
+    m.figli += sponsor(m.shirt, coll)
     m.info = misure(m.shirt)
     return m
 
@@ -725,28 +813,26 @@ def _immagine_trama(cartella):
 
 
 def prepara_web(shirt, colore, dettagli, cartella="."):
-    """Versione leggera per glTF: niente modificatori (la mesh e' gia' fitta),
-    colore del bordo del colletto a vertici, materiale semplice, doppia faccia."""
+    """Versione leggera per glTF: niente modificatori (la mesh e' gia' fitta), colore a vertici
+    con l'ombreggiatura cotta (valli delle pieghe, ascelle), materiale semplice, doppia faccia."""
     me = shirt.data
     for m in list(shirt.modifiers):
         shirt.modifiers.remove(m)
     shirt.vertex_groups.clear()
-    rv = np.array([a.value for a in me.attributes["rib"].data])
-    t = _smooth(-0.004, 0.003, rv)                      # 0 sul bordo, 1 sul tessuto
+    ao = np.array([a.value for a in me.attributes["ao"].data])
     c0 = np.array(_hex(colore)[:3])
-    c1 = np.array(_hex(dettagli)[:3])
     col = me.color_attributes.new("Col", "FLOAT_COLOR", "POINT")
     for i in range(len(me.vertices)):
-        c = c1 * (1.0 - t[i]) + c0 * t[i]
+        c = c0 * (1.0 - float(ao[i]))
         col.data[i].color = (float(c[0]), float(c[1]), float(c[2]), 1.0)
-    for nm in ("rib", "dseam", "dhem"):
+    for nm in ("rib", "dseam", "dhem", "ao"):
         if nm in me.attributes:
             me.attributes.remove(me.attributes[nm])
     uvl = me.uv_layers.new(name="UVMap")
     for lp in me.loops:
         v = me.vertices[lp.vertex_index].co
         uvl.data[lp.index].uv = (v.x * 10.0, v.z * 10.0)       # una trama ogni 10 cm
-    nm = "W_Maglia_" + colore.lstrip("#") + dettagli.lstrip("#")
+    nm = "W_Maglia_" + colore.lstrip("#")
     m = bpy.data.materials.get(nm)
     if m is None:
         m = bpy.data.materials.new(nm)

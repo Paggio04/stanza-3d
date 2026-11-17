@@ -16,7 +16,7 @@
 <div id="sala"></div>
 <script type="module">
   import { avviaSala } from './sala.js';
-  window.sala = await avviaSala(document.getElementById('sala'), { glb: 'sala.glb', dati: 'sala.json', qualita: new URLSearchParams(location.search).get('q') || 'auto' });
+  window.sala = await avviaSala(document.getElementById('sala'), { glb: 'sala.glb?' + Date.now(), dati: 'sala.json?' + Date.now(), qualita: new URLSearchParams(location.search).get('q') || 'auto' });
 </script>
 </body>
 </html>

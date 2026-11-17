@@ -66,7 +66,8 @@ Restano tutte le animazioni del video, portate nella sala circolare. Si costruis
 | v03 | Un armadietto come nel riferimento, con la maglia vera | Fatto, non accettato (maglia simulata, armadietto a scatole) |
 | v03b | Lo stesso armadietto, con la maglia costruita da `scripts/maglia.py` (v03.md) | Superato: la sala intera è già fatta (`scripts/sala.py`) |
 | v04 | La sala circolare: 20 armadietti, soffitto, pavimento con stemma, luci, render 16:9 e 9:16 | Prima versione fatta (`scripts/sala.py`); da rifinire |
-| v05 | Tunnel e percorso della camera: video 16:9 e 9:16 | Dopo |
+| v04b | Sala a 21 slot (20 armadietti + porta del tunnel), soffitto con anello, guance a trapezio, pilastri con incavo, pavimento a specchio; maglia con colletto a nastro, ombre a vertici, maniche svasate | Fatto (17/11), da rifinire |
+| v05 | Tunnel e percorso della camera: video 16:9 e 9:16 | In corso |
 | v06 | Esportazione per il sito (.glb leggeri, texture) | Prima versione fatta (`web/sala.glb`, 8 MB) |
 | v07 | Pagina interattiva nel sito (Three.js), dati dalla rosa | Prima versione fatta (`web/sala.js`); da collaudare sul sito |
 
@@ -75,7 +76,7 @@ Restano tutte le animazioni del video, portate nella sala circolare. Si costruis
 - Dati della squadra solo in `squadra.json`, mai nello script.
 - Testi segnaposto («GIOCATORE N», scudo grigio «STEMMA», «FOTO») finché il club non manda i dati veri. Niente nomi inventati.
 - Uno script unico e riproducibile, che salva il `.blend` e i render.
-- La maglia si costruisce con `scripts/maglia.py` (congelato). Niente simulazione di stoffa.
+- La maglia si costruisce con `scripts/maglia.py` (dal 17/11 non piu' congelato: lo migliora Claude Code; ogni modifica aggiorna l'hash con `scripts/hash_maglia.py`). Niente simulazione di stoffa.
 - Niente installazioni né download: solo Blender e quello che c'è nella cartella.
 - A ogni ciclo, prima di chiudere: mettere ogni render accanto alla foto di riferimento, correggere, scrivere in `REGISTRO.md` cosa manca.
 

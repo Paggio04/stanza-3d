@@ -23,6 +23,7 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { SAOPass } from 'three/addons/postprocessing/SAOPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { Reflector } from 'three/addons/objects/Reflector.js';
 
 const RIDUCI = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
@@ -119,6 +120,36 @@ export async function avviaSala(host, opz = {}) {
     o.castShadow = alta && !SENZA_OMBRA.test(o.name);
     o.receiveShadow = alta;
   });
+  // pavimento lucido: il riflesso della sala (piano a specchio) si fonde sopra il pavimento del .glb
+  let specchio = null;
+  if (alta) {
+    const sh = Reflector.ReflectorShader;
+    specchio = new Reflector(new THREE.CircleGeometry(dati.raggio + 0.3, 64), {
+      textureWidth: 1024, textureHeight: 1024, clipBias: 0.003,
+      shader: {
+        name: 'RiflessoPavimento',
+        uniforms: { color: { value: null }, tDiffuse: { value: null }, textureMatrix: { value: null }, forza: { value: 0.30 } },
+        vertexShader: sh.vertexShader,
+        fragmentShader: `
+          uniform sampler2D tDiffuse; uniform float forza; varying vec4 vUv;
+          void main() {
+            vec4 uv = vUv; vec2 p = uv.xy / uv.w;
+            vec3 c = vec3(0.0); float w = 0.0;
+            for (int i = -2; i <= 2; i++) for (int j = -2; j <= 2; j++) {
+              float k = 1.0 / (1.0 + float(i*i + j*j));
+              c += texture2D(tDiffuse, p + vec2(float(i), float(j)) * 0.0018).rgb * k; w += k;
+            }
+            gl_FragColor = vec4(c / w, forza);
+          }`,
+      },
+    });
+    specchio.material.transparent = true;
+    specchio.material.depthWrite = false;
+    specchio.rotation.x = -Math.PI / 2;
+    specchio.position.y = 0.004;
+    specchio.renderOrder = 1;
+    scena.add(specchio);
+  }
   const cam = new THREE.PerspectiveCamera(80, 16 / 9, 0.1, 60);
   let composer = null;
   if (alta) {
@@ -177,7 +208,8 @@ export async function avviaSala(host, opz = {}) {
   const mediaPhi = (lista) => Math.atan2(
     lista.reduce((s, g) => s + Math.sin(g.phi), 0), lista.reduce((s, g) => s + Math.cos(g.phi), 0));
   const VISTE = {
-    sala: { a: Math.PI, r: 3.3, y: 1.55, ta: 0, tr: R - 0.2, ty: 1.45, fov: 80 },
+    // la camera sta sulla porta del tunnel (phi = 180) e guarda l'arco dei titolari
+    sala: { a: Math.PI, r: 2.4, y: 1.5, ta: mediaPhi(dati.giocatori.filter((g) => g.titolare)), tr: R - 0.3, ty: 1.45, fov: 66 },
   };
   const vistaReparto = (nome) => {
     const lista = dati.giocatori.filter((g) => g.reparto === nome);
@@ -191,12 +223,19 @@ export async function avviaSala(host, opz = {}) {
   let vista = { ...VISTE.sala };
   let tween = null;
   let ora = performance.now();
+  // fov verticale dichiarato per 16:9; in verticale (9:16) si stringe l'angolo orizzontale e si alza quello verticale
+  const fovEff = (v) => {
+    if (cam.aspect >= 1) return v.fov;
+    const orizz = 2 * Math.atan(Math.tan((v.fov * Math.PI) / 360) * (16 / 9));
+    return Math.min(100, (2 * Math.atan(Math.tan((orizz * 0.6) / 2) / cam.aspect) * 180) / Math.PI);
+  };
   const applica = (v) => {
     const p = gl(v.r, v.a);
     cam.position.set(p.x, v.y, p.z);
     const t = gl(v.tr, v.ta);
     cam.lookAt(t.x, v.ty, t.z);
-    if (cam.fov !== v.fov) { cam.fov = v.fov; cam.updateProjectionMatrix(); }
+    const f = fovEff(v);
+    if (cam.fov !== f) { cam.fov = f; cam.updateProjectionMatrix(); }
   };
   const vai = (a, ms = 1100) => {
     const da = { ...vista };
@@ -397,9 +436,8 @@ export async function avviaSala(host, opz = {}) {
     renderer.setSize(w, h, false);
     if (composer) composer.setSize(w, h);
     cam.aspect = w / h;
-    const base = vista.fov;
-    cam.fov = w / h < 1 ? Math.min(100, base * 1.35) : base;
     cam.updateProjectionMatrix();
+    applica(vista);
   };
   window.addEventListener('resize', ridim);
   let ultimo = performance.now();
@@ -430,7 +468,19 @@ export async function avviaSala(host, opz = {}) {
   const carico = q('.carico');
   carico.style.opacity = 0;
   setTimeout(() => carico.remove(), 600);
-  Object.assign(api, { THREE, scena, cam, maglie, renderer, dati, // per i collaudi: avanza di `ms` millisecondi senza aspettare il disegno
+  const stat = () => {
+    let tri = 0, mesh = 0;
+    const per = {};
+    scena.traverse((o) => {
+      if (!o.isMesh) return;
+      const t = (o.geometry.index ? o.geometry.index.count : o.geometry.attributes.position.count) / 3;
+      tri += t; mesh++;
+      const k = /^Maglia_/.test(o.parent && o.parent.parent ? o.parent.parent.name : '') ? 'maglie' : (o.name.split('_')[0] || 'altro');
+      per[k] = (per[k] || 0) + t;
+    });
+    return { triangoli: Math.round(tri), mesh, per, chiamate: mesh };
+  };
+  Object.assign(api, { THREE, scena, cam, maglie, renderer, dati, stat, // per i collaudi: avanza di `ms` millisecondi senza aspettare il disegno
     _avanza: (ms) => { passo(ora + ms, ms / 1000); disegna(); } });
   return api;
 }
