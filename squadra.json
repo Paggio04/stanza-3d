@@ -1,36 +1,155 @@
 {
-  "squadra": "Prima Squadra",
+  "nome": "Resco Reggello",
+  "stagione": "2026/27",
   "colori": {
-    "maglia": "#b02430",
-    "dettagli": "#f4ecd8",
+    "maglia": "#ffffff",
+    "dettagli": "#173f9a",
+    "scritte": "#173f9a",
     "portieri": "#24262b"
   },
+  "stemma": null,
   "reparti": [
-    { "nome": "PORTIERI", "numeri": [1, 2] },
-    { "nome": "DIFENSORI", "numeri": [3, 4, 5, 6, 7, 8] },
-    { "nome": "CENTROCAMPISTI", "numeri": [9, 10, 11, 12, 13, 14, 15] },
-    { "nome": "ATTACCANTI", "numeri": [16, 17, 18, 19, 20] }
+    {
+      "nome": "PORTIERI",
+      "numeri": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "nome": "DIFENSORI",
+      "numeri": [
+        4,
+        5,
+        6,
+        7,
+        8,
+        9
+      ]
+    },
+    {
+      "nome": "CENTROCAMPISTI",
+      "numeri": [
+        10,
+        11,
+        12,
+        13,
+        14,
+        15
+      ]
+    },
+    {
+      "nome": "ATTACCANTI",
+      "numeri": [
+        16,
+        17,
+        18,
+        19,
+        20
+      ]
+    }
   ],
   "giocatori": [
-    { "numero": 1, "nome": "Alessio Bruni", "reparto": "PORTIERI", "stemma": null },
-    { "numero": 2, "nome": "Davide Serra", "reparto": "PORTIERI", "stemma": null },
-    { "numero": 3, "nome": "Marco Ferraro", "reparto": "DIFENSORI", "stemma": null },
-    { "numero": 4, "nome": "Luca Gallo", "reparto": "DIFENSORI", "stemma": null },
-    { "numero": 5, "nome": "Simone Rinaldi", "reparto": "DIFENSORI", "stemma": null },
-    { "numero": 6, "nome": "Andrea Sarti", "reparto": "DIFENSORI", "stemma": null },
-    { "numero": 7, "nome": "Matteo Villa", "reparto": "DIFENSORI", "stemma": null },
-    { "numero": 8, "nome": "Fabio Greco", "reparto": "DIFENSORI", "stemma": null },
-    { "numero": 9, "nome": "Stefano Moretti", "reparto": "CENTROCAMPISTI", "stemma": null },
-    { "numero": 10, "nome": "Lorenzo Vitale", "reparto": "CENTROCAMPISTI", "stemma": null },
-    { "numero": 11, "nome": "Daniele Ricci", "reparto": "CENTROCAMPISTI", "stemma": null },
-    { "numero": 12, "nome": "Paolo Neri", "reparto": "CENTROCAMPISTI", "stemma": null },
-    { "numero": 13, "nome": "Giulio Fontana", "reparto": "CENTROCAMPISTI", "stemma": null },
-    { "numero": 14, "nome": "Tommaso Sala", "reparto": "CENTROCAMPISTI", "stemma": null },
-    { "numero": 15, "nome": "Cristian Piva", "reparto": "CENTROCAMPISTI", "stemma": null },
-    { "numero": 16, "nome": "Nicola Bassani", "reparto": "ATTACCANTI", "stemma": null },
-    { "numero": 17, "nome": "Samuele Oro", "reparto": "ATTACCANTI", "stemma": null },
-    { "numero": 18, "nome": "Filippo Coda", "reparto": "ATTACCANTI", "stemma": null },
-    { "numero": 19, "nome": "Mattia Lusso", "reparto": "ATTACCANTI", "stemma": null },
-    { "numero": 20, "nome": "Elia Marchetti", "reparto": "ATTACCANTI", "stemma": null }
+    {
+      "numero": 1,
+      "nome": "GIOCATORE 1",
+      "reparto": "PORTIERI"
+    },
+    {
+      "numero": 2,
+      "nome": "GIOCATORE 2",
+      "reparto": "PORTIERI"
+    },
+    {
+      "numero": 3,
+      "nome": "GIOCATORE 3",
+      "reparto": "PORTIERI"
+    },
+    {
+      "numero": 4,
+      "nome": "GIOCATORE 4",
+      "reparto": "DIFENSORI"
+    },
+    {
+      "numero": 5,
+      "nome": "GIOCATORE 5",
+      "reparto": "DIFENSORI"
+    },
+    {
+      "numero": 6,
+      "nome": "GIOCATORE 6",
+      "reparto": "DIFENSORI"
+    },
+    {
+      "numero": 7,
+      "nome": "GIOCATORE 7",
+      "reparto": "DIFENSORI"
+    },
+    {
+      "numero": 8,
+      "nome": "GIOCATORE 8",
+      "reparto": "DIFENSORI"
+    },
+    {
+      "numero": 9,
+      "nome": "GIOCATORE 9",
+      "reparto": "DIFENSORI"
+    },
+    {
+      "numero": 10,
+      "nome": "GIOCATORE 10",
+      "reparto": "CENTROCAMPISTI"
+    },
+    {
+      "numero": 11,
+      "nome": "GIOCATORE 11",
+      "reparto": "CENTROCAMPISTI"
+    },
+    {
+      "numero": 12,
+      "nome": "GIOCATORE 12",
+      "reparto": "CENTROCAMPISTI"
+    },
+    {
+      "numero": 13,
+      "nome": "GIOCATORE 13",
+      "reparto": "CENTROCAMPISTI"
+    },
+    {
+      "numero": 14,
+      "nome": "GIOCATORE 14",
+      "reparto": "CENTROCAMPISTI"
+    },
+    {
+      "numero": 15,
+      "nome": "GIOCATORE 15",
+      "reparto": "CENTROCAMPISTI"
+    },
+    {
+      "numero": 16,
+      "nome": "GIOCATORE 16",
+      "reparto": "ATTACCANTI"
+    },
+    {
+      "numero": 17,
+      "nome": "GIOCATORE 17",
+      "reparto": "ATTACCANTI"
+    },
+    {
+      "numero": 18,
+      "nome": "GIOCATORE 18",
+      "reparto": "ATTACCANTI"
+    },
+    {
+      "numero": 19,
+      "nome": "GIOCATORE 19",
+      "reparto": "ATTACCANTI"
+    },
+    {
+      "numero": 20,
+      "nome": "GIOCATORE 20",
+      "reparto": "ATTACCANTI"
+    }
   ]
 }
