@@ -2,8 +2,8 @@
  * sala.js - spogliatoio 3D interattivo (Three.js).
  *
  * Carica sala.glb (esportato da scripts/sala.py) e sala.json (rosa e clip) e gestisce:
- *  - passaggio sopra una maglia: esce un poco dall'armadietto e si gira (clip `<Maglia>|hover`);
- *  - clic: la camera si avvicina, la maglia esce e resta appesa di 3/4 (clip `<Maglia>|selezione`),
+ *  - passaggio sopra una maglia: esce un poco dall'armadietto e si gira (molla `hover` di sala.json);
+ *  - clic: la camera si avvicina, la maglia esce e resta appesa di 3/4 (molla `selezione`, oscillazione della gruccia, ondeggio del tessuto),
  *    le altre si scuriscono; trascinando si gira; scheda del giocatore con precedente/successivo;
  *  - filtri a pillola con conteggio: la camera ruota attorno al centro fino al reparto;
  *  - Esc / «Torna alla sala»; frecce per scorrere i giocatori;
@@ -125,6 +125,13 @@ export async function avviaSala(host, opz = {}) {
   const dall = new THREE.DirectionalLight(0xffffff, alta ? 0.18 : 1.1);
   dall.position.set(0, 6, 8);
   scena.add(centro, dall, new THREE.HemisphereLight(0xffffff, 0xcfd3d8, alta ? 0.18 : 0.5));
+  const faro = new THREE.PointLight(0xfff0dd, 0, 3.2, 2);       // si accende sulla maglia scelta
+  scena.add(faro);
+  const nodoLuce = (m) => {
+    const p = m.nodo.getWorldPosition(new THREE.Vector3());
+    const dentro = new THREE.Vector3(-p.x, 0, -p.z).normalize();
+    faro.position.set(p.x + dentro.x * 0.9, p.y + 0.35, p.z + dentro.z * 0.9);
+  };
   scena.add(gltf.scene);
   const SENZA_OMBRA = /^Fisso_(Soffitto|SoffittoC|Faretto|Parete|Pavimento)/;
   gltf.scene.traverse((o) => {
@@ -178,10 +185,30 @@ export async function avviaSala(host, opz = {}) {
   }
   const disegna = () => (composer ? composer.render() : renderer.render(scena, cam));
 
-  // ---- maglie: gruppo che gira per il trascinamento, materiali propri per scurirle
+  // ---- maglie: gruppo che gira per il trascinamento, materiali propri (scurimento, ondeggio del tessuto)
+  // I gesti (hover, selezione) sono molle pilotate da sala.json: niente clip da riavvolgere, tutto interrompibile.
+  const GESTI = dati.gesti || {
+    hover: { dy: 0.2, dr: 0.16, dz: 0 }, selezione: { dy: 0.85, dr: 0.72, dz: 0.04 },
+    molle: { hover: { w: 16, z: 0.55 }, selezione: { w: 10, z: 0.62 }, oscillazione: { w: 5.4, z: 0.14, k: 0.35 } },
+    altezza_gancio: 0.06,
+  };
+  const tempo = { t: 0 };
+  const ondeggia = (mat) => {
+    mat.onBeforeCompile = (sh) => {
+      sh.uniforms.uOnda = { value: 0 };
+      sh.uniforms.uT = { value: 0 };
+      mat.userData.sh = sh;
+      sh.vertexShader = sh.vertexShader
+        .replace('#include <common>', '#include <common>\nuniform float uOnda;\nuniform float uT;')
+        .replace('#include <begin_vertex>', `#include <begin_vertex>
+          float prof = clamp(-position.y / 0.72, 0.0, 1.0);
+          float f = prof * prof * uOnda;
+          transformed.z += f * 0.016 * sin(uT * 5.2 + position.x * 11.0 + position.y * 5.0);
+          transformed.x += f * 0.010 * sin(uT * 3.1 + position.y * 7.0 + position.x * 2.0);`);
+    };
+    mat.customProgramCacheKey = () => 'ondeggia';
+  };
   const maglie = new Map();
-  const mixer = new THREE.AnimationMixer(gltf.scene);
-  const clip = new Map(gltf.animations.map((c) => [c.name, c]));
   for (const g of dati.giocatori) {
     const nodo = gltf.scene.getObjectByName(g.maglia);
     const gira = new THREE.Group();
@@ -193,27 +220,64 @@ export async function avviaSala(host, opz = {}) {
     gira.traverse((o) => {
       if (!o.isMesh) return;
       o.material = o.material.clone();
+      ondeggia(o.material);
       if (o.material.normalMap) o.material.normalMap.anisotropy = renderer.capabilities.getMaxAnisotropy();
       o.material.userData.base = o.material.color.clone();
       mats.push(o.material);
       meshes.push(o);
       o.userData.maglia = g.numero;
     });
-    const mk = (n) => {
-      const a = mixer.clipAction(clip.get(n), nodo);
-      a.setLoop(THREE.LoopOnce, 1);
-      a.clampWhenFinished = true;
-      return a;
-    };
     maglie.set(g.numero, {
-      g, nodo, gira, mats, meshes, hover: mk(g.clip.hover), sel: mk(g.clip.selezione),
-      k: 1, kTarget: 1, spin: 0,
+      g, nodo, gira, mats, meshes, k: 1, kTarget: 1, spin: 0,
+      p0: nodo.position.clone(), q0: nodo.quaternion.clone(),
+      h: { x: 0, v: 0, t: 0 }, s: { x: 0, v: 0, t: 0 }, osc: { x: 0, v: 0 }, vPrec: 0, onda: 0,
     });
   }
-  mixer.addEventListener('finished', (e) => {
-    if (e.direction < 0) e.action.stop(); // tornata a riposo
-  });
   const tutteMesh = [...maglie.values()].flatMap((m) => m.meshes);
+  const molla = (m, w, z, dt) => {         // oscillatore smorzato verso m.t (integrazione a passetti)
+    const n = Math.max(1, Math.ceil(dt / 0.008)), h = dt / n;
+    for (let i = 0; i < n; i++) { m.v += (-w * w * (m.x - m.t) - 2 * z * w * m.v) * h; m.x += m.v * h; }
+  };
+  const ASSE_X = new THREE.Vector3(1, 0, 0), ASSE_Y = new THREE.Vector3(0, 1, 0);
+  const qa = new THREE.Quaternion(), qb = new THREE.Quaternion();
+  const va = new THREE.Vector3(), vp = new THREE.Vector3();
+  const aggiornaMaglia = (m, dt) => {
+    const H = GESTI.hover, S = GESTI.selezione, M = GESTI.molle;
+    const quieto = Math.abs(m.h.x - m.h.t) < 1e-4 && Math.abs(m.s.x - m.s.t) < 1e-4 && Math.abs(m.h.v) + Math.abs(m.s.v) < 1e-3
+      && Math.abs(m.osc.x) < 1e-4 && Math.abs(m.osc.v) < 1e-3 && m.onda < 0.01;
+    if (quieto && !m.sporca) return;
+    let vel = 0;
+    if (RIDUCI()) {
+      m.h.x = m.h.t; m.s.x = m.s.t; m.h.v = m.s.v = 0; m.osc.x = m.osc.v = 0; m.onda = 0; m.vPrec = 0;
+    } else if (quieto) {
+      m.h.x = m.h.t; m.s.x = m.s.t; m.h.v = m.s.v = 0; m.osc.x = m.osc.v = 0; m.onda = 0; m.vPrec = 0;
+    } else {
+      molla(m.h, M.hover.w, M.hover.z, dt);
+      molla(m.s, M.selezione.w, M.selezione.z, dt);
+      vel = m.h.v * H.dy + m.s.v * S.dy;                         // velocita' verso la stanza (m/s)
+      const acc = (vel - m.vPrec) / Math.max(dt, 1e-3);
+      m.vPrec = vel;
+      // la gruccia oscilla attorno all'asta quando la maglia accelera in avanti
+      const O = M.oscillazione;
+      m.osc.v += (-O.w * O.w * m.osc.x - 2 * O.z * O.w * m.osc.v - O.k * acc) * dt;
+      m.osc.x = Math.max(-0.22, Math.min(0.22, m.osc.x + m.osc.v * dt));
+      m.onda = Math.max(m.onda * Math.exp(-dt * 0.8), Math.min(1, Math.abs(vel) * 0.7 + Math.abs(m.osc.v) * 0.4));
+    }
+    m.sporca = false;
+    const dy = m.h.x * H.dy + m.s.x * S.dy, dr = m.h.x * H.dr + m.s.x * S.dr, dz = m.h.x * H.dz + m.s.x * S.dz;
+    m.nodo.position.copy(m.p0).add(va.set(0, dz, -dy));       // glTF: avanti verso la stanza = -z
+    m.nodo.quaternion.copy(qa.setFromAxisAngle(ASSE_Y, dr)).multiply(m.q0);
+    if (Math.abs(m.osc.x) > 1e-5) {
+      vp.copy(m.nodo.position).y += GESTI.altezza_gancio;
+      va.copy(m.nodo.position).sub(vp).applyAxisAngle(ASSE_X, m.osc.x).add(vp);
+      m.nodo.position.copy(va);
+      m.nodo.quaternion.premultiply(qb.setFromAxisAngle(ASSE_X, m.osc.x));
+    }
+    for (const mt of m.mats) {
+      const sh = mt.userData.sh;
+      if (sh) { sh.uniforms.uOnda.value = m.onda; sh.uniforms.uT.value = tempo.t; }
+    }
+  };
 
   // ---- camera: stato in coordinate polari attorno al centro della sala
   const R = dati.raggio;
@@ -230,7 +294,10 @@ export async function avviaSala(host, opz = {}) {
   };
   const vistaMaglia = (numero) => {
     const f = maglie.get(numero).g.phi;
-    return { a: f, r: 1.0, y: 1.5, ta: f, tr: R - 1.05, ty: 1.42, fov: 44 };
+    // in orizzontale la scheda copre la destra: si guarda un po' a destra della maglia per tenerla nella parte libera;
+    // in verticale la scheda e' un pannello in basso: si guarda un po' sotto
+    const oriz = cam.aspect >= 1;
+    return { a: f, r: 1.7, y: 1.62, ta: oriz ? f + 0.06 : f, tr: R - 1.0, ty: oriz ? 1.58 : 1.3, fov: 36 };
   };
   let vista = { ...VISTE.sala };
   let tween = null;
@@ -249,10 +316,10 @@ export async function avviaSala(host, opz = {}) {
     const f = fovEff(v);
     if (cam.fov !== f) { cam.fov = f; cam.updateProjectionMatrix(); }
   };
-  const vai = (a, ms = 1100) => {
+  const vai = (a, ms = 1100, punch = 0) => {
     const da = { ...vista };
     if (RIDUCI() || ms <= 0) { vista = { ...a }; tween = null; applica(vista); return; }
-    tween = { da, a, t0: ora, ms };
+    tween = { da, a, t0: ora, ms, punch };
   };
   const passoTween = (now) => {
     if (!tween) return;
@@ -261,7 +328,7 @@ export async function avviaSala(host, opz = {}) {
     vista = {
       a: da.a + dAng(da.a, a.a) * e, r: da.r + (a.r - da.r) * e, y: da.y + (a.y - da.y) * e,
       ta: da.ta + dAng(da.ta, a.ta) * e, tr: da.tr + (a.tr - da.tr) * e, ty: da.ty + (a.ty - da.ty) * e,
-      fov: da.fov + (a.fov - da.fov) * e,
+      fov: da.fov + (a.fov - da.fov) * e - (tween.punch || 0) * Math.sin(Math.PI * e),
     };
     applica(vista);
     if (u >= 1) tween = null;
@@ -392,25 +459,6 @@ export async function avviaSala(host, opz = {}) {
     bottone.addEventListener('click', () => { if (video && perc._saltaVideo) perc._saltaVideo(); perc.salta(); });
   }
 
-  // ---- clip avanti / indietro
-  const corri = (azione, dir, da = null) => {
-    if (RIDUCI()) {
-      azione.enabled = true; azione.play(); azione.paused = true;
-      azione.time = dir > 0 ? azione.getClip().duration : 0;
-      mixer.update(0);
-      if (dir < 0) azione.stop();
-      return;
-    }
-    azione.enabled = true; azione.paused = false;
-    azione.setEffectiveWeight(1);
-    azione.setEffectiveTimeScale(dir);
-    if (da !== null) azione.time = da;
-    else if (dir > 0 && !azione.isRunning()) azione.time = 0;
-    azione.play();
-  };
-  const progresso = (azione) => (azione.isRunning() || azione.enabled
-    ? Math.min(1, Math.max(0, azione.time / azione.getClip().duration)) : 0);
-
   // ---- stato
   let sopra = null;      // numero con il puntatore sopra
   let scelta = null;     // numero selezionato
@@ -458,10 +506,10 @@ export async function avviaSala(host, opz = {}) {
       if (scelta !== null && scelta !== n) this._chiudi(scelta, false);
       const m = maglie.get(n);
       if (scelta === n) return;
-      let da = 0;
-      if (sopra === n) { da = progresso(m.hover) * 0.25 * m.sel.getClip().duration; m.hover.stop(); }
+      if (sopra === n) m.h.t = 0;
       scelta = n; sopra = null;
-      corri(m.sel, 1, da);
+      m.s.t = 1; m.sporca = true;
+      nodoLuce(m);
       vai(vistaMaglia(n), 1300);
       scurisci();
       mostraScheda(n);
@@ -470,8 +518,8 @@ export async function avviaSala(host, opz = {}) {
     _chiudi(n, camera = true) {
       const m = maglie.get(n);
       if (!m) return;
-      corri(m.sel, -1, m.sel.isRunning() || m.sel.enabled ? undefined : m.sel.getClip().duration);
-      m.gira.rotation.y = 0; m.spin = 0;
+      m.s.t = 0; m.sporca = true;
+      m.spin = 0;
     },
     torna() {
       if (scelta === null) return;
@@ -486,7 +534,7 @@ export async function avviaSala(host, opz = {}) {
       filtro = nome || null;
       segnaPill();
       scurisci();
-      vai(filtro ? vistaReparto(filtro) : VISTE.sala, 1100);
+      vai(filtro ? vistaReparto(filtro) : VISTE.sala, 1500, 7);
     },
     prossimo(d) {
       if (scelta === null) return;
@@ -554,11 +602,11 @@ export async function avviaSala(host, opz = {}) {
       if (n !== null) { etichetta.style.left = px + 'px'; etichetta.style.top = py + 'px'; }
       return;
     }
-    if (sopra !== null) corri(maglie.get(sopra).hover, -1);
+    if (sopra !== null) { const mm = maglie.get(sopra); mm.h.t = 0; mm.sporca = true; }
     sopra = n;
     if (n !== null) {
       const m = maglie.get(n);
-      corri(m.hover, 1);
+      m.h.t = 1; m.sporca = true;
       etichetta.innerHTML = `<b>${n}</b>${m.g.nome} · ${ruolo(m.g.reparto)}`;
       etichetta.style.left = px + 'px'; etichetta.style.top = py + 'px';
       etichetta.style.opacity = 1;
@@ -588,14 +636,20 @@ export async function avviaSala(host, opz = {}) {
       passoTween(now);
       aggiornaHover();
     }
-    mixer.update(dt);
+    tempo.t += dt;
     for (const m of maglie.values()) {
+      aggiornaMaglia(m, dt);
       if (Math.abs(m.k - m.kTarget) > 0.002) {
         m.k += (m.kTarget - m.k) * Math.min(1, dt * 8);
         for (const mt of m.mats) mt.color.copy(mt.userData.base).multiplyScalar(m.k);
       }
-      if (m.g.numero === scelta) m.gira.rotation.y += (m.spin - m.gira.rotation.y) * Math.min(1, dt * 10);
+      if (Math.abs(m.spin - m.gira.rotation.y) > 1e-4) {
+        m.gira.rotation.y += (m.spin - m.gira.rotation.y) * Math.min(1, dt * 10);
+      }
     }
+    // faro di scena sulla maglia scelta
+    const target = scelta !== null ? 2.6 : 0;
+    faro.intensity += (target - faro.intensity) * Math.min(1, dt * 4);
   };
   const giro = (now) => {
     raf = requestAnimationFrame(giro);

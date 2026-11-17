@@ -785,19 +785,27 @@ def duplica(base, nome, nome_giocatore, numero, colore_scritte, coll=None, mater
 
 # ------------------------------------------------------------------ per il sito
 def _immagine_trama(cartella):
-    """Normal map di un jersey (maglie in fila di punti a V), ripetibile."""
+    """Normal map di un tessuto tecnico: microtrama a maglia fine + rumore, senza righe regolari
+    (le righe producevano moire' e bande da vicino). Ripetibile."""
     if "trama_jersey" in bpy.data.images:
         return bpy.data.images["trama_jersey"]
     n = 512
+    rng = np.random.default_rng(21)
     U, V = np.meshgrid(np.arange(n) / n, np.arange(n) / n)
-    col, riga = 24, 24
-    cu, cv = U * col, V * riga
-    fu = cu - np.floor(cu)
-    h = np.sin(2 * math.pi * (cv + 0.9 * np.abs(fu - 0.5))) * 0.5 + 0.5
-    h = h * (0.55 + 0.45 * np.cos(math.pi * (fu - 0.5)))
+    h = np.zeros((n, n))
+    for oct_, amp in ((8, 0.50), (16, 0.30), (32, 0.20)):            # rumore periodico a piu' scale
+        g = rng.random((oct_, oct_))
+        gi = np.kron(g, np.ones((n // oct_, n // oct_)))
+        from numpy.fft import fft2, ifft2                              # sfocatura circolare: bordi morbidi
+        k = np.zeros((n, n)); r = max(1, n // oct_ // 2)
+        k[:r, :r] = 1.0; k = np.roll(np.roll(k, -r // 2, 0), -r // 2, 1)
+        gi = np.real(ifft2(fft2(gi) * fft2(k / k.sum())))
+        h += amp * (gi - gi.mean()) / (gi.std() + 1e-9)
+    punti = 0.5 + 0.5 * np.sin(2 * math.pi * U * 40.0 + 1.3 * np.sin(2 * math.pi * V * 3.0))         * np.sin(2 * math.pi * V * 40.0 + 0.9 * np.sin(2 * math.pi * U * 5.0))   # fori/punti della maglia, storti
+    h = 0.55 * h + 0.45 * (punti - 0.5) * 2.0
     gy, gx = np.gradient(h)
-    k = 6.0
-    nx, ny = -gx * k * 25, -gy * k * 25
+    k = 4.0
+    nx, ny = -gx * k, -gy * k
     nz = np.ones_like(nx)
     ln = np.sqrt(nx * nx + ny * ny + nz * nz)
     rgb = np.stack([nx / ln, ny / ln, nz / ln], 2) * 0.5 + 0.5
@@ -845,7 +853,7 @@ def prepara_web(shirt, colore, dettagli, cartella="."):
         it = nt.nodes.new("ShaderNodeTexImage")
         it.image = _immagine_trama(cartella)
         nm_ = nt.nodes.new("ShaderNodeNormalMap")
-        nm_.inputs["Strength"].default_value = 0.09
+        nm_.inputs["Strength"].default_value = 0.35
         nt.links.new(it.outputs["Color"], nm_.inputs["Color"])
         nt.links.new(nm_.outputs["Normal"], pb.inputs["Normal"])
         pb.inputs["Roughness"].default_value = 0.5

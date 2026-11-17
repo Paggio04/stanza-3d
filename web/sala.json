@@ -33,11 +33,7 @@
    "slot": 5,
    "phi": -1.6455961518803672,
    "nodo": "Armadietto_01",
-   "maglia": "Maglia_01",
-   "clip": {
-    "hover": "Maglia_01|hover",
-    "selezione": "Maglia_01|selezione"
-   }
+   "maglia": "Maglia_01"
   },
   {
    "numero": 4,
@@ -47,11 +43,7 @@
    "slot": 6,
    "phi": -1.3463968515384828,
    "nodo": "Armadietto_04",
-   "maglia": "Maglia_04",
-   "clip": {
-    "hover": "Maglia_04|hover",
-    "selezione": "Maglia_04|selezione"
-   }
+   "maglia": "Maglia_04"
   },
   {
    "numero": 5,
@@ -61,11 +53,7 @@
    "slot": 7,
    "phi": -1.0471975511965965,
    "nodo": "Armadietto_05",
-   "maglia": "Maglia_05",
-   "clip": {
-    "hover": "Maglia_05|hover",
-    "selezione": "Maglia_05|selezione"
-   }
+   "maglia": "Maglia_05"
   },
   {
    "numero": 6,
@@ -75,11 +63,7 @@
    "slot": 8,
    "phi": -0.747998250854712,
    "nodo": "Armadietto_06",
-   "maglia": "Maglia_06",
-   "clip": {
-    "hover": "Maglia_06|hover",
-    "selezione": "Maglia_06|selezione"
-   }
+   "maglia": "Maglia_06"
   },
   {
    "numero": 7,
@@ -89,11 +73,7 @@
    "slot": 9,
    "phi": -0.4487989505128276,
    "nodo": "Armadietto_07",
-   "maglia": "Maglia_07",
-   "clip": {
-    "hover": "Maglia_07|hover",
-    "selezione": "Maglia_07|selezione"
-   }
+   "maglia": "Maglia_07"
   },
   {
    "numero": 10,
@@ -103,11 +83,7 @@
    "slot": 10,
    "phi": -0.14959965017094135,
    "nodo": "Armadietto_10",
-   "maglia": "Maglia_10",
-   "clip": {
-    "hover": "Maglia_10|hover",
-    "selezione": "Maglia_10|selezione"
-   }
+   "maglia": "Maglia_10"
   },
   {
    "numero": 11,
@@ -117,11 +93,7 @@
    "slot": 11,
    "phi": 0.14959965017094312,
    "nodo": "Armadietto_11",
-   "maglia": "Maglia_11",
-   "clip": {
-    "hover": "Maglia_11|hover",
-    "selezione": "Maglia_11|selezione"
-   }
+   "maglia": "Maglia_11"
   },
   {
    "numero": 12,
@@ -131,11 +103,7 @@
    "slot": 12,
    "phi": 0.4487989505128276,
    "nodo": "Armadietto_12",
-   "maglia": "Maglia_12",
-   "clip": {
-    "hover": "Maglia_12|hover",
-    "selezione": "Maglia_12|selezione"
-   }
+   "maglia": "Maglia_12"
   },
   {
    "numero": 16,
@@ -145,11 +113,7 @@
    "slot": 13,
    "phi": 0.7479982508547138,
    "nodo": "Armadietto_16",
-   "maglia": "Maglia_16",
-   "clip": {
-    "hover": "Maglia_16|hover",
-    "selezione": "Maglia_16|selezione"
-   }
+   "maglia": "Maglia_16"
   },
   {
    "numero": 17,
@@ -159,11 +123,7 @@
    "slot": 14,
    "phi": 1.0471975511965983,
    "nodo": "Armadietto_17",
-   "maglia": "Maglia_17",
-   "clip": {
-    "hover": "Maglia_17|hover",
-    "selezione": "Maglia_17|selezione"
-   }
+   "maglia": "Maglia_17"
   },
   {
    "numero": 18,
@@ -173,11 +133,7 @@
    "slot": 15,
    "phi": 1.3463968515384828,
    "nodo": "Armadietto_18",
-   "maglia": "Maglia_18",
-   "clip": {
-    "hover": "Maglia_18|hover",
-    "selezione": "Maglia_18|selezione"
-   }
+   "maglia": "Maglia_18"
   },
   {
    "numero": 2,
@@ -187,11 +143,7 @@
    "slot": 16,
    "phi": 1.645596151880369,
    "nodo": "Armadietto_02",
-   "maglia": "Maglia_02",
-   "clip": {
-    "hover": "Maglia_02|hover",
-    "selezione": "Maglia_02|selezione"
-   }
+   "maglia": "Maglia_02"
   },
   {
    "numero": 3,
@@ -201,11 +153,7 @@
    "slot": 17,
    "phi": 1.9447954522222535,
    "nodo": "Armadietto_03",
-   "maglia": "Maglia_03",
-   "clip": {
-    "hover": "Maglia_03|hover",
-    "selezione": "Maglia_03|selezione"
-   }
+   "maglia": "Maglia_03"
   },
   {
    "numero": 8,
@@ -215,11 +163,7 @@
    "slot": 18,
    "phi": 2.243994752564138,
    "nodo": "Armadietto_08",
-   "maglia": "Maglia_08",
-   "clip": {
-    "hover": "Maglia_08|hover",
-    "selezione": "Maglia_08|selezione"
-   }
+   "maglia": "Maglia_08"
   },
   {
    "numero": 9,
@@ -229,11 +173,7 @@
    "slot": 19,
    "phi": 2.543194052906024,
    "nodo": "Armadietto_09",
-   "maglia": "Maglia_09",
-   "clip": {
-    "hover": "Maglia_09|hover",
-    "selezione": "Maglia_09|selezione"
-   }
+   "maglia": "Maglia_09"
   },
   {
    "numero": 13,
@@ -243,11 +183,7 @@
    "slot": 20,
    "phi": 2.8423933532479086,
    "nodo": "Armadietto_13",
-   "maglia": "Maglia_13",
-   "clip": {
-    "hover": "Maglia_13|hover",
-    "selezione": "Maglia_13|selezione"
-   }
+   "maglia": "Maglia_13"
   },
   {
    "numero": 14,
@@ -257,11 +193,7 @@
    "slot": 1,
    "phi": -2.8423933532479086,
    "nodo": "Armadietto_14",
-   "maglia": "Maglia_14",
-   "clip": {
-    "hover": "Maglia_14|hover",
-    "selezione": "Maglia_14|selezione"
-   }
+   "maglia": "Maglia_14"
   },
   {
    "numero": 15,
@@ -271,11 +203,7 @@
    "slot": 2,
    "phi": -2.5431940529060224,
    "nodo": "Armadietto_15",
-   "maglia": "Maglia_15",
-   "clip": {
-    "hover": "Maglia_15|hover",
-    "selezione": "Maglia_15|selezione"
-   }
+   "maglia": "Maglia_15"
   },
   {
    "numero": 19,
@@ -285,11 +213,7 @@
    "slot": 3,
    "phi": -2.243994752564138,
    "nodo": "Armadietto_19",
-   "maglia": "Maglia_19",
-   "clip": {
-    "hover": "Maglia_19|hover",
-    "selezione": "Maglia_19|selezione"
-   }
+   "maglia": "Maglia_19"
   },
   {
    "numero": 20,
@@ -299,15 +223,35 @@
    "slot": 4,
    "phi": -1.9447954522222526,
    "nodo": "Armadietto_20",
-   "maglia": "Maglia_20",
-   "clip": {
-    "hover": "Maglia_20|hover",
-    "selezione": "Maglia_20|selezione"
-   }
+   "maglia": "Maglia_20"
   }
  ],
- "clip_secondi": {
-  "hover": 0.43333333333333335,
-  "selezione": 1.7666666666666666
+ "gesti": {
+  "hover": {
+   "dy": 0.2,
+   "dr": 0.16,
+   "dz": 0.0
+  },
+  "selezione": {
+   "dy": 0.85,
+   "dr": 0.72,
+   "dz": 0.04
+  },
+  "molle": {
+   "hover": {
+    "w": 16.0,
+    "z": 0.55
+   },
+   "selezione": {
+    "w": 10.0,
+    "z": 0.62
+   },
+   "oscillazione": {
+    "w": 5.4,
+    "z": 0.14,
+    "k": 0.35
+   }
+  },
+  "altezza_gancio": 0.06
  }
 }

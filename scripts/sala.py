@@ -400,8 +400,6 @@ def baia(i, g, col_maglia, dettagli, scritte_col, base_m, phi, _non_usato):
         o["reparto"] = g["reparto"]
     em["titolare"] = bool(g["titolare"])
     em["phi"] = float(phi)
-    if WEB:
-        anima(sh)
     return em, base
 
 
@@ -687,7 +685,7 @@ def esporta_web(out, dati, lista):
     glb = os.path.join(out, "sala.glb")
     bpy.ops.export_scene.gltf(
         filepath=glb, export_format="GLB", export_apply=True, export_yup=True,
-        export_animations=True, export_animation_mode="NLA_TRACKS", export_extras=True,
+        export_animations=False, export_extras=True,
         export_cameras=False, export_lights=False, export_materials="EXPORT")
     man = {
         "squadra": dati["nome"], "stagione": dati["stagione"], "colori": dati["colori"],
@@ -697,11 +695,17 @@ def esporta_web(out, dati, lista):
         "giocatori": [
             {"numero": g["numero"], "nome": g["nome"], "reparto": g["reparto"],
              "titolare": g["titolare"], "slot": j, "phi": phi,
-             "nodo": "Armadietto_%02d" % g["numero"], "maglia": "Maglia_%02d" % g["numero"],
-             "clip": {"hover": "Maglia_%02d|hover" % g["numero"],
-                      "selezione": "Maglia_%02d|selezione" % g["numero"]}}
+             "nodo": "Armadietto_%02d" % g["numero"], "maglia": "Maglia_%02d" % g["numero"]}
             for g, j, phi in lista],
-        "clip_secondi": {n: (c[-1][0] - c[0][0]) / FPS for n, c in CLIP.items()},
+        # gesti: spostamento (m), rotazione (rad) e alzata raggiunti a molla completamente chiusa;
+        # molle: pulsazione w (rad/s) e smorzamento z (z < 1 = piccolo rimbalzo); oscillazione = pendolo della gruccia
+        "gesti": {
+            "hover": {"dy": CLIP["hover"][-1][1], "dr": CLIP["hover"][-1][2], "dz": CLIP["hover"][-1][3]},
+            "selezione": {"dy": CLIP["selezione"][-1][1], "dr": CLIP["selezione"][-1][2], "dz": CLIP["selezione"][-1][3]},
+            "molle": {"hover": {"w": 16.0, "z": 0.55}, "selezione": {"w": 10.0, "z": 0.62},
+                      "oscillazione": {"w": 5.4, "z": 0.14, "k": 0.35}},
+            "altezza_gancio": maglia.ALTEZZA_GANCIO,
+        },
     }
     json.dump(man, open(os.path.join(out, "sala.json"), "w", encoding="utf-8"), ensure_ascii=False, indent=1)
     print("WEB_OK", glb, os.path.getsize(glb))
