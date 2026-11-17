@@ -33,7 +33,7 @@ const gl = (r, a) => new THREE.Vector3(r * Math.sin(a), 0, -r * Math.cos(a)); //
 const dAng = (a, b) => ((b - a + Math.PI) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI) - Math.PI;
 
 const CSS = `
-.sala{position:relative;width:100%;height:100%;min-height:360px;overflow:hidden;background:#cfd3d8;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:#fff;touch-action:none}
+.sala{position:relative;width:100%;height:100%;min-height:360px;overflow:hidden;background:#cfd3d8;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:#fff;touch-action:pan-y}
 .sala canvas{display:block;width:100%;height:100%}
 .sala .top{position:absolute;left:0;right:0;top:0;padding:14px 18px;display:flex;flex-direction:column;gap:10px;align-items:center;pointer-events:none;background:linear-gradient(#0009,#0000)}
 .sala .titolo{font-weight:700;letter-spacing:.04em;font-size:18px;text-transform:uppercase}
@@ -64,7 +64,7 @@ const CSS = `
 .sala .salta{all:unset;cursor:pointer;position:absolute;right:16px;bottom:48px;padding:8px 16px;border-radius:999px;background:#0009;border:1px solid #fff5;font-size:13px;opacity:0;pointer-events:none;transition:opacity .5s;backdrop-filter:blur(6px)}
 .sala.intro.corre .salta{opacity:1;pointer-events:auto}
 .sala .intro-video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;pointer-events:none;transition:opacity 1.2s;background:#000}
-@media (max-aspect-ratio:1/1){.sala .scheda{top:auto;left:0;width:100%;max-height:46%;padding:18px 20px;transform:translateY(105%)}.sala .scheda.aperta{transform:none}.sala .scheda .num{font-size:64px;margin-top:0}.sala .scheda .nome{font-size:20px}}
+@media (max-aspect-ratio:1/1){.sala .scheda{top:auto;bottom:32px;left:0;width:100%;max-height:46%;padding:18px 20px;transform:translateY(105%)}.sala .scheda.aperta{transform:none}.sala .scheda .num{font-size:64px;margin-top:0}.sala .scheda .nome{font-size:20px}}
 `;
 
 export async function avviaSala(host, opz = {}) {
@@ -420,6 +420,7 @@ export async function avviaSala(host, opz = {}) {
         }
         if (!this.attivo) {
           if (scelta !== null) api.torna();
+          if (filtro) { filtro = null; segnaPill(); scurisci(); }      // tornando indietro la sala riparte "Tutti"
           sopra = null; etichetta.style.opacity = 0;
           this.attivo = true;
           host.classList.add('intro');
@@ -441,7 +442,10 @@ export async function avviaSala(host, opz = {}) {
         if (RIDUCI()) { this.progresso(1); return; }
         this.progresso(0);
         if (video) {
+          video.style.transition = 'none';          // il video entra di colpo: la dissolvenza serve solo all'uscita
           video.style.opacity = 1;
+          void video.offsetWidth;
+          video.style.transition = '';
           try { await video.play(); await new Promise((res) => { video.addEventListener('ended', res, { once: true }); video.addEventListener('error', res, { once: true }); this._saltaVideo = res; }); } catch (e) { /* senza video si parte dal tunnel */ }
           video.style.opacity = 0;
         }
@@ -456,7 +460,8 @@ export async function avviaSala(host, opz = {}) {
         };
         window.addEventListener('scroll', f, { passive: true });
         f();
-        this._scorrimento = () => window.removeEventListener('scroll', f);
+        this._f = f;                       // riletto anche a ogni fotogramma: non dipende dal momento dell'evento
+        this._scorrimento = () => { window.removeEventListener('scroll', f); this._f = null; };
         return this._scorrimento;
       },
       passo(dt) {
@@ -643,6 +648,7 @@ export async function avviaSala(host, opz = {}) {
   let raf = 0;
   const passo = (now, dt) => {
     ora = now;
+    if (perc && perc._f) perc._f();
     if (perc && perc.attivo) {
       perc.passo(dt);
     } else {

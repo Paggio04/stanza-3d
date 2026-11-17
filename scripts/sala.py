@@ -678,6 +678,25 @@ def unisci_statico():
     return list(gruppi)
 
 
+def controlla_scena(lista):
+    """Controlli numerici prima di esportare: rosa, slot, budget di triangoli."""
+    err = []
+    nomi = [o.name for o in bpy.data.objects]
+    maglie = [n for n in nomi if n.startswith("Maglia_") and n.count("_") == 1]
+    armadietti = [n for n in nomi if n.startswith("Armadietto_")]
+    if len(maglie) != N_BAIE:
+        err.append("maglie %d invece di %d" % (len(maglie), N_BAIE))
+    if len(armadietti) != N_BAIE:
+        err.append("armadietti %d invece di %d" % (len(armadietti), N_BAIE))
+    slot = [j for _, j, _ in lista]
+    if len(set(slot)) != len(slot) or 0 in slot or any(not (0 < j < N_SLOT) for j in slot):
+        err.append("slot duplicati o sulla porta: %s" % sorted(slot))
+    tri = sum(sum(len(p.vertices) - 2 for p in o.data.polygons) for o in bpy.data.objects
+              if o.type == "MESH" and (not o.name.startswith("Maglia_") or o.name.count("_") == 1))
+    n_figli = sum(1 for o in bpy.data.objects if o.type == "MESH" and o.name.startswith("Maglia_") and o.name.count("_") > 1)
+    return err, tri, n_figli
+
+
 def esporta_web(out, dati, lista):
     os.makedirs(out, exist_ok=True)
     sc = bpy.context.scene
@@ -734,8 +753,19 @@ if __name__ == "__main__":
         if LOD:
             maglia.STEP = 0.017          # maglia con triangoli di 1,7 cm invece di 1 cm: circa un terzo
         lista = costruisci_sala(dati)
+        err_sala, tri_scena, n_figli = controlla_scena(lista)
+        for e in err_sala:
+            print("SALA_ERRORE", e)
         unisci_statico()
         esporta_web(out, dati, lista)
+        peso = os.path.getsize(os.path.join(out, "sala_bassa.glb" if LOD else "sala.glb"))
+        budget_peso, budget_tri = (3.2e6, 450000) if LOD else (6.0e6, 900000)
+        print("SALA_MISURE triangoli_stimati", tri_scena, "figli_maglia", n_figli, "peso", peso)
+        if peso > budget_peso:
+            print("SALA_ERRORE peso %d oltre il budget %d" % (peso, budget_peso))
+            err_sala.append("peso")
+        if err_sala:
+            sys.exit(1)
         sys.exit(0)
     px = int(argv[1]) if len(argv) > 1 else 1280
     camp = int(argv[2]) if len(argv) > 2 else 32

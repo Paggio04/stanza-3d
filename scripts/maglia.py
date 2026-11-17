@@ -905,6 +905,22 @@ def misure(shirt):
             mx = max(mx, abs(ang[(i + 1) % n] - ang[i]))   # un dente = curvatura che salta
     info["dente_max_gradi"] = mx
     info["modificatori"] = [m.type for m in shirt.modifiers]
+    # parti accessorie: presenza, verso delle normali (davanti +Y, dietro -Y), nastri sotto la linea della spalla
+    info["angolo_taglio_gradi"] = math.degrees(SLEEVE_ANG)       # il taglio, non la posa
+    info["svasatura_mm"] = SVASATURA * 1000.0
+    figli = {}
+    sopra = -1.0
+    for c in shirt.children:
+        if c.type != "MESH" or not c.data.polygons:
+            continue
+        ny = float(np.mean([p.normal.y for p in c.data.polygons]))
+        figli[c.name[len(shirt.name):]] = ny
+        if "Colletto" in c.name or "Filetto" in c.name:
+            for v in c.data.vertices:
+                if abs(v.co.x) >= NECK_X - 0.002:
+                    sopra = max(sopra, v.co.z - (-abs(v.co.x) * TAN12))
+    info["figli"] = figli
+    info["nastro_sopra_spalla_mm"] = sopra * 1000.0
     return info
 
 
@@ -924,6 +940,15 @@ def verifica(info):
     ok(3.0 <= info["ampiezza_pieghe_mm"] <= 16.0, "pieghe %.1f mm" % info["ampiezza_pieghe_mm"])
     ok(info["dente_max_gradi"] <= 20.0, "dente %.1f gradi" % info["dente_max_gradi"])
     ok("CLOTH" not in info["modificatori"], "c'e' un Cloth: vietato")
+    ok(35.0 <= info["angolo_taglio_gradi"] <= 50.0, "taglio manica %.1f gradi" % info["angolo_taglio_gradi"])
+    ok(info["svasatura_mm"] <= 40.0, "svasatura %.0f mm" % info["svasatura_mm"])
+    ok(info["nastro_sopra_spalla_mm"] <= 0.5, "nastro oltre la spalla di %.1f mm" % info["nastro_sopra_spalla_mm"])
+    attesi = {"_Nome": -1, "_Numero": -1, "_SponsorDietro": -1, "_SponsorPetto": +1, "_Scudo": +1,
+              "_CollettoDavanti": +1, "_CollettoDietro": -1, "_FilettoDavanti": +1, "_FilettoDietro": -1}
+    for nome, verso in attesi.items():
+        ok(nome in info["figli"], "manca il figlio %s" % nome)
+        if nome in info["figli"]:
+            ok(info["figli"][nome] * verso > 0.2, "%s guarda dalla parte sbagliata (ny=%.2f)" % (nome, info["figli"][nome]))
     return err
 
 
