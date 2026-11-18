@@ -377,6 +377,24 @@ export async function avviaSala(host, opz = {}) {
   if (tunnelGltf && tunnelDati) {
     const V3 = THREE.Vector3;
     const GAIN = 1.0; // realismo: 1.3 slavava i colori cotti (effetto piatto/Minecraft)
+    // [nome, {metal, rough, env, k}]: k = quanta luce cotta resta come emissione (il resto lo mette l'ambiente)
+    const LUCIDI = [
+      [/Tunnel_Oro/, { metal: 1, rough: 0.28, env: 2.2, k: 0.35 }],
+      [/Tunnel_(Pavimento|Corsia)/, { metal: 0, rough: 0.22, env: 3.0, k: 0.9 }],
+      [/Tunnel_Muro/, { metal: 0, rough: 0.42, env: 1.4, k: 0.95 }],
+    ];
+    const lucido = (m, conCol, p) => {
+      const s = new THREE.MeshStandardMaterial({
+        color: p.metal ? m.color.clone() : new THREE.Color(0x000000), metalness: p.metal, roughness: p.rough,
+        vertexColors: conCol, side: THREE.DoubleSide, envMapIntensity: p.env,
+        emissive: m.color.clone().multiplyScalar(p.k), emissiveMap: m.map || null,
+      });
+      s.onBeforeCompile = (sh) => {
+        sh.fragmentShader = sh.fragmentShader.replace('#include <emissivemap_fragment>',
+          ['#include <emissivemap_fragment>', '#ifdef USE_COLOR', ' totalEmissiveRadiance *= vColor.rgb;', '#endif'].join('\n'));
+      };
+      return s;
+    };
     tunnelGltf.scene.traverse((o) => {
       if (!o.isMesh) return;
       const m = o.material;
@@ -386,6 +404,9 @@ export async function avviaSala(host, opz = {}) {
       const led = /Cartelloni|Schermo|TettoLed/.test(m.name);
       b.color.copy(m.color).multiplyScalar(/Luce/.test(m.name) ? 2.0 : led ? 1.7 : ext ? (tunnelDati.gain_esterno || 1.0) : GAIN);
       o.material = b;
+      // corrimano e pavimento: riflessi veri (Standard con la luce cotta come emissione: nessuna luce di scena)
+      const lu = LUCIDI.find(([re]) => re.test(m.name));
+      if (lu) o.material = lucido(m, !!o.geometry.attributes.color, lu[1]);
       o.castShadow = o.receiveShadow = false;
       if (m.map) m.map.anisotropy = renderer.capabilities.getMaxAnisotropy();
     });
@@ -399,7 +420,13 @@ export async function avviaSala(host, opz = {}) {
     const cielo = new THREE.CanvasTexture(cv);
     cielo.colorSpace = THREE.SRGBColorSpace;
     scena.background = cielo;
-    scena.fog = new THREE.Fog(0xcfdfee, 45, 120);
+    // cielo vero (Sky Texture di Blender, `scripts/cielo.py`): sole nella stessa direzione della luce cotta degli spalti
+    new THREE.TextureLoader().load(opz.cielo || 'cielo.jpg', (t) => {
+      t.mapping = THREE.EquirectangularReflectionMapping;
+      t.colorSpace = THREE.SRGBColorSpace;
+      scena.background = t;
+    });
+    scena.fog = new THREE.Fog(0xc7d7df, 90, 260);
     const S = VISTE.sala;
     const fin = { p: gl(S.r, S.a), t: gl(S.tr, S.ta) };
     const pos = [...tunnelDati.percorso.map((k) => new V3(...k.p)), new V3(fin.p.x, S.y, fin.p.z)];
