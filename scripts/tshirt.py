@@ -33,8 +33,8 @@ TORSO = [  # z, rx, ry   (misurati sul riferimento: proporzione larghezza/altezz
 Z_ORLO = -0.740
 NECK_RX, NECK_RY, NECK_Z = 0.070, 0.062, -0.006
 SLEEVE = {  # manica "set-in": parte quasi orizzontale sulla spalla e poi cade, svasata verso il polsino
-    "pts": [(0.130, -0.088), (0.175, -0.096), (0.205, -0.128), (0.228, -0.195), (0.250, -0.292)],
-    "ru": [0.045, 0.050, 0.056, 0.059, 0.062], "rv": [0.058, 0.056, 0.055, 0.055, 0.056]}
+    "pts": [(0.130, -0.088), (0.176, -0.096), (0.211, -0.128), (0.236, -0.195), (0.258, -0.292)],
+    "ru": [0.047, 0.053, 0.060, 0.064, 0.068], "rv": [0.058, 0.056, 0.054, 0.051, 0.048]}
 
 
 def _ring_loft(bm, anelli, chiudi_alto=True, chiudi_basso=True):
@@ -109,7 +109,7 @@ def unisci_e_taglia():
     bpy.ops.object.modifier_apply(modifier="Remesh")
     sm = ob.modifiers.new("Liscia", "SMOOTH")
     sm.factor = 0.8
-    sm.iterations = 34
+    sm.iterations = 14
     bpy.ops.object.modifier_apply(modifier="Liscia")
     # taglio delle aperture: orlo e polsini con piani esatti (bordi puliti), collo con scollo piu' basso davanti
     bm = bmesh.new()
@@ -147,6 +147,39 @@ def unisci_e_taglia():
     bm.to_mesh(ob.data)
     bm.free()
     return ob
+
+
+def pieghe_frontali(ob):
+    """Pieghe di caduta sul davanti (ventaglio dalle ascelle verso il petto, tensione sotto il collo, onde del ventre): creste e solchi morbidi
+    spostati lungo la normale (asse Y) del guscio, piu' leggeri dietro."""
+    me = ob.data
+    n = len(me.vertices)
+    pos = np.array([v.co[:] for v in me.vertices])
+    X, Z = pos[:, 0], pos[:, 2]
+
+    def cresta(p0, p1, amp, w):
+        a = np.array(p0); b = np.array(p1)
+        ab = b - a
+        t = np.clip(((X - a[0]) * ab[0] + (Z - a[1]) * ab[1]) / (ab @ ab), 0.0, 1.0)
+        d2 = (X - (a[0] + t * ab[0])) ** 2 + (Z - (a[1] + t * ab[1])) ** 2
+        return amp * np.exp(-d2 / w ** 2) * np.sin(np.pi * np.clip(t, 0, 1)) ** 0.5
+    dy = np.zeros(n)
+    for sg, k in ((1, 1.0), (-1, 0.8)):                         # il lato sinistro e' un po' diverso dal destro
+        dy += k * cresta((sg * 0.172, -0.125), (sg * 0.035, -0.235), 0.0037, 0.017)
+        dy += k * cresta((sg * 0.176, -0.160), (sg * 0.075, -0.345), 0.0030, 0.020)
+        dy += k * cresta((sg * 0.168, -0.098), (sg * 0.060, -0.172), -0.0030, 0.015)
+        dy += k * cresta((sg * 0.080, -0.045), (sg * 0.135, -0.105), -0.0027, 0.016)
+        dy += k * cresta((sg * 0.060, -0.390), (sg * 0.085, -0.640), 0.0027, 0.030)
+        dy += k * cresta((sg * 0.130, -0.420), (sg * 0.150, -0.600), -0.0023, 0.026)
+    dy += cresta((-0.12, -0.625), (0.10, -0.600), 0.0019, 0.020)
+    fronte = pos[:, 1] > 0
+    for i in range(n):
+        v = me.vertices[i]
+        if fronte[i]:
+            v.co.y += dy[i]
+        else:
+            v.co.y -= 0.35 * dy[i]
+    me.update()
 
 
 def pesi_orlo(ob):
@@ -247,7 +280,7 @@ def collo(ob_parent):
 
 
 # ------------------------------------------------------------------ materiali, luci, resa
-def materiale(nome, colore, rough=0.85, sheen=0.55, bump=0.4, scala=600.0, interno_scuro=False, cuciture=False, fres=0.55, ao_dist=0.07):
+def materiale(nome, colore, rough=0.90, sheen=0.60, bump=0.6, scala=800.0, interno_scuro=False, cuciture=False, fres=0.45, ao_dist=0.07):
     m = bpy.data.materials.new(nome)
     m.use_nodes = True
     nt = m.node_tree
@@ -256,9 +289,11 @@ def materiale(nome, colore, rough=0.85, sheen=0.55, bump=0.4, scala=600.0, inter
     pb.inputs["Roughness"].default_value = rough
     if "Sheen Weight" in pb.inputs:
         pb.inputs["Sheen Weight"].default_value = sheen
-        pb.inputs["Sheen Roughness"].default_value = 0.5
+        pb.inputs["Sheen Roughness"].default_value = 0.55
+        if "Sheen Tint" in pb.inputs:
+            pb.inputs["Sheen Tint"].default_value = (0.92, 0.94, 1.0, 1.0)
     if "Subsurface Weight" in pb.inputs:
-        pb.inputs["Subsurface Weight"].default_value = 0.12
+        pb.inputs["Subsurface Weight"].default_value = 0.0
         pb.inputs["Subsurface Radius"].default_value = (0.01, 0.01, 0.01)
     tc = nt.nodes.new("ShaderNodeTexCoord")
     ma = nt.nodes.new("ShaderNodeMapping")
@@ -314,7 +349,7 @@ def materiale(nome, colore, rough=0.85, sheen=0.55, bump=0.4, scala=600.0, inter
     m2.inputs[0].default_value = 1.0
     nt.links.new(ao.outputs["Color"], m2.inputs[6])
     cb = nt.nodes.new("ShaderNodeCombineColor")           # le ombre sono lavanda/blu come nel riferimento: il rosso cala di piu' del blu
-    for ch, (k, off) in zip(("Red", "Green", "Blue"), ((1.0, 0.0), (0.72, 0.28), (0.38, 0.62))):
+    for ch, (k, off) in zip(("Red", "Green", "Blue"), ((1.0, 0.0), (0.80, 0.20), (0.55, 0.45))):
         mk = nt.nodes.new("ShaderNodeMath")
         mk.operation = "MULTIPLY_ADD"
         mk.inputs[1].default_value = k
@@ -374,7 +409,7 @@ def materiale(nome, colore, rough=0.85, sheen=0.55, bump=0.4, scala=600.0, inter
         ax = M("ABSOLUTE", sq.outputs["X"])
         zz = sq.outputs["Z"]
         # polsino: distanza lungo l'asse della manica dal piano di taglio (asse (0.309, -0.951) in (|x|, z))
-        dc = M("ADD", M("MULTIPLY", M("SUBTRACT", ax, 0.250), 0.221), M("MULTIPLY", M("ADD", zz, 0.268), -0.961))
+        dc = M("ADD", M("MULTIPLY", M("SUBTRACT", ax, 0.258), 0.221), M("MULTIPLY", M("ADD", zz, 0.268), -0.961))
         lc = M("EXPONENT", M("MULTIPLY", M("POWER", M("DIVIDE", M("ADD", dc, 0.020), 0.0035), 2.0), -1.0))
         mc_ = M("MULTIPLY", MR(ax, 0.18, 0.20), MR(zz, -0.42, -0.38))
         lh = M("EXPONENT", M("MULTIPLY", M("POWER", M("DIVIDE", M("ADD", zz, 0.720), 0.0035), 2.0), -1.0))
@@ -406,7 +441,7 @@ def luci_e_camera(sc, bersaglio=(0.0, 0.0, -0.355)):
     nt = w.node_tree                                                    # sfondo visibile grigio chiaro, luce ambiente piu' scura (ombre morbide sul tessuto)
     amb = nt.nodes.new("ShaderNodeBackground")
     amb.inputs["Color"].default_value = (0.60, 0.62, 0.68, 1.0)
-    amb.inputs["Strength"].default_value = 0.92
+    amb.inputs["Strength"].default_value = 0.95
     lp = nt.nodes.new("ShaderNodeLightPath")
     mx = nt.nodes.new("ShaderNodeMixShader")
     outn = nt.nodes["World Output"]
@@ -426,8 +461,8 @@ def luci_e_camera(sc, bersaglio=(0.0, 0.0, -0.355)):
         d = Vector(bersaglio) - Vector(loc)
         lo.rotation_euler = d.to_track_quat("-Z", "Y").to_euler()
 
-    area("Key", (-1.6, 3.0, 1.0), 112.0, 3.5, (1.0, 0.99, 0.98))
-    area("Fill", (2.8, 2.4, -0.4), 16.0, 3.5, (0.90, 0.94, 1.0))
+    area("Key", (-1.2, 3.1, 0.9), 125.0, 3.5, (1.0, 0.99, 0.98))
+    area("Fill", (1.8, 2.8, -0.2), 24.0, 3.5, (0.90, 0.94, 1.0))
     area("Alto", (0.0, 1.2, 2.2), 20.0, 2.5, (0.96, 0.97, 1.0))
     area("Rim", (0.0, -2.2, 0.3), 14.0, 2.0)
     cd = bpy.data.cameras.new("Cam")
@@ -449,9 +484,10 @@ def main():
     bpy.ops.wm.read_factory_settings(use_empty=True)
     sc = bpy.context.scene
     ob = unisci_e_taglia()
+    pieghe_frontali(ob)
     pesi_orlo(ob)
     sol = ob.modifiers.new("Spessore", "SOLIDIFY")
-    sol.thickness = 0.0085
+    sol.thickness = 0.0070
     sol.offset = -1.0
     sol.use_rim = True
     sol.thickness_vertex_group = 0.0
@@ -485,7 +521,7 @@ def main():
     bianco = materiale("Cotone", (0.78, 0.80, 0.88, 1.0), interno_scuro=True, cuciture=True)
     ob.data.materials.append(bianco)
     c = collo(ob)
-    c.data.materials.append(materiale("Costine", (0.92, 0.93, 0.97, 1.0), bump=0.6, scala=1400.0, interno_scuro=True, fres=0.10, ao_dist=0.012))
+    c.data.materials.append(materiale("Costine", (0.92, 0.93, 0.97, 1.0), bump=0.9, scala=1400.0, interno_scuro=True, fres=0.10, ao_dist=0.012))
     sc.render.engine = "CYCLES"
     sc.cycles.device = "CPU"
     sc.cycles.samples = camp
