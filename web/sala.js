@@ -82,6 +82,15 @@ const CSS = `
 .sala .salta{all:unset;cursor:pointer;position:absolute;right:16px;bottom:48px;padding:8px 16px;border-radius:999px;background:#0009;border:1px solid #fff5;font-size:13px;opacity:0;pointer-events:none;transition:opacity .5s;backdrop-filter:blur(6px)}
 .sala.intro.corre .salta{opacity:1;pointer-events:auto}
 .sala.intro::after{content:'';position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse at center,transparent 58%,rgba(0,0,0,.30) 100%)}
+.sala .intro-titolo{position:absolute;left:0;right:0;top:34%;display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center;pointer-events:none;opacity:0;z-index:2;text-shadow:0 2px 18px #000a}
+.sala .intro-titolo b{font-size:clamp(28px,6vw,64px);font-weight:800;letter-spacing:.14em;text-transform:uppercase}
+.sala .intro-titolo span{font-size:clamp(12px,1.6vw,17px);letter-spacing:.28em;text-transform:uppercase;opacity:.9}
+.sala.corre .intro-titolo{animation:sala-titolo 5.2s ease both}
+@keyframes sala-titolo{0%{opacity:0;transform:translateY(14px)}18%{opacity:1;transform:none}70%{opacity:1}100%{opacity:0;transform:translateY(-8px)}}
+.sala .nero{position:absolute;inset:0;background:#000;opacity:0;pointer-events:none;z-index:2}
+.sala.corre .nero{animation:sala-nero 1.6s ease-out both}
+@keyframes sala-nero{from{opacity:1}to{opacity:0}}
+@media (prefers-reduced-motion:reduce){.sala.corre .intro-titolo,.sala.corre .nero{animation:none}}
 .sala .intro-video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;pointer-events:none;transition:opacity 1.2s;background:#000}
 @media (max-aspect-ratio:1/1){.sala .scheda{top:auto;bottom:32px;left:0;width:100%;max-height:46%;padding:18px 20px;transform:translateY(105%)}.sala .scheda.aperta{transform:none}.sala .scheda .num{font-size:64px;margin-top:0}.sala .scheda .nome{font-size:20px}}
 `;
@@ -107,6 +116,7 @@ export async function avviaSala(host, opz = {}) {
     </aside>
     <div class="nastro"><span></span></div>
     <button class="salta">Salta l'ingresso ›</button>
+    <div class="intro-titolo"><b></b><span></span></div><div class="nero"></div>
     <div class="carico">Carico la sala…</div>`;
   const q = (s) => host.querySelector(s);
 
@@ -473,13 +483,22 @@ export async function avviaSala(host, opz = {}) {
     scena.fog = new THREE.Fog(0xc7d7df, 45, 230);   // prospettiva aerea: le tribune lontane (40-70 m) schiariscono appena
     const S = VISTE.sala;
     const fin = { p: gl(S.r, S.a), t: gl(S.tr, S.ta) };
-    const pos = [...tunnelDati.percorso.map((k) => new V3(...k.p)), new V3(fin.p.x, S.y, fin.p.z)];
-    const tgt = [...tunnelDati.percorso.map((k) => new V3(...k.t)), new V3(fin.t.x, S.ty, fin.t.z)];
-    const fovs = [...tunnelDati.percorso.map((k) => k.fov), S.fov];
+    // apertura "dall'alto": si parte sopra il campo, di fronte alla bocca del tunnel, e si scende fino all'altezza degli occhi
+    const APERTURA = { p: new V3(-6.0, 12.5, 66.0), t: new V3(0.0, 2.6, 27.0), fov: 56 };
+    const pos = [APERTURA.p, ...tunnelDati.percorso.map((k) => new V3(...k.p)), new V3(fin.p.x, S.y, fin.p.z)];
+    const tgt = [APERTURA.t, ...tunnelDati.percorso.map((k) => new V3(...k.t)), new V3(fin.t.x, S.ty, fin.t.z)];
+    const fovs = [APERTURA.fov, ...tunnelDati.percorso.map((k) => k.fov), S.fov];
     const cp = new THREE.CatmullRomCurve3(pos, false, 'centripetal');
     const ct = new THREE.CatmullRomCurve3(tgt, false, 'centripetal');
     const lung = cp.getLength();
     const liscio = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+    // ritmo: veloce nella discesa e sul campo, a passo normale nel tunnel. c(p) = tempo "pesato" per arrivare a p; cinv e' l'inverso
+    const velF = (p) => 1 + 1.3 * (1 - liscio(0.12, 0.40, p));
+    const NT = 400, cTab = new Float32Array(NT + 1);
+    for (let i = 1; i <= NT; i++) cTab[i] = cTab[i - 1] + (1 / NT) / velF((i - 0.5) / NT);
+    const cTot = cTab[NT];
+    const cDi = (p) => { const x = Math.min(1, Math.max(0, p)) * NT, i = Math.min(NT - 1, Math.floor(x)); return cTab[i] + (cTab[i + 1] - cTab[i]) * (x - i); };
+    const cInv = (c) => { let a = 0, b = NT; c = Math.min(cTot, Math.max(0, c)); while (b - a > 1) { const m = (a + b) >> 1; if (cTab[m] <= c) a = m; else b = m; } return (a + (c - cTab[a]) / Math.max(1e-9, cTab[b] - cTab[a])) / NT; };
     const tmp = new V3(), tmpT = new V3();
     const bottone = q('.salta');
     let video = null;
@@ -493,7 +512,8 @@ export async function avviaSala(host, opz = {}) {
     // Prestazioni: finche' la camera e' nello stadio (p < 0.08, oltre ~30 m dalla porta) la sala, lo specchio e le sue ombre non
     // si disegnano (400k triangoli + un secondo passaggio dello specchio + la mappa d'ombra). Dalla porta si vede solo un
     // riquadro caldo al loro posto, della stessa tinta della luce della sala.
-    const SOGLIA_SALA = 0.08;
+    const extra = APERTURA.p.distanceTo(new V3(...tunnelDati.percorso[0].p));   // il tratto di apertura non conta per la sala
+    const SOGLIA_SALA = (extra + 0.08 * (lung - extra)) / lung;
     const portaSala = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 2.35),
       new THREE.MeshBasicMaterial({ color: 0xa8957c, fog: false, toneMapped: true }));
     portaSala.position.set(0, 1.175, 5.05 - 0.35);
@@ -592,13 +612,13 @@ export async function avviaSala(host, opz = {}) {
         this.applica();
       },
       avvia(o = {}) {
-        const da = o.da || 0, Sm = (1 - da) * lung;                       // metri da percorrere
+        const da = o.da || 0, cda = cDi(da), Sm = (cTot - cda) * lung;     // 'metri pesati' da percorrere
         const TA = 1.6, vel = o.velocita || opz.velocita || 2.6;           // rampa (s) e velocita' di crociera (m/s)
         const durata = o.durata || (Sm / vel + TA) * 1000;                  // senza durata esplicita: passo svelto, non corsa
         if (RIDUCI()) { this.progresso(1); return Promise.resolve(); }
         this.progresso(Math.min(da, 0.9999));
         host.classList.add('corre');
-        return new Promise((res) => { this.anim = { t: 0, durata, da, Sm, ta: Math.min(TA, durata / 4000), res }; });
+        return new Promise((res) => { this.anim = { t: 0, durata, da, cda, Sm, ta: Math.min(TA, durata / 4000), res }; });
       },
       ferma() {
         if (this.anim) { const r = this.anim.res; this.anim = null; host.classList.remove('corre'); r(); }
@@ -642,7 +662,7 @@ export async function avviaSala(host, opz = {}) {
         const a = this.anim;
         a.t += dt * 1000;
         const u = Math.min(1, a.t / a.durata);
-        this.progresso(a.da + (1 - a.da) * (PROFILO(a.t / 1000, a.durata / 1000, a.Sm, a.ta) / a.Sm));
+        this.progresso(cInv(a.cda + PROFILO(a.t / 1000, a.durata / 1000, a.Sm, a.ta) / lung));
         if (u >= 1) { this.anim = null; host.classList.remove('corre'); a.res(); }
       },
     };
@@ -655,6 +675,8 @@ export async function avviaSala(host, opz = {}) {
   let filtro = null;     // nome del reparto o null
   const pill = q('.pillole');
   q('.titolo').textContent = dati.squadra;
+  q('.intro-titolo b').textContent = dati.squadra;
+  q('.intro-titolo span').textContent = 'Dal campo allo spogliatoio';
   q('.sotto').textContent = 'Prima squadra · stagione ' + dati.stagione;
   q('.nastro span').textContent = ('Passa su una maglia · clicca per staccarla · ' + dati.squadra + ' ').repeat(3);
 
