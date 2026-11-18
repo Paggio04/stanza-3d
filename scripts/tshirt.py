@@ -166,6 +166,7 @@ def pesi_orlo(ob):
     vg = ob.vertex_groups.new(name="orlo")
     vc = ob.vertex_groups.new(name="cucitura")
     vp = ob.vertex_groups.new(name="pieghe")
+    ca = me.color_attributes.new("lineacu", "FLOAT_COLOR", "POINT")
     bp2 = np.array([p for p in bp if not (p[2] > -0.09 and abs(p[0]) < 0.1)])     # bordi liberi tranne il collo
     for i in range(n):
         d = float(np.sqrt(((bp - pos[i]) ** 2).sum(1)).min()) if len(bp) else 1.0
@@ -177,7 +178,9 @@ def pesi_orlo(ob):
                  math.exp(-((x ** 2 + (z + 0.05) ** 2) / 0.07 ** 2)),                           # sotto il collo
                  math.exp(-((z + 0.70) ** 2) / 0.04 ** 2))                                       # sopra l'orlo
         vp.add([i], wp, "REPLACE")
-        vc.add([i], math.exp(-(((d2 - 0.020) / 0.0055) ** 2)), "REPLACE")          # riga di cucitura del risvolto a 2 cm dal bordo
+        wcu = math.exp(-(((d2 - 0.020) / 0.0055) ** 2))
+        ca.data[i].color = (wcu, wcu, wcu, 1.0)
+        vc.add([i], wcu, "REPLACE")          # riga di cucitura del risvolto a 2 cm dal bordo
     return vg
 
 
@@ -243,7 +246,7 @@ def collo(ob_parent):
 
 
 # ------------------------------------------------------------------ materiali, luci, resa
-def materiale(nome, colore, rough=0.85, sheen=0.55, bump=0.4, scala=600.0, interno_scuro=False):
+def materiale(nome, colore, rough=0.85, sheen=0.55, bump=0.4, scala=600.0, interno_scuro=False, cuciture=False):
     m = bpy.data.materials.new(nome)
     m.use_nodes = True
     nt = m.node_tree
@@ -337,6 +340,49 @@ def materiale(nome, colore, rough=0.85, sheen=0.55, bump=0.4, scala=600.0, inter
         nt.links.new(m2.outputs[2], m3.inputs[6])
         nt.links.new(mf.outputs["Value"], m3.inputs[7])
         ultimo = m3
+    if cuciture:                            # riga del risvolto su orlo e polsini, calcolata dalla posizione (non dipende da attributi)
+        def M(op, a_, b_=None, c_=None):
+            n = nt.nodes.new("ShaderNodeMath")
+            n.operation = op
+            for k, v in enumerate((a_, b_, c_)):
+                if v is None:
+                    continue
+                if isinstance(v, (int, float)):
+                    n.inputs[k].default_value = v
+                else:
+                    nt.links.new(v, n.inputs[k])
+            return n.outputs["Value"]
+
+        def MR(v, a_, b_):
+            n = nt.nodes.new("ShaderNodeMapRange")
+            n.inputs["From Min"].default_value, n.inputs["From Max"].default_value = a_, b_
+            nt.links.new(v, n.inputs["Value"])
+            return n.outputs["Result"]
+
+        gq = nt.nodes.new("ShaderNodeNewGeometry")
+        sq = nt.nodes.new("ShaderNodeSeparateXYZ")
+        nt.links.new(gq.outputs["Position"], sq.inputs["Vector"])
+        ax = M("ABSOLUTE", sq.outputs["X"])
+        zz = sq.outputs["Z"]
+        # polsino: distanza lungo l'asse della manica dal piano di taglio (asse (0.309, -0.951) in (|x|, z))
+        dc = M("ADD", M("MULTIPLY", M("SUBTRACT", ax, 0.266), 0.309), M("MULTIPLY", M("ADD", zz, 0.285), -0.951))
+        lc = M("EXPONENT", M("MULTIPLY", M("POWER", M("DIVIDE", M("ADD", dc, 0.020), 0.0035), 2.0), -1.0))
+        mc_ = M("MULTIPLY", MR(ax, 0.20, 0.23), MR(zz, -0.42, -0.38))
+        lh = M("EXPONENT", M("MULTIPLY", M("POWER", M("DIVIDE", M("ADD", zz, 0.720), 0.0035), 2.0), -1.0))
+        mh_ = M("MULTIPLY", MR(ax, 0.23, 0.20), MR(zz, -0.50, -0.55))
+        riga = M("MAXIMUM", M("MULTIPLY", lc, mc_), M("MULTIPLY", lh, mh_))
+        mc = nt.nodes.new("ShaderNodeMath")
+        mc.operation = "MULTIPLY_ADD"
+        mc.inputs[1].default_value = -0.24
+        mc.inputs[2].default_value = 1.0
+        nt.links.new(riga, mc.inputs[0])
+        m4 = nt.nodes.new("ShaderNodeMix")
+        m4.data_type = "RGBA"
+        m4.blend_type = "MULTIPLY"
+        m4.inputs[0].default_value = 1.0
+        nt.links.new(ultimo.outputs[2], m4.inputs[6])
+        nt.links.new(mc.outputs["Value"], m4.inputs[7])
+        ultimo = m4
     nt.links.new(ultimo.outputs[2], pb.inputs["Base Color"])
     return m
 
@@ -427,7 +473,7 @@ def main():
     d2.mid_level = 0.5
     for p in ob.data.polygons:
         p.use_smooth = True
-    bianco = materiale("Cotone", (0.80, 0.81, 0.86, 1.0), interno_scuro=True)
+    bianco = materiale("Cotone", (0.80, 0.81, 0.86, 1.0), interno_scuro=True, cuciture=True)
     ob.data.materials.append(bianco)
     c = collo(ob)
     c.data.materials.append(materiale("Costine", (0.92, 0.93, 0.97, 1.0), bump=0.6, scala=1400.0, interno_scuro=True))
