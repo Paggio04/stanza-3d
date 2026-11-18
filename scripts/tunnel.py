@@ -22,16 +22,23 @@ import maglia  # noqa: E402
 import sala    # noqa: E402
 
 T0 = sala.RAGGIO + sala.SPESSORE_MURO     # |y| mondo del piano u = 0
-W = 3.2                                   # larghezza interna del tunnel
-H = 2.65                                  # altezza
+W = 4.6                                   # larghezza interna del tunnel (Camp Nou: largo, con corrimano centrale)
+H = 3.0                                   # altezza
 L = 20.0                                  # lunghezza (u della bocca)
 FASCIA = 0.95                             # fascia sopra la bocca
 APRON = 4.0                               # asfalto fra la facciata e la linea di fondo
 LARG_FACCIATA = 34.0                      # mezza larghezza di facciata e spalti
 SPALTI_U = 10.0                           # profondita' degli spalti
 SPALTI_ALT = 7.5
-BLU = "#173f9a"
+BLU = None                                # usato dal blu squadra (dati squadra.json), non fisso
 FISSI = [(sx * 0.75, fu) for fu in (2.0, 5.0, 8.0, 11.0, 14.0, 17.0) for sx in (-1, 1)]
+# ---- stadio (ciotola vera, stile Camp Nou): misure in metri
+ST_RAGGIO = 42.0                          # raggio interno della ciotola (bordo campo -> primo anello)
+ST_ANELLI = ((9.0, 8.0), (8.0, 7.0), (7.0, 6.0))  # (profondita, alzata) dei 3 anelli di spalti
+ST_ALTEZZA0 = 6.0                         # quota del primo anello sopra il campo
+ST_TETTO_R0 = 58.0                        # raggio interno del tetto ad anello
+ST_TETTO_R1 = 78.0                        # raggio esterno del tetto
+ST_TETTO_Z = 34.0                         # quota del tetto
 
 
 def w(p):
@@ -75,27 +82,28 @@ def tex_erba(cartella, n=1024):  # HD: 1024 invece di 512
     return _img("erba", np.clip(base * fine * zolle, 0, 1), cartella)
 
 
-def tex_spalti(cartella, w_=1024, h_=512):  # HD: 1024x512 invece di 512x256
+def tex_spalti(cartella, blu="#1d3f96", rosso="#a3122e", w_=1024, h_=512):
+    """Spalti coi colori della squadra: anelli blu/rossi, striscia bianca col nome (mosaico)."""
     rng = np.random.default_rng(5)
-    blu, chiaro, bianco = _lin("#1d3f96"), _lin("#3566c9"), _lin("#e9edf3")
+    b, r, bianco = _lin(blu), _lin(rosso), _lin("#e9edf3")
     img = np.zeros((h_, w_, 3)) + _lin("#14161a")
-    sw, sh = 16, 16                                       # 32 x 16 posti per tile
-    for r in range(h_ // sh):
+    sw, sh = 16, 16                                       # 64 x 32 posti per tile
+    for rr in range(h_ // sh):
+        fascia = rr / (h_ // sh)
+        base_col = b if fascia < 0.38 else (r if fascia < 0.72 else b)  # blu / rossi / blu
         for c in range(w_ // sw):
             x = rng.random()
-            col = bianco if (x < 0.12 or r % 8 == 0) else (chiaro if x < 0.30 else blu)
-            col = col * (0.92 + 0.08 * rng.random())
-            y0, x0 = r * sh, c * sw
-            img[y0 + 2:y0 + sh - 2, x0 + 1:x0 + sw - 1] = col
-            img[y0 + sh - 5:y0 + sh - 2, x0 + 1:x0 + sw - 1] = col * 0.75
-    return _img("spalti", img, cartella)
+            col = bianco if (x < 0.06 or rr % 16 == 0) else base_col
+            col = col * (0.90 + 0.10 * rng.random())
+            img[rr * sh:(rr + 1) * sh, c * sw:(c + 1) * sw] = col
+    return _img("spalti", np.clip(img, 0, 1), cartella)
 
 
-def tex_cartelloni(cartella, w_=1024, h_=128):
+def tex_cartelloni(cartella, blu="#1d3f96", w_=1024, h_=128):
     rng = np.random.default_rng(9)
     img = np.zeros((h_, w_, 3)) + _lin("#0b1230")
     x = 0
-    pal = [_lin(c) for c in (BLU, "#ffffff", "#e8c11c", "#d93a3a", "#2fb86a", "#ffffff")]
+    pal = [_lin(c) for c in (blu, "#ffffff", "#e8c11c", "#d93a3a", "#2fb86a", "#ffffff")]
     while x < w_:
         bw = int(rng.integers(90, 230))
         col = pal[rng.integers(len(pal))]
@@ -284,78 +292,115 @@ def scudo_parete(k, m, loc_local, nome, rot):
 
 
 # ------------------------------------------------------------------ costruzione
+def _anello_ciotola(R, m, r0, z0, r1, z1, n, uvscala=0.12, modo="ext"):
+    """Anello di spalti inclinato (ciotola): n spicchi, normale verso il campo."""
+    for k in range(n):
+        a0 = 2 * math.pi * k / n
+        a1 = 2 * math.pi * (k + 1) / n
+        p00 = (r0 * math.cos(a0), r0 * math.sin(a0), z0)
+        p10 = (r0 * math.cos(a1), r0 * math.sin(a1), z0)
+        p11 = (r1 * math.cos(a1), r1 * math.sin(a1), z1)
+        p01 = (r1 * math.cos(a0), r1 * math.sin(a0), z1)
+        P = [w((p[0], L + APRON + 10.0 + p[1], p[2])) for p in (p00, p10, p11, p01)]
+        d = R.d.setdefault(m, {"v": [], "n": [], "uv": [], "f": [], "modo": []})
+        base = len(d["v"])
+        e1, e2 = P[1] - P[0], P[3] - P[0]
+        nrm = np.cross(e2, e1)
+        nrm = nrm / (np.linalg.norm(nrm) + 1e-9)
+        for j in range(2):
+            for i in range(2):
+                d["v"].append(P[0] + e1 * (i) + e2 * (j))
+                d["n"].append(nrm)
+                d["uv"].append((k * uvscala, (z0 + (z1 - z0) * j) * uvscala))
+                d["modo"].append(modo)
+        d["f"].append((base, base + 1, base + 3, base + 2))
+
+
 def costruisci(dati, cartella):
+    blu = dati["colori"]["dettagli"]
     R = Raccolta()
-    erba_i, spalti_i = tex_erba(cartella), tex_spalti(cartella)
-    cart_i, gomma_i = tex_cartelloni(cartella), tex_cemento(cartella)
-    m_pav = mat("Tunnel_Pavimento", "#ffffff", gomma_i, 0.6)
-    m_corsia = mat("Tunnel_Corsia", "#555b63", None, 0.6)
-    m_alto = mat("Tunnel_Muro", "#e4e7eb", None, 0.85)
-    m_blu = mat("Tunnel_Fascia", dati["colori"]["dettagli"], None, 0.55)
+    erba_i = tex_erba(cartella)
+    spalti_i = tex_spalti(cartella, blu=blu)
+    cart_i = tex_cartelloni(cartella, blu=blu)
+    # ---- tunnel stile Camp Nou: pareti blu squadra, pavimento chiaro, corrimano oro, LED a soffitto
+    m_blu = mat("Tunnel_Muro", blu, None, 0.55)
+    m_pav = mat("Tunnel_Pavimento", "#b9c0cc", None, 0.5)
+    m_corsia = mat("Tunnel_Corsia", "#8f97a3", None, 0.5)
+    m_oro = mat("Tunnel_Oro", "#c9a227", None, 0.3)
+    m_sof = mat("Tunnel_Soffitto", "#101318", None, 0.9)
+    m_led = mat("Tunnel_Luce", "#fff3de", None, 0.5, emis=8.0)
+    m_bocc = mat("Tunnel_Bagliore", "#f4f8ff", None, 0.5, emis=3.0)
     m_filo = mat("Tunnel_Filetto", "#ffffff", None, 0.5)
-    m_sof = mat("Tunnel_Soffitto", "#c9ccd2", None, 0.9)
-    m_scuro = mat("Tunnel_Scuro", "#24272c", None, 0.7)
-    m_luce = mat("Tunnel_Luce", "#fff3de", None, 0.5, emis=6.0)
+    hw = W / 2
+    # pavimento chiaro con corsia e riga oro centrale (come la foto del Camp Nou)
+    R.parete(m_pav, -hw, hw, 0.0, L, 0.0, 0.0, (0, 0, 1), mx=0.8, uvs=(3.2, 3.2))
+    R.parete(m_corsia, -0.55, 0.55, 0.0, L - 3.0, 0.004, 0.004, (0, 0, 1), mx=1.0)
+    R.parete(m_oro, -0.03, 0.03, 0.0, L, 0.006, 0.006, (0, 0, 1), mx=4.0)
+    # soffitto scuro con 5 lame di luce (come la foto: strisce LED sul blu)
+    R.parete(m_sof, -hw, hw, 0.0, L, H, H, (0, 0, -1), mx=0.8)
+    for fu in (2.5, 6.5, 10.5, 14.5, 17.5):
+        R.scatola(m_led, (0, fu, H - 0.02), (W - 0.6, 0.10, 0.04), modo="piena")
+    # pareti blu con scudi bianchi retroilluminati e corrimano oro (mesh vere, niente testi flottanti)
+    for sg, nx in ((-1, 1), (1, -1)):
+        x = sg * hw
+        R.parete(m_blu, x, x, 0.0, L, 0.0, H, (nx, 0, 0), mx=0.8)
+        R.parete(m_filo, x, x, 0.0, L, 1.10, 1.16, (nx, 0, 0), mx=1.0)
+        R.scatola(m_oro, (sg * (hw - 0.12), L / 2, 0.95), (0.05, L - 2.0, 0.05))
+        for u_scudo in (6.0, 13.0):
+            R.parete(m_filo, x - sg * 0.03, x - sg * 0.03, u_scudo - 0.85, u_scudo + 0.85,
+                     1.45, 2.30, (nx, 0, 0), mx=0.4)
+    # parete di fondo (u = 0) con il varco della porta
+    pw, ph = sala.PORTA_W / 2, sala.PORTA_H
+    for (xa, xb) in ((-hw, -pw), (pw, hw)):
+        R.parete(m_blu, xa, xb, 0.0, 0.0, 0.0, H, (0, 1, 0), mx=0.6)
+    R.parete(m_blu, -pw, pw, 0.0, 0.0, ph, H, (0, 1, 0), mx=0.6)
+    # bagliore del campo alla bocca (u = L): in fondo si vede la luce, non il grigio
+    R.parete(m_bocc, -hw, hw, L, L, 0.0, H, (0, 1, 0), mx=1.0, modo="piena")
+    return _costruisci_esterno(R, dati, cartella, erba_i, spalti_i, cart_i)
+    # ---- facciata sotto gli spalti (u = L) con la bocca del tunnel
+def _costruisci_esterno(R, dati, cartella, erba_i, spalti_i, cart_i):
+    """Ciotola vera stile Camp Nou: 3 anelli di spalti, tetto ad anello, 4 maxischermi, campo con righe."""
     m_erba = mat("Esterno_Erba", "#ffffff", erba_i, 0.95)
     m_asfalto = mat("Esterno_Asfalto", "#4a4e55", None, 0.9)
     m_linea = mat("Esterno_Linea", "#f4f4f4", None, 0.8)
     m_spalti = mat("Esterno_Spalti", "#ffffff", spalti_i, 0.85)
     m_cart = mat("Esterno_Cartelloni", "#ffffff", cart_i, 0.6, emis=0.0)
     m_cem = mat("Esterno_Cemento", "#d9dce1", None, 0.9)
-    m_tetto = mat("Esterno_Tettoia", "#585d66", None, 0.7)
+    m_tetto = mat("Esterno_Tetto", "#c8ccd4", None, 0.6)
+    m_tetto_s = mat("Esterno_TettoSotto", "#8a8f99", None, 0.8)
+    m_schermo = mat("Esterno_Schermo", "#0a0e1a", None, 0.4, emis=0.8)
     m_testo = mat("Esterno_Testo", dati["colori"]["dettagli"], None, 0.6)
-    hw = W / 2
-    # ---- interno del tunnel
-    R.parete(m_pav, -hw, hw, 0.0, L, 0.0, 0.0, (0, 0, 1), mx=0.8, uvs=(3.2, 3.2))
-    R.parete(m_corsia, -0.55, 0.55, 0.0, L, 0.003, 0.003, (0, 0, 1), mx=1.0)
-    R.parete(m_sof, -hw, hw, 0.0, L, H, H, (0, 0, -1), mx=0.8)
-    for sg, nx in ((-1, 1), (1, -1)):
-        x = sg * hw
-        R.parete(m_blu, x, x, 0.0, L, 0.0, 1.05, (nx, 0, 0), mx=0.8)
-        R.parete(m_filo, x, x, 0.0, L, 1.05, 1.12, (nx, 0, 0), mx=1.0)
-        R.parete(m_alto, x, x, 0.0, L, 1.12, H, (nx, 0, 0), mx=0.8)
-    # NOTA 17/11: cartelli interni SPOGLIATOIO/CAMPO rimossi dopo 2 tentativi (sfarfallio nel sito) - pareti lisce
-    # parete di fondo (u = 0) con il varco della porta; la porta e' PORTA_W x PORTA_H
-    pw, ph = sala.PORTA_W / 2, sala.PORTA_H
-    for (xa, xb) in ((-hw, -pw), (pw, hw)):
-        R.parete(m_blu, xa, xb, 0.0, 0.0, 0.0, 1.05, (0, 1, 0), mx=0.6)
-        R.parete(m_filo, xa, xb, 0.0, 0.0, 1.05, 1.12, (0, 1, 0), mx=0.6)
-        R.parete(m_alto, xa, xb, 0.0, 0.0, 1.12, H, (0, 1, 0), mx=0.6)
-    R.parete(m_alto, -pw, pw, 0.0, 0.0, ph, H, (0, 1, 0), mx=0.6)
-    # costole strutturali ogni 4 m, strisce di luce, mancorrente
-    for u in (4.0, 8.0, 12.0, 16.0):
-        R.scatola(m_scuro, (0, u, H - 0.05), (W, 0.16, 0.10))
-        for sg in (-1, 1):
-            R.scatola(m_scuro, (sg * (hw - 0.04), u, H / 2), (0.08, 0.16, H))
-    for fx, fu in FISSI:
-        R.scatola(m_luce, (fx, fu, H - 0.02), (0.16, 1.5, 0.04), modo="piena")
-    for sg in (-1, 1):
-        R.scatola(m_scuro, (sg * (hw - 0.07), L / 2 + 1.0, 0.95), (0.05, L - 4.0, 0.05))
-    # ---- facciata sotto gli spalti (u = L) con la bocca del tunnel
     FW = LARG_FACCIATA
-    for (xa, xb) in ((-FW, -hw), (hw, FW)):
-        R.parete(m_blu, xa, xb, L, L, 0.0, 0.35, (0, 1, 0), mx=1.5, modo="ext")
-        R.parete(m_cart, xa, xb, L, L, 0.35, 1.0, (0, 1, 0), mx=1.5, modo="ext", uvs=(12.0, 0.65), uv0=(0, 0))
-        R.parete(m_blu, xa, xb, L, L, 1.0, 1.08, (0, 1, 0), mx=3.0, modo="ext")
-        R.parete(m_cem, xa, xb, L, L, 1.08, H + FASCIA, (0, 1, 0), mx=1.5, modo="ext")
-    R.parete(m_cem, -hw, hw, L, L, H, H + FASCIA, (0, 1, 0), mx=1.0, modo="ext")
-    # ---- spalti e tettoia
-    z0 = H + FASCIA
-    z1 = z0 + SPALTI_ALT
-    R.quad(m_spalti, (-FW, L, z0), (FW, L, z0), (FW, L - SPALTI_U, z1), (-FW, L - SPALTI_U, z1),
-           (0, SPALTI_ALT, SPALTI_U), nu=8, nv=4, uvs=(16.0, 4.0), modo="ext")
-    zt = z1 + 0.9
-    R.parete(m_tetto, -FW, FW, L - SPALTI_U - 1.0, L + 1.2, zt, zt, (0, 0, -1), mx=6.0, modo="ext")
-    R.parete(m_tetto, -FW, FW, L + 1.2, L + 1.2, zt - 0.5, zt + 0.25, (0, 1, 0), mx=6.0, modo="ext")
-    R.parete(m_tetto, -FW, FW, L - SPALTI_U - 1.0, L + 1.2, zt + 0.25, zt + 0.25, (0, 0, 1), mx=6.0, modo="ext")
-    # ---- campo: asfalto, linea di fondo, erba
-    R.parete(m_asfalto, -FW, FW, L, L + APRON, 0.0, 0.0, (0, 0, 1), mx=2.0, modo="ext")
-    R.parete(m_linea, -FW, FW, L + APRON, L + APRON + 0.12, 0.004, 0.004, (0, 0, 1), mx=40.0, modo="ext")
-    R.parete(m_erba, -FW, FW, L + APRON + 0.12, L + APRON + 70.0, 0.0, 0.0, (0, 0, 1), mx=10.0,
-             modo="ext", uvs=(8.0, 8.0), uv0=(0.0, 0.0))
+    u0 = L + APRON
+    # campo vero: erba a strisce, righe (fondo, laterali, centrocampo)
+    R.parete(m_erba, -FW, FW, u0, u0 + 70.0, 0.0, 0.0, (0, 0, 1), mx=10.0, modo="ext", uvs=(8.0, 8.0), uv0=(0.0, 0.0))
+    R.parete(m_linea, -FW, FW, u0, u0 + 0.15, 0.004, 0.004, (0, 0, 1), mx=40.0, modo="ext")
+    R.parete(m_linea, -25.0, -25.0 + 0.15, u0, u0 + 44.0, 0.004, 0.004, (0, 0, 1), mx=40.0, modo="ext")
+    R.parete(m_linea, 25.0 - 0.15, 25.0, u0, u0 + 44.0, 0.004, 0.004, (0, 0, 1), mx=40.0, modo="ext")
+    R.parete(m_linea, -FW, FW, u0 + 22.0, u0 + 22.15, 0.004, 0.004, (0, 0, 1), mx=40.0, modo="ext")
+    R.parete(m_asfalto, -FW, FW, L, u0, 0.0, 0.0, (0, 0, 1), mx=2.0, modo="ext")
+    # cartelloni a bordo campo (fascia continua come allo stadio vero)
+    R.parete(m_cart, -FW, FW, u0 + 1.0, u0 + 1.0, 0.0, 0.9, (0, -1, 0), mx=1.5, modo="ext", uvs=(12.0, 0.9), uv0=(0, 0))
+    # ciotola: 3 anelli di spalti attorno al campo
+    z = ST_ALTEZZA0
+    r = ST_RAGGIO
+    for (prof, alz) in ST_ANELLI:
+        _anello_ciotola(R, m_spalti, r, z, r + prof, z + alz, 48, modo="ext")
+        _anello_ciotola(R, m_cem, r + prof, z + alz, r + prof + 1.2, z + alz + 0.4, 48, modo="ext")
+        r += prof + 1.2
+        z += alz + 0.4
+    # tetto ad anello con intradosso (come il Camp Nou nuovo)
+    _anello_ciotola(R, m_tetto, ST_TETTO_R0, ST_TETTO_Z, ST_TETTO_R1, ST_TETTO_Z + 1.5, 64, modo="ext")
+    _anello_ciotola(R, m_tetto_s, ST_TETTO_R0, ST_TETTO_Z - 0.3, ST_TETTO_R1, ST_TETTO_Z, 64, modo="ext")
+    # 4 maxischermi appesi al tetto
+    for k in range(4):
+        a = math.pi / 4 + k * math.pi / 2
+        cx = 62.0 * math.cos(a)
+        cy = u0 + 35.0 + 62.0 * math.sin(a) - (L + APRON + 10.0)
+        R.scatola(m_schermo, (cx, cy, 26.0), (10.0, 0.6, 6.0), modo="ext")
+    # nome della squadra sulla facciata sopra la bocca (come prima, ma piu grande)
+    testo_facciata(dati["nome"].upper(), 0.60, 8.0, m_testo, (0.0, L + 0.01, H + FASCIA / 2 + 0.4))
     ob = R.costruisci()
-    # ---- scritte e stemmi (segnaposto)
-    testo_facciata(dati["nome"].upper(), 0.46, 6.0, m_testo, (0.0, L + 0.01, H + FASCIA / 2))
     m_sc_b = mat("Tunnel_StemmaBordo", "#f4f4f4", None, 0.4)
     m_sc_c = mat("Tunnel_StemmaCampo", dati["colori"]["dettagli"], None, 0.4)
     for sg in (-1, 1):
@@ -391,8 +436,8 @@ def verifica(ob):
         tri += len(o.data.polygons)
     mx = max(max(abs(v.co.x) for v in o.data.vertices) for o in ob.values())
     ok = lambda c, msg: err.append(msg) if not c else None  # noqa: E731
-    ok(tri < 30000, "troppe facce %d" % tri)
-    ok(abs(mx - LARG_FACCIATA) < 1.0, "larghezza facciata %.1f" % mx)
+    ok(tri < 60000, "troppe facce %d" % tri)  # stadio: la ciotola vera ha piu facce del corridoio vecchio
+    ok(abs(mx - ST_TETTO_R1) < 2.0, "larghezza stadio %.1f" % mx)
     # il varco della parete di fondo combacia con la porta della sala
     ok(abs(sala.PORTA_H - 2.35) < 1e-6 and sala.PORTA_H < H, "porta piu' alta del tunnel")
     ok(abs(T0 - sala.RAGGIO - sala.SPESSORE_MURO) < 1e-9, "u = 0 non coincide con l'imbotte")
