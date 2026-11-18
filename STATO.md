@@ -109,3 +109,6 @@ Richiesta: tutta l'esperienza (entrata, tunnel, porta, spogliatoio) deve sembrar
 - **Camera da persona**: rollio/beccheggio piccolissimi legati al passo piu' una lenta deriva dello sguardo (`env`), oltre al bob e all'adattamento dell'esposizione. tunnel.glb 3,1 MB, bassa 1,0 MB.- Maniglione antipanico e paracolpi sulle ante; sguardo da persona: si alza verso le tribune (4 gradi, p 0,02-0,24) e cerca la bocca (destra poi sinistra, 3 gradi, p 0,08-0,42), pose di partenza e arrivo invariate.
 - **Idee non fatte** (per la prossima sessione): persone nel tunnel (steward, giocatori), bandiere/striscioni animati, cartelloni LED che cambiano sponsor, reti delle porte (PNG con alpha), scritta mosaico piu' stretta per il 9:16, frasi/foto nel tunnel come cornici con immagini, rumore di fondo audio.
 
+### Maglie: nome e numero (18/11/2026)
+- `maglia.py`: `Z_NOME` -0,215 (era -0,150, sul colletto), `Z_NUMERO` -0,445 (era -0,335, attaccato al nome), sponsor piccolo dietro a -0,660 (era -0,585, sotto il numero). Ora ~8 cm d'aria fra nome e numero, numero a meta' schiena. Hash aggiornato in `revisioni/v03.md`; `sala.glb` e `sala_bassa.glb` rigenerati (5,56 MB / 2,34 MB, stessi triangoli).
+

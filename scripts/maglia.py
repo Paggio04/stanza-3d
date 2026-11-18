@@ -617,6 +617,10 @@ def _proietta(me, lato, cx, cz, mat, nome, padre, coll):
     return ob
 
 
+# Dietro, come su una maglia vera (orlo a -0,74): nome ~5 cm di maiuscole a 21 cm sotto l'apice della gruccia, numero alto ~25 cm
+# con il centro a 44 cm, e fra i due ~8 cm d'aria (prima 15 e 33 cm: nome sul colletto e numero attaccato al nome)
+Z_NOME = -0.215
+Z_NUMERO = -0.445
 PASSO_TESTO = 0.005      # lato dei triangoli delle scritte (m); per il web 0,009
 
 
@@ -625,9 +629,9 @@ def scritte(shirt, nome, numero, colore, coll=None):
     mat = _materiale_semplice("M_Scritte_" + colore.lstrip("#"), colore, 0.72)
     out = []
     me = _mesh_testo(nome.upper(), 0.065, 0.42, passo=PASSO_TESTO)
-    out.append(_proietta(me, -1, 0.0, -0.150, mat, shirt.name + "_Nome", shirt, coll))
+    out.append(_proietta(me, -1, 0.0, Z_NOME, mat, shirt.name + "_Nome", shirt, coll))
     me = _mesh_testo(str(numero), 0.36, 0.40, passo=PASSO_TESTO)
-    out.append(_proietta(me, -1, 0.0, -0.335, mat, shirt.name + "_Numero", shirt, coll))
+    out.append(_proietta(me, -1, 0.0, Z_NUMERO, mat, shirt.name + "_Numero", shirt, coll))
     return out
 
 
@@ -719,7 +723,7 @@ def sponsor(shirt, coll=None, colore="#8c929a"):
     me = _mesh_testo("SPONSOR", 0.050, 0.26, passo=PASSO_TESTO)
     out.append(_proietta(me, +1, 0.0, -0.285, mt, shirt.name + "_SponsorPetto", shirt, coll))
     me = _mesh_testo("SPONSOR", 0.022, 0.12, passo=PASSO_TESTO)
-    out.append(_proietta(me, -1, 0.0, -0.585, mt, shirt.name + "_SponsorDietro", shirt, coll))
+    out.append(_proietta(me, -1, 0.0, -0.660, mt, shirt.name + "_SponsorDietro", shirt, coll))
     return out
 
 
