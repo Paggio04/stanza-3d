@@ -1,4 +1,61 @@
-# REGISTRO.md — Ciclo v03 (un armadietto con la maglia vera) — MAGLIA NON ACCETTATA
+# REGISTRO.md — Realismo sito (video 18/11/2026, fotogrammi campo + tunnel + sala)
+
+Fotogrammi dal video `Videos/Registrazione 2026-11-18 091754.mp4` (503 fotogrammi, Blender VSE):
+f0 = nero "Carico la sala...", f1 = tunnel, f2 = sala; `render/video_campo_*.png` (campo subito
+dopo il nero). Piu `render/prova_realismo_campo.png`, `render/prova_realismo_tunnel.png`,
+`render/prova_sala_34.png` (Cycles, stessa scena con sole + mondo chiaro, per separare
+geometria vera da difetti del viewer).
+
+Confronto col riferimento Getty (spogliatoio Man Utd femminile, 10 baie rosse, sedute bianche,
+stemma grande chiaro sul pavimento chiaro) e col tunnel vero (Camp Nou: pareti blu, corrimano oro,
+LED a soffitto).
+
+Misure: TUNNEL_OK out_prova/tunnel.glb 515420 facce 2395; WEB_OK out_prova/sala.glb 5565532;
+SALA_MISURE triangoli_stimati 403994 figli_maglia 180 peso 5565532 (budget 6.0 MB / 900k tri).
+Nessun SALA_ERRORE, nessun TUNNEL_ERRORE.
+
+Cosa si vede nei fotogrammi del sito (fatti, niente giudizi).
+- video_campo f003-f010: nero con scritta "Carico la sala..." al centro.
+- video_campo f016-f150: campo dall'uscita del tunnel: erba verde con macchie scure, righe
+  bianche sottili, cartelloni a blocchi colorati ai lati, spalti a mosaico blu/rossi con
+  scritte a blocchi, tetto con facce chiare e macchie nere sui bordi, facciata grigia con
+  scritta blu "RESCO REGGELLO" sopra la bocca nera del tunnel.
+- video_frame f1: interno tunnel: pareti blu uniformi, strisce LED bianche a soffitto, pavimento
+  grigio con righe bianche longitudinali, riga oro centrale, figure scure sullo sfondo.
+- video_frame f2: sala circolare: pareti/pilastri/sedute/pavimento bianchi senza ombre,
+  legno chiaro uniforme, maglie bianche piatte appese, targhe blu, stemma blu piatto a terra.
+- prova_realismo_campo (Cycles): erba con macchie scure, cartelloni a blocchi, spalti a mosaico,
+  facciata grigia piatta con scritta blu, cielo grigio uniforme.
+- prova_realismo_tunnel (Cycles): pareti blu con filetto bianco e corrimano oro, pavimento grigio
+  con corsia chiara e riga oro, LED a soffitto, fondo con porta e armadietti.
+- prova_sala_34 (Cycles): 11 titolari in arco leggibili, pilastri bianchi, sedute bianche,
+  legno chiaro, maglie bianche appese di schiena, stemma blu a pavimento.
+
+Differenze dai riferimenti.
+- Campo: erba con rumore forte e strisce poco visibili; mosaico spalti con moire da lontano;
+  tetto con buchi neri sui bordi; cartelloni a blocchi invece di scritte vere.
+- Tunnel: pareti blu piatte nel sito (luce cotta + materiale piatto); scalinata tagliata
+  a fette bianche dalla corsia; LED a filo del soffitto.
+- Sala: bianchi bruciati e appiattiti (pareti/pilastri/sedute/pavimento stessa luce); legno
+  slavato; maglie piatte; soffitto troppo emissivo.
+
+Correzioni di questo giro (fatti, nei file indicati).
+- scripts/tunnel.py: faccia posteriore ciotole (A,D,C,B) invece di (A,C,B,D) che era
+  autointersecata; erba con meno rumore; cartelloni con scritte stessa tinta scurita;
+  corsia/oro anche sui gradini mai sulle alzate; LED 15 mm sotto il soffitto.
+- web/sala.js: tunnel a doppia faccia, guadagno 1.3 -> 1.0, LED 3.2 -> 2.0,
+  esposizione 1.0 -> 0.9, ambiente 0.38 -> 0.30, luce centrale 22 -> 18.
+- scripts/sala.py: parete/pavimento/bianchi/cuscino/legno/nicchia/soffitto scuriti
+  e resi meno emissivi (vedi diff git).
+- web/tunnel.glb + web/sala.glb + web/tunnel.json + web/sala.json rigenerati da
+  scripts/tunnel.py e scripts/sala.py -- web e copiati in web/.
+
+Rimane diverso (secondo giro, dopo verifica nel browser).
+- Campo: strisce erba con piu tile, mosaico spalti meno grossolano, cielo sfumato.
+- Tunnel: pareti blu meno piatte nel sito, figure scure sullo sfondo da controllare.
+- Sala: bianchi ancora vicini fra loro, legno procedurale, maglie poco modellate.
+- maglia.py NON toccata (congelata).
+
 
 Dati: bake_all ok 100f; mesh 7429V/8863F sald=157; pin spalla 120;
 alt=0.763 larg=0.776 prof=0.064 (spessore vero 6.4 cm, nel range 4-12).

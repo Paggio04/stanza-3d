@@ -83,8 +83,8 @@ def tex_erba(cartella, n=1024):  # HD: 1024 invece di 512
     fascia = (np.floor(V * 2.0) % 2)                     # 2 strisce per tile (4 m)
     a, b = _lin("#2f7a2b"), _lin("#3a8c33")
     base = a[None, None, :] * (1 - fascia[..., None]) + b[None, None, :] * fascia[..., None]
-    fine = rng.random((n, n, 1)) * 0.22 + 0.89
-    zolle = (rng.random((n // 8, n // 8, 1)).repeat(8, 0).repeat(8, 1)) * 0.16 + 0.92
+    fine = rng.random((n, n, 1)) * 0.10 + 0.95
+    zolle = (rng.random((n // 8, n // 8, 1)).repeat(8, 0).repeat(8, 1)) * 0.07 + 0.965
     return _img("erba", np.clip(base * fine * zolle, 0, 1), cartella)
 
 
@@ -146,11 +146,11 @@ def tex_cartelloni(cartella, blu="#1d3f96", w_=1024, h_=128):
         bw = int(rng.integers(90, 230))
         col = pal[rng.integers(len(pal))]
         img[10:h_ - 10, x + 6:min(w_, x + bw - 6)] = col * 0.9
-        for k in range(int(rng.integers(2, 5))):                  # "scritte" a blocchi
+        for k in range(int(rng.integers(2, 5))):                  # "scritte" a blocchi: stessa tinta scurita (niente inversione = niente moire da lontano)
             tw = int(rng.integers(14, 60))
             tx = x + 14 + int(rng.integers(0, max(1, bw - 80)))
             ty = int(rng.integers(30, h_ - 50))
-            img[ty:ty + 10, tx:min(w_, tx + tw)] = np.clip(1.0 - col * 0.9, 0.05, 1)
+            img[ty:ty + 10, tx:min(w_, tx + tw)] = np.clip(col * 0.55 + 0.08, 0.05, 1)
         x += bw
     return _img("cartelloni", img, cartella)
 
@@ -362,7 +362,8 @@ def _anello_ciotola(R, m, r0, z0, r1, z1, n, uvscala=0.12, modo="ext", salta=Non
                 d["uv"].append((k * uvscala + (0.05 if q in (1, 2) else 0.0), z0 * uvscala + (0.05 if q >= 2 else 0.0)))
                 d["modo"].append(modo)
             d["f"].append((base, base + 1, base + 3, base + 2))
-            d["f"].append((base + 4, base + 6, base + 5, base + 7))
+            # retro: stesso giro al contrario (A,D,C,B): era (A,C,B,D) = farfalla autointersecata (triangoli neri)
+            d["f"].append((base + 4, base + 7, base + 6, base + 5))
         else:
             d["f"].append((base, base + 1, base + 3, base + 2))
 
@@ -383,8 +384,9 @@ def costruisci(dati, cartella):
     m_filo = mat("Tunnel_Filetto", "#ffffff", None, 0.5)
     hw = W / 2
     # pavimento chiaro con corsia e riga oro centrale (come la foto del Camp Nou)
+    # NOTA: corsia/oro solo sul piano e sui gradini (mai sulle alzate = righe bianche nel sito)
     R.parete(m_pav, -hw, hw, 0.0, ST_SCALA_U0, 0.0, 0.0, (0, 0, 1), mx=0.8, uvs=(3.2, 3.2))
-    R.parete(m_corsia, -0.55, 0.55, 0.0, L - 3.0, 0.004, 0.004, (0, 0, 1), mx=1.0)
+    R.parete(m_corsia, -0.55, 0.55, 0.0, ST_SCALA_U0, 0.004, 0.004, (0, 0, 1), mx=1.0)
     R.parete(m_oro, -0.03, 0.03, 0.0, ST_SCALA_U0, 0.006, 0.006, (0, 0, 1), mx=4.0)
     # scalinata finale: 12 gradini da 7,5 cm (sale di 90 cm verso la luce, come al Camp Nou)
     du = (L - ST_SCALA_U0) / ST_N_GRADINI
@@ -392,12 +394,17 @@ def costruisci(dati, cartella):
         zg = (g + 1) * ST_ALZATA
         R.parete(m_pav, -hw, hw, ST_SCALA_U0 + g * du, ST_SCALA_U0 + (g + 1) * du, zg, zg,
                  (0, 0, 1), mx=0.8, uvs=(3.2, 3.2))
+        R.parete(m_corsia, -0.55, 0.55, ST_SCALA_U0 + g * du, ST_SCALA_U0 + (g + 1) * du,
+                 zg + 0.004, zg + 0.004, (0, 0, 1), mx=1.0)
+        R.parete(m_oro, -0.03, 0.03, ST_SCALA_U0 + g * du, ST_SCALA_U0 + (g + 1) * du,
+                 zg + 0.006, zg + 0.006, (0, 0, 1), mx=4.0)
         R.parete(m_pav, -hw, hw, ST_SCALA_U0 + (g + 1) * du, ST_SCALA_U0 + (g + 1) * du,
                  zg - ST_ALZATA, zg, (0, -1, 0), mx=0.8)
     # soffitto scuro con 5 lame di luce (come la foto: strisce LED sul blu)
     R.parete(m_sof, -hw, hw, 0.0, L, H, H, (0, 0, -1), mx=0.8)
     for fu in (2.5, 6.5, 10.5, 14.5, 17.5):
-        R.scatola(m_led, (0, fu, H - 0.02), (W - 0.6, 0.10, 0.04), modo="piena")
+        # NOTA: sopra a H-0.02 (era a filo del soffitto = sfarfallio)
+        R.scatola(m_led, (0, fu, H - 0.035), (W - 0.6, 0.10, 0.03), modo="piena")
     # pareti blu con scudi bianchi retroilluminati e corrimano oro (mesh vere, niente testi flottanti)
     for sg, nx in ((-1, 1), (1, -1)):
         x = sg * hw

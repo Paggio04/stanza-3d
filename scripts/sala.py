@@ -297,11 +297,11 @@ def baia(i, g, col_maglia, dettagli, scritte_col, base_m, phi, _non_usato):
     em.location = P
     em.rotation_euler = (0, 0, alpha)
 
-    legno = mat("Legno", "#6a3d1e", 0.36, bump="legno")
-    legno_s = mat("LegnoScuro", "#4a2c16", 0.5, bump="legno")
-    nero = mat("Nicchia", "#0a0a0b", 0.85)
+    legno = mat("Legno", "#5f3619", 0.42, bump="legno")
+    legno_s = mat("LegnoScuro", "#442a14", 0.55, bump="legno")
+    nero = mat("Nicchia", "#141416", 0.92)
     bianco = mat("BiancoLucido", "#f3f3f4", 0.28)
-    cuscino = mat("Cuscino", "#eeeff1", 0.5)
+    cuscino = mat("Cuscino", "#dcdde0", 0.62)
     targa = mat("Targa_" + dettagli, dettagli, 0.35)
     testo = mat("TestoBianco", "#ffffff", 0.5)
     foto = mat("Foto", "#9aa0a6", 0.8)
@@ -465,8 +465,8 @@ def pilastro(phi):
     bpy.context.scene.collection.objects.link(em)
     em.location = P
     em.rotation_euler = (0, 0, math.pi - phi)
-    bianco = mat("BiancoLucido", "#f3f3f4", 0.28)
-    incavo = mat("Incavo", "#dcdee2", 0.55)
+    bianco = mat("BiancoLucido", "#e3e4e6", 0.34)
+    incavo = mat("Incavo", "#c8cacf", 0.62)
     w, h = PILASTRO_W, ALTEZZA - 0.04
     box("PilBasso", (w, 0.64, 0.92), (0, 0.32, 0.46), bianco, em, 0.012, 3)
     box("PilAlto", (w, 0.64, h - 2.30), (0, 0.32, 2.30 + (h - 2.30) / 2), bianco, em, 0.012, 3)
@@ -558,10 +558,10 @@ def porta(dettagli):
     em.location = (0.0, -RAGGIO, 0.0)
     em.rotation_euler = (0, 0, 0.0)
     bianco = mat("BiancoLucido", "#f3f3f4", 0.28)
-    legno = mat("Legno", "#6a3d1e", 0.36, bump="legno")
+    legno = mat("Legno", "#5f3619", 0.42, bump="legno")
     cromo = mat("Cromo", "#c9ccd0", 0.15, metal=1.0)
     verde = mat("Uscita", "#19c45a", 0.5, emis=3.0)
-    nero = mat("Nicchia", "#0a0a0b", 0.85)
+    nero = mat("Nicchia", "#141416", 0.92)
     hw = PORTA_W / 2
     L = SPESSORE_MURO
     for sg in (-1.0, 1.0):                      # stipiti
@@ -586,7 +586,7 @@ def costruisci_sala(dati):
     ris = [g for g in gioc if not g["titolare"]]
     assert len(tit) == len(SLOT_TITOLARI) and len(ris) == len(SLOT_RISERVE), "rosa diversa da 11 + 9"
     # pavimento lucido con lo stemma (segnaposto: scudo nel colore della squadra con bordo bianco)
-    pav = mat("Pavimento", "#cdd0d5", 0.07, bump="pavimento HD")
+    pav = mat("Pavimento", "#b9bdc4", 0.10, bump="pavimento HD")
     anello("Pavimento", 0.0001, RAGGIO + 0.3, 0.0, pav)
     scudo_pavimento("StemmaBordo", STEMMA_K * 0.95, 0.008, mat("StemmaBordo", "#f4f4f4", 0.10))  # HD: bordo rialzato 8 mm, piu lucido
     scudo_pavimento("StemmaCampo", STEMMA_K * 0.86, 0.011, mat("StemmaCampo", dettagli, 0.10))   # HD: campo rialzato 11 mm
@@ -597,11 +597,11 @@ def costruisci_sala(dati):
     to.data.materials.append(mat("TestoBianco", "#ffffff", 0.5))
     # pareti (con il varco della porta), soffitto con anello centrale rialzato e pannelli luminosi a trapezi separati
     hw = math.asin((PORTA_W / 2) / (RAGGIO + 0.02))
-    cilindro_parete("Parete", RAGGIO + 0.02, 0.0, ALTEZZA, mat("Parete", "#f1f1f2", 0.7),
+    cilindro_parete("Parete", RAGGIO + 0.02, 0.0, ALTEZZA, mat("Parete", "#e4e5e6", 0.82),
                     segm=126, buco=(math.pi, hw, PORTA_H))
     R_C, Z_C = 2.0, 0.24
-    anello("Soffitto", R_C, RAGGIO + 0.3, ALTEZZA, mat("Soffitto", "#ffffff", 0.5, emis=0.85))  # HD: anello meno abbagliante dei trapezi
-    anello("SoffittoCentro", 0.0001, R_C, ALTEZZA + Z_C, mat("SoffittoC", "#fff6ee", 0.5, emis=0.65))
+    anello("Soffitto", R_C, RAGGIO + 0.3, ALTEZZA, mat("Soffitto", "#f2f0ec", 0.62, emis=0.55))  # realismo: 0.85 abbagliava = tutto slavato
+    anello("SoffittoCentro", 0.0001, R_C, ALTEZZA + Z_C, mat("SoffittoC", "#efe9e0", 0.62, emis=0.40))
     cilindro_parete("Tamburo", R_C, ALTEZZA, ALTEZZA + Z_C, mat("Tamburo", "#f4f1ec", 0.6, emis=0.35))
     # HD: 21 trapezi luminosi separati fra le travi (prima una fascia unica), con gradiente centro-bordo
     # NOTA: faccia alta a ALTEZZA-8mm, mai a filo con l'anello (era z-fighting = sfarfallio)

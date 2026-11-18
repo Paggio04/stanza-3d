@@ -106,16 +106,16 @@ export async function avviaSala(host, opz = {}) {
   const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, esplicita ? 3 : alta ? 2 : 1.5)); // fluidita: in auto mai sopra 2
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = alta ? 1.0 : 0.9; // HD: esposizione piena in alta (prima 0.7, troppo scuro)
+  renderer.toneMappingExposure = alta ? 0.9 : 0.9; // realismo: 1.0 bruciava i bianchi (era tutto slavato)
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   host.insertBefore(renderer.domElement, host.firstChild);
   const scena = new THREE.Scene();
   scena.background = new THREE.Color(0x9aa0a6);
   const pm = new THREE.PMREMGenerator(renderer);
   scena.environment = pm.fromScene(new RoomEnvironment(), 0.04).texture;
-  scena.environmentIntensity = alta ? 0.38 : 0.8; // HD: ambiente leggermente piu presente in alta (prima 0.28)
+  scena.environmentIntensity = alta ? 0.30 : 0.8; // realismo: 0.38 appiattiva i bianchi in alta
   // luce dal centro del soffitto: la sala e' circolare, ogni armadietto la riceve dalla stessa parte
-  const centro = new THREE.PointLight(0xfff3e6, alta ? 22 : 0, 16, 1.8);
+  const centro = new THREE.PointLight(0xfff3e6, alta ? 18 : 0, 16, 1.8);
   centro.position.set(0, 2.8, 0);
   if (alta) {
     renderer.shadowMap.enabled = true;
@@ -367,12 +367,13 @@ export async function avviaSala(host, opz = {}) {
   let perc = null;
   if (tunnelGltf && tunnelDati) {
     const V3 = THREE.Vector3;
-    const GAIN = 1.3;
+    const GAIN = 1.0; // realismo: 1.3 slavava i colori cotti (effetto piatto/Minecraft)
     tunnelGltf.scene.traverse((o) => {
       if (!o.isMesh) return;
       const m = o.material;
-      const b = new THREE.MeshBasicMaterial({ map: m.map || null, vertexColors: !!o.geometry.attributes.color, side: m.side });
-      b.color.copy(m.color).multiplyScalar(/Luce/.test(m.name) ? 3.2 : GAIN);
+      // realismo: doppia faccia (le ciotole viste da sotto perdevano pezzi = triangoli neri) e niente piu guadagno
+      const b = new THREE.MeshBasicMaterial({ map: m.map || null, vertexColors: !!o.geometry.attributes.color, side: THREE.DoubleSide });
+      b.color.copy(m.color).multiplyScalar(/Luce/.test(m.name) ? 2.0 : GAIN);
       o.material = b;
       o.castShadow = o.receiveShadow = false;
       if (m.map) m.map.anisotropy = renderer.capabilities.getMaxAnisotropy();
