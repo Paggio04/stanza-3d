@@ -196,6 +196,7 @@ export async function avviaSala(host, opz = {}) {
   }
   const cam = new THREE.PerspectiveCamera(80, 16 / 9, 0.1, 220);
   let composer = null;
+  const SAO_INTENSITA = 0.022;
   let saoPass = null; // HD: serve per la discesa automatica (spegni SAO se il telefono non regge)
   if (esplicita) { // fluidita: SAO solo con ?q=alta, in auto niente (era il freeze ogni secondo)
     composer = new EffectComposer(renderer);
@@ -203,7 +204,7 @@ export async function avviaSala(host, opz = {}) {
     composer.addPass(new RenderPass(scena, cam));
     saoPass = new SAOPass(scena, cam);
     saoPass.params.saoBias = 0.5;
-    saoPass.params.saoIntensity = 0.022; // HD: occlusione un filo piu presente (prima 0.018, troppo leggera)
+    saoPass.params.saoIntensity = SAO_INTENSITA; // HD: occlusione un filo piu presente (prima 0.018, troppo leggera)
     saoPass.params.saoScale = 3;
     saoPass.params.saoKernelRadius = 24;
     saoPass.params.saoBlurRadius = 6;
@@ -500,6 +501,11 @@ export async function avviaSala(host, opz = {}) {
       const dentro = p >= 1;
       renderer.shadowMap.autoUpdate = dentro;
       if (dentro) renderer.shadowMap.needsUpdate = true;
+      if (saoPass) {   // l'occlusione ambiente serve solo nella sala: costa un secondo passaggio dell'intera scena
+        const fa = dentro ? 1 : liscio(0.92, 1.0, p);
+        saoPass.enabled = fa > 0.001;
+        saoPass.params.saoIntensity = SAO_INTENSITA * fa;
+      }
       if (specchio) {
         const fs = dentro ? 1 : liscio(0.86, 0.95, p);
         specchio.visible = fs > 0.001;
@@ -809,6 +815,7 @@ export async function avviaSala(host, opz = {}) {
   const segnaFps = (dt) => {
     if (!alta || RIDUCI() || cali >= 3) return;
     if (valuta(dt * 1000, document.hidden) !== 'calo') return;
+    if (cali >= 2 && perc && perc.attivo) return;   // spegnere le ombre ricompila gli shader: mai durante l'ingresso, a fine percorso
     cali++;
     if (cali === 1 && composer) {
       const senzaSao = composer.passes.filter((p) => p !== saoPass);
