@@ -33,3 +33,20 @@ Da verificare nel browser (io non ho GPU, non li ho visti):
 1. freeze spariti in `auto`, `window.sala.ultimoControllo` dopo ~10 s;
 2. sfarfallio trapezi/fughe sparito, legno piu inciso (`?q=alta` per il confronto);
 3. `window.sala.stat()` per triangoli e chiamate reali.
+
+## Stato del 18/11/2026 (Claude Code, secondo giro: stadio, tunnel, animazione; collaudato nel browser)
+
+Fatto (commit 3209408, 3029aa2, 66b21ab):
+- **Stadio rifatto** (`scripts/tunnel.py`): ciotola a 3 anelli con trapezi veri (prima parallelogrammi = buchi a spicchio), UV continue, texture spalti 128x64 seggiolini con nome a mosaico leggibile (verso: u positivo, righe dell'array dall'alto), muro di base blu notte con cartelloni e varco del tunnel, facciata attorno alla bocca, campo su tutto il disco con aree, cerchio, porte, 4 maxischermi ai lati/in fondo, `far` camera 220.
+- **Campo 90 cm sopra il pavimento del tunnel** (`ST_QUOTA`): i gradini (ora PIENI) finiscono a filo del campo; tutti i materiali `Esterno_*` sono rialzati in `Raccolta.costruisci`.
+- **Tunnel** come nella foto Camp Nou: blu notte, pavimento grigio-azzurro, corrimano dorato centrale con montanti + laterali, scudi grandi, LED. Filetto staccato di 6 mm (z-fighting).
+- **Animazione**: ingresso a 2,6 m/s con rampe coseno (era ease cubico: 8 m/s a meta', accel max 66 m/s2 -> 3,4); durata automatica ~15,8 s; bob legato al passo (1,1 m, 12 mm). Calo qualita' automatico: mediana su 2 s, 4 s di riscaldamento, 2 finestre di fila (`sala._valuta` testabile; con la mediana sostituita dal massimo il test diventa rosso). Shader e texture compilati prima della partenza (non misurato: niente GPU nel pannello).
+
+Sostituito/rimosso: bagliore piano alla bocca, spalti a strisce, muro grigio liscio, pannelli bianchi sulle pareti (ora scudi), corsia centrale del pavimento (ora corrimano), anelli con gap sul lato +x, maxischermi fuori posizione, `bump="pavimento HD"` (resta da correggere in `sala.py`).
+
+Ancora diverso dalle foto (lavoro per la prossima sessione, vedi nota di passaggio):
+- Stadio: seggiolini a mosaico piatto, niente luce cotta/ombre del tetto/cielo vero, erba senza fili, tetto senza raggi, cartelloni senza LED, niente vomitori/fasce di cemento, nessuna scritta gigante.
+- Tunnel: materiali tutti `MeshBasicMaterial` (sala.js li sostituisce): niente riflessi su corrimano/pavimento; mancano pareti rosse accanto ai gradini e corrimano inclinati.
+- Barre grigie viste una volta all'arrivo nella sala: NON riprodotte (canvas 1024x768, aspect e fov costanti per tutto il percorso): probabile artefatto dello screenshot.
+- Maglia, spogliatoio, gesti: invariati in questo giro.
+
