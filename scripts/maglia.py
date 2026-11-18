@@ -58,6 +58,8 @@ COLL_W = 0.036                            # altezza del bordo del colletto
 CUFF_RIB = 0.030                          # altezza costine polsino
 POLSINI = False                           # True = polsini a costine nel colore dettagli
 SVASATURA = 0.026                         # quanto la bocca della manica si stacca dal busto (m)
+MAGLIETTA = True                          # True = la maglietta di tshirt.py (geometria cotta); False = la maglia procedurale di prima
+TRI_MAGLIETTA = 30000                     # triangoli della maglietta (per i telefoni, LOD, si scende)
 PARTI_FISSE = ("_Scudo", "_Colletto", "_Filetto", "_Sponsor")   # figli uguali per tutte le copie
 
 _CT = (SH_X + SLEEVE_LEN * math.cos(SLEEVE_ANG),
@@ -475,8 +477,94 @@ def _collezione(coll):
     return coll if coll is not None else bpy.context.scene.collection
 
 
+
+# ------------------------------------------------------------------ maglietta di tshirt.py (geometria cotta)
+_BVH = {}
+
+
+def _bvh(me):
+    from mathutils.bvhtree import BVHTree
+    b = _BVH.get(me.name)
+    if b is None or b[0] != len(me.vertices):
+        b = (len(me.vertices), BVHTree.FromPolygons([v.co[:] for v in me.vertices], [p.vertices[:] for p in me.polygons]))
+        _BVH[me.name] = b
+    return b[1]
+
+
+def _superficie_ray(me, X, Z, lato):
+    """Y della superficie esterna sotto ogni punto (X, Z), guardando dal lato `lato` (+1 petto, -1 schiena)."""
+    t = _bvh(me)
+    out = np.zeros(len(X))
+    for i in range(len(X)):
+        hit = t.ray_cast(Vector((float(X[i]), lato * 1.0, float(Z[i]))), Vector((0.0, -lato, 0.0)), 2.0)
+        out[i] = hit[0].y if hit[0] is not None else 0.0
+    return out
+
+
+def _ao_geometrica(me, n_raggi=14, dist=0.10):
+    """Occlusione ambientale per vertice con raggi dall'emisfero della normale (niente bake: una mesh sola, pochi secondi)."""
+    t = _bvh(me)
+    rng = np.random.default_rng(5)
+    D = rng.normal(size=(n_raggi, 3))
+    D /= np.linalg.norm(D, axis=1)[:, None]
+    ao = np.zeros(len(me.vertices))
+    for i, v in enumerate(me.vertices):
+        n = np.array(v.normal)
+        dirs = D * np.sign(D @ n)[:, None]
+        dirs = dirs * 0.85 + n * 0.15
+        o = Vector(v.co) + v.normal * 0.0015
+        hit = 0
+        for d in dirs:
+            if t.ray_cast(o, Vector(d.tolist()), dist)[0] is not None:
+                hit += 1
+        ao[i] = hit / n_raggi
+    return ao
+
+
+def _mesh_maglietta(nome, coll, colore, dettagli):
+    """La maglietta di tshirt.py cotta in una mesh sola (modificatori applicati, semplificata) con l'occlusione nei vertici."""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("tshirt", os.path.join(os.path.dirname(os.path.abspath(__file__)), "tshirt.py"))
+    ts = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(ts)
+    ob, col = ts.crea_maglietta(render=False)
+    dg = bpy.context.evaluated_depsgraph_get()
+    bm = bmesh.new()
+    for o in (ob, col):
+        me_o = bpy.data.meshes.new_from_object(o.evaluated_get(dg))
+        me_o.transform(o.matrix_world)
+        bm.from_mesh(me_o)
+        bpy.data.meshes.remove(me_o)
+    me = bpy.data.meshes.new(nome + "_mesh")
+    bm.to_mesh(me)
+    bm.free()
+    bpy.data.objects.remove(col, do_unlink=True)
+    bpy.data.objects.remove(ob, do_unlink=True)
+    tmp = bpy.data.objects.new(nome + "_tmp", me)
+    bpy.context.scene.collection.objects.link(tmp)
+    ntri = sum(len(p.vertices) - 2 for p in me.polygons)
+    dm = tmp.modifiers.new("Semplifica", "DECIMATE")
+    dm.ratio = min(1.0, TRI_MAGLIETTA / max(1, ntri))
+    dg = bpy.context.evaluated_depsgraph_get()
+    me2 = bpy.data.meshes.new_from_object(tmp.evaluated_get(dg))
+    bpy.data.objects.remove(tmp, do_unlink=True)
+    bpy.data.meshes.remove(me)
+    me2.name = nome + "_mesh"
+    for p in me2.polygons:
+        p.use_smooth = True
+    ao = _ao_geometrica(me2)
+    att = me2.attributes.new("ao", "FLOAT", "POINT")
+    att.data.foreach_set("value", np.clip(0.50 * ao ** 1.3, 0.0, 0.45).tolist())
+    o2 = bpy.data.objects.new(nome, me2)
+    _collezione(coll).objects.link(o2)
+    me2.materials.append(materiale_tessuto("M_Tessuto_" + colore.lstrip("#") + dettagli.lstrip("#"), colore, dettagli))
+    return o2
+
+
 def mesh_maglia(nome, coll=None, colore="#ffffff", dettagli="#173f9a"):
     """Costruisce la mesh della maglia (senza scritte). Ritorna l'oggetto."""
+    if MAGLIETTA:
+        return _mesh_maglietta(nome, coll, colore, dettagli)
     G = geom()
     bm = bmesh.new()
     rib = bm.verts.layers.float.new("rib")
@@ -591,13 +679,16 @@ def _mesh_testo(testo, altezza, larghezza_max, bold=0.012, passo=0.005):
 
 def _proietta(me, lato, cx, cz, mat, nome, padre, coll):
     """Appoggia una mesh piatta (piano XY) sulla superficie, senza specchi."""
-    G = geom()
+    G = None if MAGLIETTA else geom()
     # davanti si guarda da +Y: la destra di chi guarda e' -X, quindi la scritta va specchiata in X
     # (e cosi' le facce guardano gia' fuori: niente inversione); dietro si guarda da -Y: destra = +X
     segno = -1.0 if lato > 0 else 1.0
     X = np.array([cx + segno * v.co.x for v in me.vertices])
     Z = np.array([cz + v.co.y for v in me.vertices])
-    Y = G.superficie(X, Z, lato) + lato * 0.0015
+    if MAGLIETTA:
+        Y = _superficie_ray(padre.data, X, Z, lato) + lato * 0.0035
+    else:
+        Y = G.superficie(X, Z, lato) + lato * 0.0015
     bm = bmesh.new()
     bm.from_mesh(me)
     for i, v in enumerate(bm.verts):
@@ -628,9 +719,9 @@ def scritte(shirt, nome, numero, colore, coll=None):
     """Nome (alto) e numero (grande) centrati sulla schiena, figli di `shirt`."""
     mat = _materiale_semplice("M_Scritte_" + colore.lstrip("#"), colore, 0.72)
     out = []
-    me = _mesh_testo(nome.upper(), 0.065, 0.42, passo=PASSO_TESTO)
+    me = _mesh_testo(nome.upper(), 0.055 if MAGLIETTA else 0.065, 0.29 if MAGLIETTA else 0.42, passo=PASSO_TESTO)
     out.append(_proietta(me, -1, 0.0, Z_NOME, mat, shirt.name + "_Nome", shirt, coll))
-    me = _mesh_testo(str(numero), 0.36, 0.40, passo=PASSO_TESTO)
+    me = _mesh_testo(str(numero), 0.30 if MAGLIETTA else 0.36, 0.28 if MAGLIETTA else 0.40, passo=PASSO_TESTO)
     out.append(_proietta(me, -1, 0.0, Z_NUMERO, mat, shirt.name + "_Numero", shirt, coll))
     return out
 
@@ -766,7 +857,8 @@ def costruisci(nome, nome_giocatore, numero, colore, dettagli, colore_scritte,
     m.figli = scritte(m.shirt, nome_giocatore, numero, colore_scritte, coll)
     if con_scudo:
         m.figli.append(scudo(m.shirt, coll))
-    m.figli += colletto(m.shirt, dettagli, coll=coll)
+    if not MAGLIETTA:                    # la maglietta ha il suo girocollo nella mesh
+        m.figli += colletto(m.shirt, dettagli, coll=coll)
     m.figli += sponsor(m.shirt, coll)
     m.info = misure(m.shirt)
     return m
@@ -838,7 +930,7 @@ def prepara_web(shirt, colore, dettagli, cartella="."):
     c0 = np.array(_hex(colore)[:3])
     col = me.color_attributes.new("Col", "FLOAT_COLOR", "POINT")
     for i in range(len(me.vertices)):
-        c = c0 * (1.0 - float(ao[i]))
+        c = c0 * (1.0 - float(ao[i]) * (np.array([1.0, 0.9, 0.62]) if MAGLIETTA else 1.0))   # ombre fredde, come nella foto
         col.data[i].color = (float(c[0]), float(c[1]), float(c[2]), 1.0)
     for nm in ("rib", "dseam", "dhem", "ao"):
         if nm in me.attributes:
@@ -878,6 +970,9 @@ def prepara_web(shirt, colore, dettagli, cartella="."):
 def misure(shirt):
     me = shirt.data
     co = np.array([(v.co.x, v.co.y, v.co.z) for v in me.vertices])
+    if MAGLIETTA:
+        return {"altezza": float(co[:, 2].max() - co[:, 2].min()), "larghezza_totale": float(co[:, 0].max() - co[:, 0].min()),
+                "vertici": len(me.vertices), "facce": len(me.polygons), "modificatori": [m.type for m in shirt.modifiers], "figli": {}}
     G = geom()
     info = {}
     info["altezza"] = float(co[:, 2].max() - co[:, 2].min())

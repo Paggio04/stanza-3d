@@ -775,6 +775,7 @@ if __name__ == "__main__":
         LOD = "lod" in argv[1:]
         OUT_TEX = out
         maglia.PASSO_TESTO = 0.030 if LOD else 0.014
+        maglia.TRI_MAGLIETTA = 9000 if LOD else 22000
         if LOD:
             maglia.STEP = 0.017          # maglia con triangoli di 1,7 cm invece di 1 cm: circa un terzo
         lista = costruisci_sala(dati)

@@ -542,14 +542,8 @@ def luci_e_camera(sc, bersaglio=(0.0, 0.0, -0.355)):
     sc.camera = co
 
 
-def main():
-    argv = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
-    out = os.path.abspath(argv[0]) if argv else os.path.abspath("out_tshirt")
-    px = int(argv[1]) if len(argv) > 1 else 1280
-    camp = int(argv[2]) if len(argv) > 2 else 96
-    os.makedirs(out, exist_ok=True)
-    bpy.ops.wm.read_factory_settings(use_empty=True)
-    sc = bpy.context.scene
+def crea_maglietta(render=True):
+    """Costruisce la maglietta con i modificatori (e il girocollo). render=False: materiali non creati. Ritorna (ob, collo)."""
     ob = unisci_e_taglia()
     pieghe_frontali(ob)
     pesi_orlo(ob)
@@ -585,10 +579,24 @@ def main():
     d2.mid_level = 0.5
     for p in ob.data.polygons:
         p.use_smooth = True
-    bianco = materiale("Cotone", (0.76, 0.79, 0.90, 1.0), interno_scuro=True, cuciture=True, coste=True)
-    ob.data.materials.append(bianco)
+    if render:
+        bianco = materiale("Cotone", (0.76, 0.79, 0.90, 1.0), interno_scuro=True, cuciture=True, coste=True)
+        ob.data.materials.append(bianco)
     c = collo(ob)
-    c.data.materials.append(materiale("Costine", (0.74, 0.80, 0.97, 1.0), bump=0.9, scala=1400.0, interno_scuro=True, fres=0.10, ao_dist=0.012, emiss=0.15))
+    if render:
+        c.data.materials.append(materiale("Costine", (0.74, 0.80, 0.97, 1.0), bump=0.9, scala=1400.0, interno_scuro=True, fres=0.10, ao_dist=0.012, emiss=0.15))
+    return ob, c
+
+
+def main():
+    argv = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
+    out = os.path.abspath(argv[0]) if argv else os.path.abspath("out_tshirt")
+    px = int(argv[1]) if len(argv) > 1 else 1280
+    camp = int(argv[2]) if len(argv) > 2 else 96
+    os.makedirs(out, exist_ok=True)
+    bpy.ops.wm.read_factory_settings(use_empty=True)
+    sc = bpy.context.scene
+    ob, c = crea_maglietta()
     sc.render.engine = "CYCLES"
     sc.cycles.device = "CPU"
     sc.cycles.samples = camp
@@ -617,4 +625,5 @@ def main():
     print("TSHIRT_OK", os.path.join(out, "tshirt.png"))
 
 
-main()
+if __name__ == "__main__":
+    main()
