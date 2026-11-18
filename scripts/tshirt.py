@@ -27,13 +27,13 @@ def _smooth(a, b, x):
 # ------------------------------------------------------------------ forme
 TORSO = [  # z, rx, ry   (misurati sul riferimento: altezza 0,74 m, corpo largo 0,37 m, collo 0,155 m)
     (0.000, 0.0775, 0.066), (-0.010, 0.110, 0.075), (-0.024, 0.150, 0.084), (-0.040, 0.176, 0.092),
-    (-0.070, 0.186, 0.099), (-0.130, 0.186, 0.105), (-0.220, 0.183, 0.106), (-0.330, 0.181, 0.102),
-    (-0.460, 0.181, 0.098), (-0.600, 0.185, 0.095), (-0.740, 0.192, 0.093)]
+    (-0.070, 0.180, 0.099), (-0.130, 0.176, 0.105), (-0.220, 0.174, 0.106), (-0.330, 0.175, 0.102),
+    (-0.460, 0.176, 0.098), (-0.600, 0.185, 0.095), (-0.740, 0.192, 0.093)]
 Z_ORLO = -0.740
 NECK_RX, NECK_RY, NECK_Z = 0.0775, 0.062, -0.006
 SLEEVE = {  # manica "set-in": parte quasi orizzontale sulla spalla e poi cade, svasata verso il polsino
-    "pts": [(0.120, -0.090), (0.170, -0.098), (0.205, -0.130), (0.230, -0.200), (0.248, -0.285)],
-    "ru": [0.045, 0.052, 0.058, 0.064, 0.073], "rv": [0.058, 0.056, 0.055, 0.055, 0.056]}
+    "pts": [(0.120, -0.090), (0.170, -0.098), (0.208, -0.130), (0.240, -0.205), (0.266, -0.285)],
+    "ru": [0.045, 0.052, 0.058, 0.060, 0.062], "rv": [0.058, 0.056, 0.055, 0.055, 0.056]}
 
 
 def _ring_loft(bm, anelli, chiudi_alto=True, chiudi_basso=True):
@@ -108,7 +108,7 @@ def unisci_e_taglia():
     bpy.ops.object.modifier_apply(modifier="Remesh")
     sm = ob.modifiers.new("Liscia", "SMOOTH")
     sm.factor = 0.8
-    sm.iterations = 70
+    sm.iterations = 34
     bpy.ops.object.modifier_apply(modifier="Liscia")
     # taglio delle aperture: orlo e polsini con piani esatti (bordi puliti), collo con scollo piu' basso davanti
     bm = bmesh.new()
@@ -116,7 +116,7 @@ def unisci_e_taglia():
     bmesh.ops.bisect_plane(bm, geom=bm.verts[:] + bm.edges[:] + bm.faces[:], plane_co=(0, 0, Z_ORLO), plane_no=(0, 0, 1),
                            clear_outer=False, clear_inner=True)
     for lato, (e, d) in ((1, (e1, d1)), (-1, (e2, d2))):
-        fs = [f for f in bm.faces if lato * f.calc_center_median().x > 0.262]          # solo la manica: il piano non deve toccare il busto
+        fs = [f for f in bm.faces if lato * f.calc_center_median().x > 0.192]          # solo la manica: il piano non deve toccare il busto
         es = list({ed for f in fs for ed in f.edges})
         vs = list({v for f in fs for v in f.verts})
         bmesh.ops.bisect_plane(bm, geom=vs + es + fs, plane_co=tuple(e), plane_no=tuple(d), clear_outer=True, clear_inner=False)
@@ -243,7 +243,7 @@ def collo(ob_parent):
 
 
 # ------------------------------------------------------------------ materiali, luci, resa
-def materiale(nome, colore, rough=0.85, sheen=0.55, bump=0.7, scala=600.0):
+def materiale(nome, colore, rough=0.85, sheen=0.55, bump=0.4, scala=600.0):
     m = bpy.data.materials.new(nome)
     m.use_nodes = True
     nt = m.node_tree
@@ -280,6 +280,37 @@ def materiale(nome, colore, rough=0.85, sheen=0.55, bump=0.7, scala=600.0):
     nt.links.new(no.outputs["Fac"], mi.inputs[2])
     nt.links.new(mi.outputs["Value"], bp.inputs["Height"])
     nt.links.new(bp.outputs["Normal"], pb.inputs["Normal"])
+    # leggera variazione di tono della maglia (maglia a punto jersey): moltiplica il colore di base
+    mg = nt.nodes.new("ShaderNodeMath")
+    mg.operation = "MULTIPLY_ADD"
+    mg.inputs[1].default_value = 0.10
+    mg.inputs[2].default_value = 0.92
+    nt.links.new(mi.outputs["Value"], mg.inputs[0])
+    mx = nt.nodes.new("ShaderNodeMix")
+    mx.data_type = "RGBA"
+    mx.blend_type = "MULTIPLY"
+    mx.inputs[0].default_value = 1.0
+    mx.inputs[6].default_value = colore
+    nt.links.new(mg.outputs["Value"], mx.inputs[7])
+    # profondita': occlusione ambientale nelle pieghe + scurimento morbido verso il bordo della sagoma
+    ao = nt.nodes.new("ShaderNodeAmbientOcclusion")
+    ao.inputs["Distance"].default_value = 0.07
+    ao.samples = 16
+    nt.links.new(mx.outputs[2], ao.inputs["Color"])
+    lw = nt.nodes.new("ShaderNodeLayerWeight")
+    lw.inputs["Blend"].default_value = 0.55
+    fa = nt.nodes.new("ShaderNodeMath")
+    fa.operation = "MULTIPLY_ADD"
+    fa.inputs[1].default_value = -0.40
+    fa.inputs[2].default_value = 1.0
+    nt.links.new(lw.outputs["Fresnel"], fa.inputs[0])
+    m2 = nt.nodes.new("ShaderNodeMix")
+    m2.data_type = "RGBA"
+    m2.blend_type = "MULTIPLY"
+    m2.inputs[0].default_value = 1.0
+    nt.links.new(ao.outputs["Color"], m2.inputs[6])
+    nt.links.new(fa.outputs["Value"], m2.inputs[7])
+    nt.links.new(m2.outputs[2], pb.inputs["Base Color"])
     return m
 
 
@@ -293,7 +324,7 @@ def luci_e_camera(sc, bersaglio=(0.0, 0.0, -0.355)):
     nt = w.node_tree                                                    # sfondo visibile grigio chiaro, luce ambiente piu' scura (ombre morbide sul tessuto)
     amb = nt.nodes.new("ShaderNodeBackground")
     amb.inputs["Color"].default_value = (0.60, 0.62, 0.68, 1.0)
-    amb.inputs["Strength"].default_value = 0.9
+    amb.inputs["Strength"].default_value = 1.05
     lp = nt.nodes.new("ShaderNodeLightPath")
     mx = nt.nodes.new("ShaderNodeMixShader")
     outn = nt.nodes["World Output"]
@@ -313,8 +344,8 @@ def luci_e_camera(sc, bersaglio=(0.0, 0.0, -0.355)):
         d = Vector(bersaglio) - Vector(loc)
         lo.rotation_euler = d.to_track_quat("-Z", "Y").to_euler()
 
-    area("Key", (-1.6, 3.0, 1.0), 125.0, 3.5, (1.0, 0.99, 0.98))
-    area("Fill", (2.8, 2.4, -0.4), 30.0, 3.5, (0.90, 0.94, 1.0))
+    area("Key", (-1.6, 3.0, 1.0), 150.0, 3.5, (1.0, 0.99, 0.98))
+    area("Fill", (2.8, 2.4, -0.4), 16.0, 3.5, (0.90, 0.94, 1.0))
     area("Alto", (0.0, 1.2, 2.2), 20.0, 2.5, (0.96, 0.97, 1.0))
     area("Rim", (0.0, -2.2, 0.3), 14.0, 2.0)
     cd = bpy.data.cameras.new("Cam")
@@ -357,14 +388,14 @@ def main():
     tx.noise_depth = 3
     ds = ob.modifiers.new("Grinze", "DISPLACE")
     ds.texture = tx
-    ds.strength = 0.0042
+    ds.strength = 0.0022
     ds.mid_level = 0.5
     tx2 = bpy.data.textures.new("Drappeggio", "CLOUDS")      # ondulazioni larghe del tessuto che cade
     tx2.noise_scale = 0.05
     tx2.noise_depth = 3
     d2 = ob.modifiers.new("Drappeggio", "DISPLACE")
     d2.texture = tx2
-    d2.strength = 0.0075
+    d2.strength = 0.0035
     d2.vertex_group = "pieghe"
     d2.mid_level = 0.5
     for p in ob.data.polygons:
@@ -372,7 +403,7 @@ def main():
     bianco = materiale("Cotone", (0.80, 0.81, 0.86, 1.0))
     ob.data.materials.append(bianco)
     c = collo(ob)
-    c.data.materials.append(materiale("Costine", (0.78, 0.79, 0.84, 1.0), bump=0.6, scala=1400.0))
+    c.data.materials.append(materiale("Costine", (0.92, 0.93, 0.97, 1.0), bump=0.6, scala=1400.0))
     sc.render.engine = "CYCLES"
     sc.cycles.device = "CPU"
     sc.cycles.samples = camp
