@@ -172,6 +172,9 @@ def pieghe_frontali(ob):
         dy += k * cresta((sg * 0.205, -0.105), (sg * 0.240, -0.265), 0.0030, 0.012)       # pieghe di caduta sulle maniche
         dy += k * cresta((sg * 0.188, -0.115), (sg * 0.214, -0.250), -0.0061, 0.011)
         dy += k * cresta((sg * 0.232, -0.125), (sg * 0.252, -0.215), 0.0038, 0.010)
+        dy += k * cresta((sg * 0.215, -0.170), (sg * 0.246, -0.236), -0.0042, 0.009)       # pieghe corte e storte: la stoffa non cade a righe regolari
+        dy += k * cresta((sg * 0.196, -0.200), (sg * 0.222, -0.262), 0.0035, 0.008)
+        dy += k * cresta((sg * 0.240, -0.150), (sg * 0.230, -0.205), -0.0030, 0.009)
         dy += k * cresta((sg * 0.060, -0.390), (sg * 0.085, -0.640), 0.0020, 0.030)
         dy += k * cresta((sg * 0.130, -0.420), (sg * 0.150, -0.600), -0.0017, 0.026)
     dy += cresta((-0.12, -0.625), (0.10, -0.600), 0.0014, 0.020)
@@ -269,7 +272,7 @@ def collo(ob_parent):
             a = 2 * math.pi * s / nsec
             c_, s_ = math.cos(a), math.sin(a)
             ro, rz = 0.0042 * math.copysign(abs(c_) ** 0.7, c_), 0.0125 * math.copysign(abs(s_) ** 0.7, s_)
-            ro += 0.0009 * math.cos(2 * math.pi * 3.5 * (rz / 0.025 + 0.5)) * (1 if c_ > 0.2 else 0.0)      # nervature della costina sul lato esterno
+            ro += 0.0009 * math.cos(2 * math.pi * 3.5 * (rz / 0.025 + 0.5)) * (math.copysign(1.0, c_) if abs(c_) > 0.2 else 0.0)      # nervature della costina, fuori e dentro lo scollo
             q = Vector(P[k]) + out * (ro + 0.0015) + up * (rz - 0.003)
             ring.append(tuple(q))
         anelli.append(ring)
@@ -284,7 +287,7 @@ def collo(ob_parent):
 
 
 # ------------------------------------------------------------------ materiali, luci, resa
-def materiale(nome, colore, rough=0.90, sheen=0.60, bump=0.6, scala=800.0, interno_scuro=False, cuciture=False, fres=0.45, ao_dist=0.07, emiss=0.0):
+def materiale(nome, colore, rough=0.90, sheen=0.60, bump=0.6, scala=800.0, interno_scuro=False, cuciture=False, fres=0.45, ao_dist=0.07, emiss=0.0, coste=False):
     m = bpy.data.materials.new(nome)
     m.use_nodes = True
     nt = m.node_tree
@@ -324,7 +327,25 @@ def materiale(nome, colore, rough=0.90, sheen=0.60, bump=0.6, scala=800.0, inter
     nt.links.new(ma.outputs["Vector"], no.inputs["Vector"])
     nt.links.new(wv.outputs["Fac"], mi.inputs[0])
     nt.links.new(no.outputs["Fac"], mi.inputs[2])
-    nt.links.new(mi.outputs["Value"], bp.inputs["Height"])
+    if coste:                               # nervature verticali del jersey (coste a maglia), visibili sul busto
+        m2c = nt.nodes.new("ShaderNodeMapping")
+        m2c.inputs["Scale"].default_value = (230.0, 18.0, 6.0)
+        wv2 = nt.nodes.new("ShaderNodeTexWave")
+        wv2.wave_type = "BANDS"
+        wv2.bands_direction = "X"
+        wv2.inputs["Scale"].default_value = 1.0
+        wv2.inputs["Distortion"].default_value = 2.2
+        wv2.inputs["Detail"].default_value = 3.0
+        nt.links.new(tc.outputs["Object"], m2c.inputs["Vector"])
+        nt.links.new(m2c.outputs["Vector"], wv2.inputs["Vector"])
+        ad = nt.nodes.new("ShaderNodeMath")
+        ad.operation = "MULTIPLY_ADD"
+        ad.inputs[1].default_value = 0.9
+        nt.links.new(wv2.outputs["Fac"], ad.inputs[0])
+        nt.links.new(mi.outputs["Value"], ad.inputs[2])
+        nt.links.new(ad.outputs["Value"], bp.inputs["Height"])
+    else:
+        nt.links.new(mi.outputs["Value"], bp.inputs["Height"])
     nt.links.new(bp.outputs["Normal"], pb.inputs["Normal"])
     # leggera variazione di tono della maglia (maglia a punto jersey): moltiplica il colore di base
     mg = nt.nodes.new("ShaderNodeMath")
@@ -544,7 +565,7 @@ def main():
     d2.mid_level = 0.5
     for p in ob.data.polygons:
         p.use_smooth = True
-    bianco = materiale("Cotone", (0.76, 0.79, 0.90, 1.0), interno_scuro=True, cuciture=True)
+    bianco = materiale("Cotone", (0.76, 0.79, 0.90, 1.0), interno_scuro=True, cuciture=True, coste=True)
     ob.data.materials.append(bianco)
     c = collo(ob)
     c.data.materials.append(materiale("Costine", (0.88, 0.90, 0.98, 1.0), bump=0.9, scala=1400.0, interno_scuro=True, fres=0.10, ao_dist=0.012, emiss=0.30))
