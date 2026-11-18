@@ -828,11 +828,15 @@ export async function avviaSala(host, opz = {}) {
       gltf.scene.traverse((o) => { if (o.isMesh) { o.castShadow = false; o.receiveShadow = false; } });
     }
   };
+  let dtAnim = 1 / 60;
   const passo = (now, dt) => {
     ora = now;
     if (perc && perc._f) perc._f();
     if (perc && perc.attivo) {
-      perc.passo(Math.min(dt, 0.04));   // un fotogramma lento diventa una pausa breve, non un salto in avanti
+      // dt filtrato: un fotogramma lento o irregolare (vsync, GC, GPU occupata) non diventa un salto in avanti ma un
+      // incremento quasi uniforme; la durata totale cambia di pochi decimi
+      dtAnim += (Math.min(dt, 0.05) - dtAnim) * 0.2;
+      perc.passo(dtAnim);
     } else {
       passoTween(now);
       aggiornaHover();
