@@ -34,7 +34,7 @@ Z_ORLO = -0.740
 NECK_RX, NECK_RY, NECK_Z = 0.070, 0.062, -0.006
 SLEEVE = {  # manica "set-in": parte quasi orizzontale sulla spalla e poi cade, svasata verso il polsino
     "pts": [(0.130, -0.088), (0.176, -0.096), (0.211, -0.128), (0.236, -0.195), (0.258, -0.292)],
-    "ru": [0.047, 0.053, 0.060, 0.064, 0.068], "rv": [0.058, 0.056, 0.054, 0.051, 0.048]}
+    "ru": [0.047, 0.054, 0.062, 0.064, 0.062], "rv": [0.058, 0.056, 0.054, 0.051, 0.048]}
 
 
 def _ring_loft(bm, anelli, chiudi_alto=True, chiudi_basso=True):
@@ -265,7 +265,7 @@ def collo(ob_parent):
         for s in range(nsec):
             a = 2 * math.pi * s / nsec
             c_, s_ = math.cos(a), math.sin(a)
-            ro, rz = 0.0050 * math.copysign(abs(c_) ** 0.85, c_), 0.0105 * math.copysign(abs(s_) ** 0.85, s_)
+            ro, rz = 0.0036 * math.copysign(abs(c_) ** 0.85, c_), 0.0088 * math.copysign(abs(s_) ** 0.85, s_)
             q = Vector(P[k]) + out * (ro + 0.0015) + up * (rz - 0.003)
             ring.append(tuple(q))
         anelli.append(ring)
@@ -419,6 +419,7 @@ def materiale(nome, colore, rough=0.90, sheen=0.60, bump=0.6, scala=800.0, inter
         mh_ = M("MULTIPLY", MR(ax, 0.23, 0.20), MR(zz, -0.50, -0.55))
         # fianchi del busto piu' scuri (lavanda), luce a clessidra come nel riferimento
         fianco = M("MULTIPLY", M("MULTIPLY", MR(ax, 0.09, 0.17), MR(ax, 0.215, 0.185)), MR(zz, -0.12, -0.17))
+        fianco = M("MAXIMUM", fianco, M("MULTIPLY", MR(ax, 0.19, 0.23), 0.55))      # maniche piu' scure del busto
         cbs = nt.nodes.new("ShaderNodeCombineColor")
         for ch, kk in (("Red", 0.30), ("Green", 0.25), ("Blue", 0.13)):
             mk = nt.nodes.new("ShaderNodeMath")
