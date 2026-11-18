@@ -304,6 +304,31 @@ def tex_tetto(cartella, w_=256, h_=512):
     return _img("tetto", np.clip(rgb, 0, 1), cartella)
 
 
+def tex_muro_tunnel(cartella, tinta, nome, w_=512, h_=384):
+    """Parete del tunnel (tile 4 m x 3 m): pannelli verticali da 1 m con fughe, zoccolo scuro, fascia alta piu' chiara."""
+    rng = np.random.default_rng(31)
+    g = 0.92 + 0.08 * rng.random((h_, w_)) + 0.05 * _rumore(rng, h_, w_, 24)
+    rgb = _lin(tinta)[None, None, :] * g[..., None]
+    for x in range(0, w_, w_ // 4):
+        rgb[:, x:x + 2] *= 0.55                                   # fughe dei pannelli
+    rgb[int(h_ * 0.90):] *= 0.55                                  # zoccolo (z < 0,3 m)
+    rgb[int(h_ * 0.895):int(h_ * 0.905)] *= 1.25
+    rgb[:int(h_ * 0.08)] *= 1.12                                  # fascia alta
+    return _img(nome, np.clip(rgb, 0, 1), cartella)
+
+
+def tex_pav_tunnel(cartella, tinta, n=512):
+    """Pavimento del tunnel (tile 3,2 m): cemento lucidato con macchie e giunti ogni 1,6 m."""
+    rng = np.random.default_rng(37)
+    g = 0.90 + 0.10 * _rumore(rng, n, n, 64) + 0.05 * rng.random((n, n))
+    rgb = _lin(tinta)[None, None, :] * g[..., None]
+    rgb[:, :2] *= 0.6
+    rgb[:2, :] *= 0.6
+    rgb[:, n // 2:n // 2 + 2] *= 0.6
+    rgb[n // 2:n // 2 + 2, :] *= 0.6
+    return _img("tunnel_pav", np.clip(rgb, 0, 1), cartella)
+
+
 def tex_schermo(cartella, nome, blu="#1d3f96", w_=1024, h_=640):
     """Maxischermo (un tile = tutto lo schermo): fondo blu a gradiente, nome a blocchi, fascia bassa, pixel LED."""
     rng = np.random.default_rng(29)
@@ -400,9 +425,10 @@ def luce_interna(pw, nw):
     c = (np.array([amb, amb, amb]) + 0.95 * tot * np.array([1.0, 0.97, 0.92])
          + 0.25 * lato * np.array([0.75, 0.82, 0.95])
          + day * np.array([0.88, 0.95, 1.05]) + room * np.array([1.0, 0.92, 0.80]))
-    return np.clip(c, 0.0, 1.0)
+    return np.clip(c, 0.0, GAIN_INTERNO) / GAIN_INTERNO
 
 
+GAIN_INTERNO = 1.8                        # idem per il tunnel: la luce cotta sta sotto 1 (niente piatto da saturazione), il sito la moltiplica
 GAIN_ESTERNO = 1.35                       # la luce cotta esterna e' divisa per questo; lo stesso fattore la ripristina nel sito
 SOLE_COL = np.array([1.0, 0.93, 0.80]) * 1.45
 AMB_CIELO = np.array([0.34, 0.42, 0.60])
@@ -438,6 +464,7 @@ def _profilo():
 
 
 _PROF = None
+BASSA = False                             # versione per telefoni: texture dimezzate, meno suddivisioni (tunnel_bassa.glb)
 
 
 def _bloccato(P, D, passo=0.7, tmax=170.0):
@@ -534,6 +561,20 @@ class Raccolta:
             self.quad(m, (x0, u, z0), (x1, u, z0), (x1, u, z1), (x0, u, z1), n,
                       nu=max(1, int((x1 - x0) / mx)), nv=max(1, int((z1 - z0) / mx)), **kw)
 
+    def sbarra(self, m, p0, p1, s, modo="int"):
+        """Barra a sezione quadrata (lato s) fra due punti locali, anche inclinata."""
+        p0, p1 = np.array(p0, float), np.array(p1, float)
+        d = p1 - p0
+        d /= np.linalg.norm(d)
+        a = np.cross(d, np.array([0.0, 0.0, 1.0]))
+        a /= np.linalg.norm(a)
+        b = np.cross(a, d)
+        h = s / 2
+        co = lambda p, i, j: p + a * h * i + b * h * j  # noqa: E731
+        for (n, i0, j0, i1, j1) in ((a, 1, -1, 1, 1), (-a, -1, 1, -1, -1), (b, -1, 1, 1, 1), (-b, 1, -1, -1, -1)):
+            n = tuple(float(v) for v in n)
+            self.quad(m, tuple(co(p0, i0, j0)), tuple(co(p1, i0, j0)), tuple(co(p1, i1, j1)), tuple(co(p0, i1, j1)), n, modo=modo)
+
     def scatola(self, m, c, s, modo="int", **kw):
         """Parallelepipedo (centro locale c, dimensioni s) senza la faccia posteriore verso il muro."""
         x, u, z = c
@@ -619,6 +660,8 @@ def _anello_ciotola(R, m, r0, z0, r1, z1, n, uvscala=0.12, modo="ext", salta=Non
     lungo l'anello. uvk = (spicchi per ripetizione in u, metri per ripetizione in v): v dalla lunghezza reale del lato.
     Trapezio vero (4 angoli), non parallelogramma (buchi a spicchio)."""
     nu, nv = sub
+    if BASSA:
+        nu, nv = max(2, nu // 2), max(1, (nv + 1) // 2)
     for k in range(n):
         a0 = 2 * math.pi * k / n
         a1 = 2 * math.pi * (k + 1) / n
@@ -665,8 +708,9 @@ def costruisci(dati, cartella):
     spalti_i = tex_spalti(cartella, blu=blu, nome=dati["nome"])
     cart_i = tex_cartelloni(cartella, blu=blu)
     # ---- tunnel stile Camp Nou: pareti blu squadra, pavimento chiaro, corrimano oro, LED a soffitto
-    m_blu = mat("Tunnel_Muro", _scuro_hex(blu, 0.62), None, 0.55)
-    m_pav = mat("Tunnel_Pavimento", "#8f9fba", None, 0.5)
+    m_blu = mat("Tunnel_Muro", "#ffffff", tex_muro_tunnel(cartella, _scuro_hex(blu, 0.62), "tunnel_muro"), 0.55)
+    m_scala = mat("Tunnel_MuroScala", "#ffffff", tex_muro_tunnel(cartella, "#2a5ec0", "tunnel_scala"), 0.5)
+    m_pav = mat("Tunnel_Pavimento", "#ffffff", tex_pav_tunnel(cartella, "#8f9fba"), 0.5)
     m_alzata = mat("Tunnel_Alzata", "#2b2e34", None, 0.85)
     m_corsia = mat("Tunnel_Corsia", "#838b96", None, 0.62)
     m_oro = mat("Tunnel_Oro", "#c9a227", None, 0.3)
@@ -692,6 +736,16 @@ def costruisci(dati, cartella):
         R.parete(m_pav, -hw, hw, ST_SCALA_U0 + g * du, ST_SCALA_U0 + (g + 1) * du, zg, zg,
                  (0, 0, 1), mx=0.8, uvs=(3.2, 3.2))
         R.parete(m_alzata, -hw, hw, ST_SCALA_U0 + g * du, ST_SCALA_U0 + g * du, 0.0, zg, (0, 1, 0), mx=0.8)
+    # scalinata: pareti laterali nel colore squadra (come le pareti rosse del Camp Nou) e corrimani che salgono coi gradini
+    for sg, nx in ((-1, 1), (1, -1)):
+        x = sg * hw
+        R.quad(m_scala, (x - sg * 0.02, ST_SCALA_U0, 0.0), (x - sg * 0.02, L, 0.0), (x - sg * 0.02, L, H), (x - sg * 0.02, ST_SCALA_U0, H),
+               (nx, 0, 0), nu=6, nv=3, uvs=(4.0, 3.0))
+        R.sbarra(m_oro, (sg * (hw - 0.12), ST_SCALA_U0 - 0.3, 0.95), (sg * (hw - 0.12), L - 0.1, 0.95 + ST_QUOTA), 0.05)
+    R.sbarra(m_oro, (0.0, ST_SCALA_U0 - 0.3, 0.95), (0.0, L - 0.4, 0.95 + ST_QUOTA * 0.93), 0.05)
+    for up in (ST_SCALA_U0 + 1.5, ST_SCALA_U0 + 3.5, ST_SCALA_U0 + 5.5):
+        zg = 0.95 + (up - ST_SCALA_U0 + 0.3) / (L - ST_SCALA_U0) * ST_QUOTA * 0.93
+        R.scatola(m_oro, (0.0, up, zg / 2), (0.04, 0.04, zg))
     # soffitto scuro con 5 lame di luce (come la foto: strisce LED sul blu)
     R.parete(m_sof, -hw, hw, 0.0, L, H, H, (0, 0, -1), mx=0.8)
     for fu in (2.5, 6.5, 10.5, 14.5, 17.5):
@@ -700,7 +754,7 @@ def costruisci(dati, cartella):
     # pareti blu con scudi bianchi retroilluminati e corrimano oro (mesh vere, niente testi flottanti)
     for sg, nx in ((-1, 1), (1, -1)):
         x = sg * hw
-        R.parete(m_blu, x, x, 0.0, L, 0.0, H, (nx, 0, 0), mx=0.8)
+        R.parete(m_blu, x, x, 0.0, L, 0.0, H, (nx, 0, 0), mx=0.8, uvs=(4.0, 3.0))
         R.parete(m_filo, x - sg * 0.006, x - sg * 0.006, 0.0, L, 1.10, 1.16, (nx, 0, 0), mx=1.0)   # 6 mm davanti alla parete: a filo faceva z-fighting (strisce bianche)
         R.scatola(m_oro, (sg * (hw - 0.12), L / 2, 0.95), (0.05, L - 2.0, 0.05))
         for u_scudo in (6.0, 12.5):
@@ -741,7 +795,7 @@ def _costruisci_esterno(R, dati, cartella, erba_i, spalti_i, cart_i):
     uc = ST_CENTRO_U
     R_ = ST_RAGGIO
     # ---- campo: erba su tutto il disco della ciotola (celle di 2,5 m per l'ombra degli spalti)
-    R.parete(m_erba, -R_, R_, L, uc + R_, 0.0, 0.0, (0, 0, 1), mx=2.5, modo="ext", uvs=(8.0, 8.0), uv0=(0.0, 0.0))
+    R.parete(m_erba, -R_, R_, L, uc + R_, 0.0, 0.0, (0, 0, 1), mx=4.0 if BASSA else 2.5, modo="ext", uvs=(8.0, 8.0), uv0=(0.0, 0.0))
     cx, cl = 27.0, 36.0                                      # semi-larghezza e semi-lunghezza del campo
     LM = 2.5
     for (xa, xb, ua, ub) in ((-cx, cx, uc - cl, uc - cl + 0.15), (-cx, cx, uc + cl - 0.15, uc + cl),
@@ -861,11 +915,16 @@ if __name__ == "__main__":
     radice = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     dati = json.load(open(os.path.join(radice, "squadra.json"), encoding="utf-8"))
     bpy.ops.wm.read_factory_settings(use_empty=True)
+    BASSA = "bassa" in argv
     ob = costruisci(dati, out)
     err, tri = verifica(ob)
     for e in err:
         print("TUNNEL_ERRORE", e)
-    glb = os.path.join(out, "tunnel.glb")
+    glb = os.path.join(out, "tunnel_bassa.glb" if BASSA else "tunnel.glb")
+    if BASSA:
+        for im in bpy.data.images:
+            if im.size[0] >= 512 and im.users:
+                im.scale(im.size[0] // 2, im.size[1] // 2)
     bpy.ops.export_scene.gltf(
         filepath=glb, export_format="GLB", export_apply=True, export_yup=True, export_animations=False,
         export_cameras=False, export_lights=False, export_materials="EXPORT", export_vertex_color="ACTIVE",
@@ -873,9 +932,10 @@ if __name__ == "__main__":
         export_meshopt_compression_enable=True)
     man = {"u0": T0, "larghezza": W, "altezza": H, "lunghezza": L,
            "bocca": {"z": T0 + L}, "percorso": percorso(),
-           "passo": 1.1, "ampiezza_bob": 0.012, "gain_esterno": GAIN_ESTERNO,
+           "passo": 1.1, "ampiezza_bob": 0.012, "gain_esterno": GAIN_ESTERNO, "gain_interno": GAIN_INTERNO,
            "sole": [float(SOLE[0]), float(SOLE[2]), float(SOLE[1] + 0.0)]}
-    json.dump(man, open(os.path.join(out, "tunnel.json"), "w", encoding="utf-8"), indent=1)
+    if not BASSA:
+        json.dump(man, open(os.path.join(out, "tunnel.json"), "w", encoding="utf-8"), indent=1)
     print("TUNNEL_OK", glb, os.path.getsize(glb), "facce", tri)
     if err:
         sys.exit(1)

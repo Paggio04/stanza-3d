@@ -102,6 +102,7 @@
  "passo": 1.1,
  "ampiezza_bob": 0.012,
  "gain_esterno": 1.35,
+ "gain_interno": 1.8,
  "sole": [
   0.41679502227539833,
   0.7193398003386512,

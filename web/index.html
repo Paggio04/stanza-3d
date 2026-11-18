@@ -28,7 +28,7 @@
   if (qs.get('scroll')) document.body.classList.add('scorri');
   window.sala = await avviaSala(document.getElementById('sala'), {
     glb: 'sala.glb?' + v, glbBassa: 'sala_bassa.glb?' + v, dati: 'sala.json?' + v,
-    tunnel: 'tunnel.glb?' + v, percorso: 'tunnel.json?' + v,
+    tunnel: 'tunnel.glb?' + v, tunnelBassa: 'tunnel_bassa.glb?' + v, percorso: 'tunnel.json?' + v,
     qualita: qs.get('q') || 'auto',
     video: qs.get('video') ? { src: qs.get('video'), preload: 'auto', poster: qs.get('poster') || null } : null,   // HD: preload cosi l'intro non scatta
   });

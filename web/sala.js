@@ -107,7 +107,7 @@ export async function avviaSala(host, opz = {}) {
   const caricatore = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
   const [gltf, tunnelGltf, tunnelDati] = await Promise.all([
     caricatore.loadAsync(!alta && opz.glbBassa ? opz.glbBassa : urlGlb),
-    opz.tunnel ? caricatore.loadAsync(opz.tunnel).catch((e) => { console.warn('tunnel non caricato', e); return null; }) : null,
+    opz.tunnel ? caricatore.loadAsync(!alta && opz.tunnelBassa ? opz.tunnelBassa : opz.tunnel).catch((e) => { console.warn('tunnel non caricato', e); return null; }) : null,
     opz.tunnel ? fetch(opz.percorso || 'tunnel.json').then((r) => r.json()).catch(() => null) : null,
   ]);
 
@@ -376,18 +376,48 @@ export async function avviaSala(host, opz = {}) {
   let perc = null;
   if (tunnelGltf && tunnelDati) {
     const V3 = THREE.Vector3;
-    const GAIN = 1.0; // realismo: 1.3 slavava i colori cotti (effetto piatto/Minecraft)
+    const GAIN = tunnelDati.gain_interno || 1.0; // la luce cotta interna e' divisa per questo in tunnel.py
     // [nome, {metal, rough, env, k}]: k = quanta luce cotta resta come emissione (il resto lo mette l'ambiente)
     const LUCIDI = [
       [/Tunnel_Oro/, { metal: 1, rough: 0.28, env: 2.2, k: 0.35 }],
       [/Tunnel_(Pavimento|Corsia)/, { metal: 0, rough: 0.22, env: 3.0, k: 0.9 }],
       [/Tunnel_Muro/, { metal: 0, rough: 0.42, env: 1.4, k: 0.95 }],
     ];
+    // erba: dettaglio fine (fili) sovrapposto alla texture della ciotola, sfumato con la distanza (niente moire')
+    const dettErba = (() => {
+      const n = 256, d = new Uint8Array(n * n * 4);
+      for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
+        const r = Math.random(), up = y ? d[((y - 1) * n + x) * 4] / 255 : 0.5;
+        const v = Math.min(1, Math.max(0, 0.45 * r + 0.55 * (0.5 * up + 0.25 * (x ? d[(y * n + x - 1) * 4] / 255 : 0.5) + 0.25 * r)));
+        const b = Math.round(255 * Math.min(1, Math.max(0, 0.5 + (v - 0.5) * 1.6)));
+        d.set([b, b, b, 255], (y * n + x) * 4);
+      }
+      const t = new THREE.DataTexture(d, n, n, THREE.RGBAFormat);
+      t.wrapS = t.wrapT = THREE.RepeatWrapping; t.magFilter = THREE.LinearFilter; t.minFilter = THREE.LinearMipmapLinearFilter;
+      t.generateMipmaps = true; t.anisotropy = renderer.capabilities.getMaxAnisotropy(); t.needsUpdate = true;
+      return t;
+    })();
+    const erba = (b) => {
+      b.onBeforeCompile = (sh) => {
+        sh.uniforms.uDet = { value: dettErba };
+        sh.vertexShader = sh.vertexShader.replace('#include <common>', ['#include <common>', 'varying float vDist;'].join('\n'))
+          .replace('#include <project_vertex>', ['#include <project_vertex>', 'vDist = length(mvPosition.xyz);'].join('\n'));
+        sh.fragmentShader = sh.fragmentShader.replace('#include <common>', ['#include <common>', 'uniform sampler2D uDet;', 'varying float vDist;'].join('\n'))
+          .replace('#include <map_fragment>', [
+            '#include <map_fragment>',
+            '#ifdef USE_MAP',
+            ' float fd = 1.0 - smoothstep(20.0, 80.0, vDist);',
+            ' float d1 = texture2D(uDet, vMapUv * 36.0).r;',
+            ' float d2 = texture2D(uDet, vMapUv * 7.3 + vec2(0.37, 0.11)).r;',
+            ' diffuseColor.rgb *= mix(1.0, (0.55 + 0.9 * d1) * (0.82 + 0.36 * d2), fd);',
+            '#endif'].join('\n'));
+      };
+    };
     const lucido = (m, conCol, p) => {
       const s = new THREE.MeshStandardMaterial({
         color: p.metal ? m.color.clone() : new THREE.Color(0x000000), metalness: p.metal, roughness: p.rough,
         vertexColors: conCol, side: THREE.DoubleSide, envMapIntensity: p.env,
-        emissive: m.color.clone().multiplyScalar(p.k), emissiveMap: m.map || null,
+        emissive: m.color.clone().multiplyScalar(p.k * GAIN), emissiveMap: m.map || null,
       });
       s.onBeforeCompile = (sh) => {
         sh.fragmentShader = sh.fragmentShader.replace('#include <emissivemap_fragment>',
@@ -405,6 +435,7 @@ export async function avviaSala(host, opz = {}) {
       b.color.copy(m.color).multiplyScalar(/Luce/.test(m.name) ? 2.0 : led ? 1.7 : ext ? (tunnelDati.gain_esterno || 1.0) : GAIN);
       o.material = b;
       // corrimano e pavimento: riflessi veri (Standard con la luce cotta come emissione: nessuna luce di scena)
+      if (/Erba/.test(m.name)) erba(b);
       const lu = LUCIDI.find(([re]) => re.test(m.name));
       if (lu) o.material = lucido(m, !!o.geometry.attributes.color, lu[1]);
       o.castShadow = o.receiveShadow = false;
