@@ -623,7 +623,7 @@ if __name__ == "__main__":
         export_image_format="JPEG", export_image_quality=90)  # HD: 90 invece di 82
     man = {"u0": T0, "larghezza": W, "altezza": H, "lunghezza": L,
            "bocca": {"z": T0 + L}, "percorso": percorso(),
-           "passo": 0.75, "ampiezza_bob": 0.014}
+           "passo": 1.1, "ampiezza_bob": 0.012}
     json.dump(man, open(os.path.join(out, "tunnel.json"), "w", encoding="utf-8"), indent=1)
     print("TUNNEL_OK", glb, os.path.getsize(glb), "facce", tri)
     if err:

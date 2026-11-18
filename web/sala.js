@@ -29,6 +29,15 @@ import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 
 const RIDUCI = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+// Spazio percorso (0..S) al tempo t (s): rampa coseno in partenza e in arrivo (accelerazione continua), crociera costante in mezzo.
+// Prima: ease cubico su tutta la durata = 8 m/s a meta' (corsa), ora crociera a passo svelto.
+const PROFILO = (t, T, S, ta) => {
+  t = Math.min(T, Math.max(0, t));
+  const vc = S / (T - ta), ramp = (x) => vc * (x / 2 - (ta / (2 * Math.PI)) * Math.sin((Math.PI * x) / ta));
+  if (t < ta) return ramp(t);
+  if (t > T - ta) return S - ramp(T - t);
+  return (vc * ta) / 2 + vc * (t - ta);
+};
 const gl = (r, a) => new THREE.Vector3(r * Math.sin(a), 0, -r * Math.cos(a)); // (raggio, angolo) di Blender -> glTF
 const dAng = (a, b) => ((b - a + Math.PI) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI) - Math.PI;
 
@@ -414,7 +423,7 @@ export async function avviaSala(host, opz = {}) {
         const p = this.p;
         const t = cp.getUtoTmapping(p);
         cp.getPoint(t, tmp); ct.getPoint(t, tmpT);
-        const env = RIDUCI() ? 0 : liscio(0, 0.03, p) * (1 - liscio(0.9, 0.995, p));
+        const env = RIDUCI() ? 0 : liscio(0, 0.06, p) * (1 - liscio(0.92, 0.995, p));
         const d = (p * lung) / (tunnelDati.passo || 0.75);
         tmp.y += env * (tunnelDati.ampiezza_bob || 0.014) * Math.sin(2 * Math.PI * d);
         tmp.x += env * 0.006 * Math.sin(Math.PI * d);
@@ -445,11 +454,13 @@ export async function avviaSala(host, opz = {}) {
         this.applica();
       },
       avvia(o = {}) {
-        const durata = o.durata || 14000, da = o.da || 0;
+        const da = o.da || 0, Sm = (1 - da) * lung;                       // metri da percorrere
+        const TA = 1.6, vel = o.velocita || opz.velocita || 2.6;           // rampa (s) e velocita' di crociera (m/s)
+        const durata = o.durata || (Sm / vel + TA) * 1000;                  // senza durata esplicita: passo svelto, non corsa
         if (RIDUCI()) { this.progresso(1); return Promise.resolve(); }
         this.progresso(Math.min(da, 0.9999));
         host.classList.add('corre');
-        return new Promise((res) => { this.anim = { t: 0, durata, da, res }; });
+        return new Promise((res) => { this.anim = { t: 0, durata, da, Sm, ta: Math.min(TA, durata / 4000), res }; });
       },
       ferma() {
         if (this.anim) { const r = this.anim.res; this.anim = null; host.classList.remove('corre'); r(); }
@@ -466,7 +477,7 @@ export async function avviaSala(host, opz = {}) {
           try { await video.play(); await new Promise((res) => { video.addEventListener('ended', res, { once: true }); video.addEventListener('error', res, { once: true }); this._saltaVideo = res; }); } catch (e) { /* senza video si parte dal tunnel */ }
           video.style.opacity = 0;
         }
-        await this.avvia({ durata: opz.durataPercorso || 14000 });
+        await this.avvia({ durata: opz.durataPercorso });
       },
       collegaScorrimento(el = host.parentElement) {
         const f = () => {
@@ -486,7 +497,7 @@ export async function avviaSala(host, opz = {}) {
         const a = this.anim;
         a.t += dt * 1000;
         const u = Math.min(1, a.t / a.durata);
-        this.progresso(a.da + (1 - a.da) * ease(u));
+        this.progresso(a.da + (1 - a.da) * (PROFILO(a.t / 1000, a.durata / 1000, a.Sm, a.ta) / a.Sm));
         if (u >= 1) { this.anim = null; host.classList.remove('corre'); a.res(); }
       },
     };
@@ -665,19 +676,31 @@ export async function avviaSala(host, opz = {}) {
   let ultimo = performance.now();
   let raf = 0;
   // HD: discesa automatica se il telefono non regge: prima via la SAO, poi lo specchio, poi le ombre. Niente ricarica.
-  let cali = 0, tempoFps = 0, contaFps = 0;
-  const frameIstallazioni = []; // ultimi 120 frame (ms): se uno supera 120ms e scatta, scatta il calo anche con fps medi buoni
+  // Decisione pura (testabile da console con `sala._valuta`): niente calo per i primi 4 s validi, mai per un singolo scatto
+  // (compilazione shader, scheda nascosta, dt tagliato): conta la mediana su 2 s, e servono 2 finestre lente di fila.
+  let cali = 0;
+  const valutatore = () => {
+    const st = { caldo: 0, buf: [], tempo: 0, lente: 0 };
+    return (dtMs, nascosta) => {
+      if (nascosta || dtMs >= 250) { st.buf.length = 0; st.tempo = 0; return null; }
+      st.caldo += dtMs;
+      if (st.caldo < 4000) return null;
+      st.buf.push(dtMs); st.tempo += dtMs;
+      if (st.tempo < 2000) return null;
+      const ord = [...st.buf].sort((x, y) => x - y), med = ord[Math.floor(ord.length / 2)];
+      st.buf.length = 0; st.tempo = 0;
+      const fps = 1000 / med;
+      api.ultimoControllo = { fps: Math.round(fps * 10) / 10, medianaMs: Math.round(med * 10) / 10, cali };
+      if (fps >= 42) { st.lente = 0; return null; }
+      if (++st.lente < 2) return null;
+      st.lente = 0;
+      return 'calo';
+    };
+  };
+  const valuta = valutatore();
   const segnaFps = (dt) => {
-    if (!alta || RIDUCI()) return;
-    tempoFps += dt; contaFps++;
-    frameIstallazioni.push(dt * 1000); // fluidita: ultimi 120 frame per trovare i freeze
-    if (frameIstallazioni.length > 120) frameIstallazioni.shift();
-    if (tempoFps < 2) return;
-    const fps = contaFps / tempoFps;
-    const peggiore = Math.max(...frameIstallazioni);
-    tempoFps = 0; contaFps = 0;
-    api.ultimoControllo = { fps: Math.round(fps * 10) / 10, peggioreMs: Math.round(peggiore * 10) / 10, cali }; // lo leggi in console
-    if ((fps >= 45 && peggiore < 120) || cali >= 3) return;
+    if (!alta || RIDUCI() || cali >= 3) return;
+    if (valuta(dt * 1000, document.hidden) !== 'calo') return;
     cali++;
     if (cali === 1 && composer) {
       const senzaSao = composer.passes.filter((p) => p !== saoPass);
@@ -722,6 +745,14 @@ export async function avviaSala(host, opz = {}) {
     segnaFps(dt); // HD: calo di qualita automatico se fps < 45
     disegna();
   };
+  // riscaldamento: tutti gli shader e le texture (tunnel, stadio, sala) pronti prima di muovere la camera, senza scatti al primo ingresso
+  renderer.compile(scena, cam);
+  scena.traverse((o) => {
+    if (!o.isMesh) return;
+    for (const m of Array.isArray(o.material) ? o.material : [o.material]) {
+      for (const k of ['map', 'emissiveMap', 'roughnessMap', 'metalnessMap', 'normalMap', 'aoMap']) if (m[k] && m[k].isTexture) renderer.initTexture(m[k]);
+    }
+  });
   applica(vista);
   ridim();
   raf = requestAnimationFrame(giro);
@@ -740,7 +771,7 @@ export async function avviaSala(host, opz = {}) {
     });
     return { triangoli: Math.round(tri), mesh, per, chiamate: mesh };
   };
-  Object.assign(api, { THREE, scena, cam, maglie, renderer, dati, stat, percorso: perc, ultimoControllo: null, // fluidita: ultimo controllo fps (ogni 2s) — in console: window.sala.ultimoControllo
+  Object.assign(api, { THREE, scena, cam, maglie, renderer, dati, stat, percorso: perc, ultimoControllo: null, _valuta: valutatore, // fluidita: ultimo controllo fps (ogni 2s) — in console: window.sala.ultimoControllo
     _avanza: (ms) => { passo(ora + ms, ms / 1000); disegna(); } });
   return api;
 }

@@ -17,7 +17,7 @@ const sala = await avviaSala(document.getElementById('sala'), {
   tunnel: 'tunnel.glb', percorso: 'tunnel.json',          // facoltativi
   qualita: 'auto',                                          // 'alta' | 'bassa' | 'auto'
   video: { src: 'drone.mp4', poster: 'drone.jpg' },        // facoltativo: il video del drone
-  durataPercorso: 14000,                                    // ms, per l'ingresso a tempo
+  velocita: 2.6,                                            // m/s di crociera dell ingresso (default); oppure durataPercorso in ms
 });
 ```
 
