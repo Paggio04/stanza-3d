@@ -185,7 +185,7 @@ export async function avviaSala(host, opz = {}) {
     specchio.renderOrder = 1;
     scena.add(specchio);
   }
-  const cam = new THREE.PerspectiveCamera(80, 16 / 9, 0.1, 60);
+  const cam = new THREE.PerspectiveCamera(80, 16 / 9, 0.1, 220);
   let composer = null;
   let saoPass = null; // HD: serve per la discesa automatica (spegni SAO se il telefono non regge)
   if (esplicita) { // fluidita: SAO solo con ?q=alta, in auto niente (era il freeze ogni secondo)

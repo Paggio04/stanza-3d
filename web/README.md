@@ -5,7 +5,7 @@ Cartella pronta da copiare nel sito. Three.js r160 (importmap in `index.html`).
 | File | Cosa |
 |---|---|
 | `sala.js` | modulo: `avviaSala(contenitore, opzioni)` |
-| `sala.glb` / `sala_bassa.glb` | sala (5,4 MB, ~400k triangoli) e versione per telefoni (3,1 MB, ~165k); meshopt |
+| `sala.glb` / `sala_bassa.glb` | sala (5,3 MB, ~720k triangoli misurati con `sala.stat()` con tunnel) e versione per telefoni (2,2 MB, ~320k); meshopt |
 | `sala.json` | rosa (numero, nome, reparto, slot, angolo), porta, parametri dei gesti (molle) |
 | `tunnel.glb` / `tunnel.json` | tunnel dei giocatori, facciata sotto gli spalti, bordo campo; percorso della camera |
 | `index.html` | pagina di prova (`?q=alta|bassa`, `?intro=1`, `?scroll=1`, `?video=URL`) |
