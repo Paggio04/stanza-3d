@@ -96,3 +96,8 @@ Il video iniziale e' un drone reale: il 3D parte dal punto attuale (camera a ter
 - "RESCO REGGELLO" su due righe (RESCO / REGGELLO) con i seggiolini, **una sola volta**, nel primo anello (l'unico che si vede dalla partenza), nel tile degli spicchi 32-39 centrato sull'asse del tunnel; prima stava nel secondo anello, tagliato dal bordo alto dell'inquadratura e ripetuto 6 volte. Tutto il resto degli spalti usa la texture senza nome (`spalti` / `spalti_nome`, materiali `Esterno_Spalti` / `Esterno_SpaltiNome`). Trappole pagate: l'immagine ha v=1 sulla riga 0 (la banda va nelle righe 44-59 per stare in basso), le UV in u devono contare gli spicchi (`uspic=8`), non i metri (la corda cambia col raggio e il tile slittava), niente corridoi dentro la banda. tunnel.glb 2,8 MB (due texture spalti), bassa 0,87 MB.
 - Muro di base e facciata a pannelli blu (prima nero), rimbalzo dal campo piu' alto (`AMB_TERRA`) per le superfici all'ombra.
 
+### Ottavo giro (18/11/2026): cartelloni veri, tunnel, nebbia
+- **Cartelloni LED con scritte vere**: font a blocchi 5x7 completo (A-Z, 0-5, . - &) in `_FONT`; pannelli di sponsor locali generici (TOSCANA ENERGIA, BANCA DEL VALDARNO, PIZZERIA DA MARIO, il nome della squadra...), tile da 32 m (4096x128), pannelli che si incastrano nel tile. Tunnel.glb 3,0 MB, bassa 0,92 MB.
+- **Tunnel**: soffitto a pannelli con feritoie, montanti dei corrimani laterali sulla scalinata, facciata sopra la bocca senza zoccolo ripetuto (un tile = tutta l'altezza).
+- **Nebbia** da 45 a 230 m (prima 90-260): prospettiva aerea sulle tribune lontane.
+

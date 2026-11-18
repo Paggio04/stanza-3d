@@ -459,7 +459,7 @@ export async function avviaSala(host, opz = {}) {
       t.colorSpace = THREE.SRGBColorSpace;
       scena.background = t;
     });
-    scena.fog = new THREE.Fog(0xc7d7df, 90, 260);
+    scena.fog = new THREE.Fog(0xc7d7df, 45, 230);   // prospettiva aerea: le tribune lontane (40-70 m) schiariscono appena
     const S = VISTE.sala;
     const fin = { p: gl(S.r, S.a), t: gl(S.tr, S.ta) };
     const pos = [...tunnelDati.percorso.map((k) => new V3(...k.p)), new V3(fin.p.x, S.y, fin.p.z)];

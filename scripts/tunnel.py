@@ -244,28 +244,50 @@ def tex_spalti(cartella, blu="#1d3f96", rosso="#3a6fd0", nome="", w_=2048, h_=10
     return _img(nomefile, np.clip(img, 0, 1), cartella)
 
 
-def tex_cartelloni(cartella, blu="#1d3f96", w_=2048, h_=128, nomefile="cartelloni"):
-    """Cartelloni LED (16 m di fascia per tile): pannelli saturi con loghi a blocchi, griglia di pixel LED."""
+def tex_cartelloni(cartella, blu="#1d3f96", w_=4096, h_=128, nomefile="cartelloni", nome="RESCO REGGELLO"):
+    """Cartelloni LED (16 m di fascia per tile): pannelli di sponsor locali con scritte vere (font a blocchi), tinte piene
+    e filetto, griglia di pixel LED. Il tile e' continuo: il primo pannello riparte dove finisce l'ultimo."""
     rng = np.random.default_rng(9)
     img = np.zeros((h_, w_, 3)) + _lin("#070a18")
+    spons = [("TOSCANA ENERGIA", "#ffffff", "#c8302f"), ("BANCA DEL VALDARNO", "#ffffff", blu),
+             ("PIZZERIA DA MARIO", "#14234f", "#f2c30f"), ("EDILIZIA BIANCHI", "#ffffff", "#1f9d5c"),
+             (nome, "#ffffff", "#14234f"), ("FARMACIA CENTRALE", "#14234f", "#e8ecf2"),
+             ("CANTINA DEL BORGO", "#f2c30f", "#5b1a2a"), ("AUTO ROSSI 4.0", "#ffffff", "#2d6bd6"),
+             ("MOBILI CHIANTI", "#14234f", "#e8571c"),
+             ("BAR SPORT", "#ffffff", "#1f9d5c"), ("FORNO LUCA", "#14234f", "#f2c30f"), ("IDRAULICA", "#ffffff", "#c8302f"), ("ASD 1975", "#ffffff", "#2d6bd6")]
     x = 0
-    pal = [_lin(c) for c in (blu, "#f3f6fb", "#f2c30f", "#d93232", "#1f9d5c", "#f3f6fb", "#2d6bd6", "#e8571c")]
+    i = 0
     while x < w_:
-        bw = int(rng.integers(150, 300))
-        col = pal[rng.integers(len(pal))]
-        fondo = pal[rng.integers(len(pal))]
-        sub = np.zeros((h_ - 20, max(1, min(w_, x + bw - 10) - (x + 10)), 3)) + col * 0.92
-        yy = np.linspace(0, 1, sub.shape[0])[:, None, None]
-        sub = sub * (0.86 + 0.14 * (1 - yy))
-        # logo: un blocco di colore opposto + due righe di testo a blocchi
-        lw = max(8, sub.shape[1] // 3)
-        sub[8:-8, 10:10 + lw] = np.clip(fondo * 0.95, 0, 1)
-        for k in range(int(rng.integers(2, 4))):
-            tw = int(rng.integers(20, max(21, sub.shape[1] - lw - 40)))
-            ty = 18 + k * 30
-            if ty + 14 < sub.shape[0]:
-                sub[ty:ty + 14, 22 + lw:22 + lw + tw] = np.clip(fondo * 0.95 + 0.04, 0, 1)
-        img[10:h_ - 10, x + 10:x + 10 + sub.shape[1]] = sub
+        scelto = None
+        for dk in range(len(spons)):                              # il primo sponsor (a rotazione) che entra nello spazio rimasto
+            testo, fg, bg = spons[(i + dk) % len(spons)]
+            scala = min(8, 900 // (6 * len(testo)), (w_ - x - 60) // (6 * len(testo)))
+            if scala >= 4:
+                scelto = (testo, fg, bg, scala)
+                i += dk + 1
+                break
+        if scelto is None:
+            break
+        testo, fg, bg, scala = scelto
+        bw = 6 * len(testo) * scala + 60
+        if w_ - x - bw < 6 * 4 * 4 + 60:                          # se il resto non basta per un altro pannello, questo lo assorbe
+            bw = w_ - x
+        pan = np.zeros((h_ - 16, bw - 8, 3)) + _lin(bg)
+        yy = np.linspace(0, 1, pan.shape[0])[:, None, None]
+        pan = pan * (0.82 + 0.28 * (1 - yy))
+        pan[:3] = _lin(fg) * 0.9                                   # filetto in alto e in basso
+        pan[-3:] = _lin(fg) * 0.9
+        tx = (pan.shape[1] - 6 * len(testo) * scala + scala) // 2
+        ty = (pan.shape[0] - 7 * scala) // 2
+        for k, ch in enumerate(testo):
+            if ch == " ":
+                continue
+            gl = _lettera(ch)
+            for ly in range(7):
+                for lx in range(5):
+                    if gl[ly][lx]:
+                        pan[ty + ly * scala:ty + (ly + 1) * scala, tx + (6 * k + lx) * scala:tx + (6 * k + lx + 1) * scala] = _lin(fg)
+        img[8:h_ - 8, x + 4:x + 4 + pan.shape[1]] = pan
         x += bw
     yy, xx = np.mgrid[0:h_, 0:w_]
     led = np.where(((yy % 4) == 3) | ((xx % 4) == 3), 0.55, 1.0)         # pixel LED
@@ -423,20 +445,33 @@ def tex_schermo(cartella, nome, blu="#1d3f96", w_=1024, h_=640):
     return _img("schermo", np.clip(rgb, 0, 1), cartella)
 
 
+_FONT = {
+    "A": ".###.|#...#|#...#|#####|#...#|#...#|#...#", "B": "####.|#...#|#...#|####.|#...#|#...#|####.",
+    "C": ".####|#....|#....|#....|#....|#....|.####", "D": "####.|#...#|#...#|#...#|#...#|#...#|####.",
+    "E": "#####|#....|#....|####.|#....|#....|#####", "F": "#####|#....|#....|####.|#....|#....|#....",
+    "G": ".####|#....|#....|#..##|#...#|#...#|.###.", "H": "#...#|#...#|#...#|#####|#...#|#...#|#...#",
+    "I": "#####|..#..|..#..|..#..|..#..|..#..|#####", "J": "..###|...#.|...#.|...#.|...#.|#..#.|.##..",
+    "K": "#...#|#..#.|#.#..|##...|#.#..|#..#.|#...#", "L": "#....|#....|#....|#....|#....|#....|#####",
+    "M": "#...#|##.##|#.#.#|#.#.#|#...#|#...#|#...#", "N": "#...#|##..#|#.#.#|#..##|#...#|#...#|#...#",
+    "O": ".###.|#...#|#...#|#...#|#...#|#...#|.###.", "P": "####.|#...#|#...#|####.|#....|#....|#....",
+    "Q": ".###.|#...#|#...#|#...#|#.#.#|#..#.|.##.#", "R": "####.|#...#|#...#|####.|#.#..|#..#.|#...#",
+    "S": ".####|#....|#....|.###.|....#|....#|####.", "T": "#####|..#..|..#..|..#..|..#..|..#..|..#..",
+    "U": "#...#|#...#|#...#|#...#|#...#|#...#|.###.", "V": "#...#|#...#|#...#|#...#|#...#|.#.#.|..#..",
+    "W": "#...#|#...#|#...#|#.#.#|#.#.#|##.##|#...#", "X": "#...#|#...#|.#.#.|..#..|.#.#.|#...#|#...#",
+    "Y": "#...#|#...#|.#.#.|..#..|..#..|..#..|..#..", "Z": "#####|....#|...#.|..#..|.#...|#....|#####",
+    "0": ".###.|#...#|#..##|#.#.#|##..#|#...#|.###.", "1": "..#..|.##..|..#..|..#..|..#..|..#..|.###.",
+    "2": ".###.|#...#|....#|...#.|..#..|.#...|#####", "3": "####.|....#|....#|.###.|....#|....#|####.",
+    "4": "...#.|..##.|.#.#.|#..#.|#####|...#.|...#.", "5": "#####|#....|####.|....#|....#|#...#|.###.",
+    ".": ".....|.....|.....|.....|.....|.##..|.##..", "-": ".....|.....|.....|#####|.....|.....|.....",
+    "&": ".##..|#..#.|.##..|.#.#.|#..##|#...#|.##.#",
+}
+
+
 def _lettera(ch):
-    """Matrice 7x5 per A-Z (font a blocchi). Sconosciute = blocco pieno."""
-    F = {
-        "A": [0, 1, 1, 1, 0, 1, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1, 1, 0, 0, 0, 1, 1, 0, 0, 0, 1, 1, 0, 0, 0, 1],
-        "B": [1, 1, 1, 1, 0, 1, 0, 0, 0, 1, 1, 1, 1, 1, 0, 1, 0, 0, 0, 1, 1, 1, 1, 1, 0, 1, 0, 0, 0, 1, 1, 1, 1, 1, 0],
-        "C": [0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 1, 1, 1],
-        "E": [1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0, 1, 0, 0, 0, 0, 1, 1, 1, 1, 1],
-        "G": [0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 1, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 1, 1, 1, 0],
-        "L": [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 1, 1, 1, 1],
-        "O": [0, 1, 1, 1, 0, 1, 0, 0, 0, 1, 1, 0, 0, 0, 1, 1, 0, 0, 0, 1, 1, 0, 0, 0, 1, 1, 0, 0, 0, 1, 0, 1, 1, 1, 0],
-        "R": [1, 1, 1, 1, 0, 1, 0, 0, 0, 1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 0, 1],
-        "S": [0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0],
-    }
-    v = F.get(ch, [1] * 35)
+    """Matrice 7x5 per A-Z, 0-5 e qualche segno (font a blocchi). Sconosciute = blocco pieno."""
+    if ch in _FONT:
+        return [[1 if c == "#" else 0 for c in riga] for riga in _FONT[ch].split("|")]
+    v = [1] * 35
     return [v[i * 5:(i + 1) * 5] for i in range(7)]
 
 
@@ -851,7 +886,7 @@ def costruisci(dati, cartella):
     R = Raccolta()
     erba_i = tex_erba(cartella)
     spalti_i = (tex_spalti(cartella, blu=blu, nomefile="spalti"), tex_spalti(cartella, blu=blu, nome=dati["nome"], nomefile="spalti_nome"))
-    cart_i = tex_cartelloni(cartella, blu=blu)
+    cart_i = tex_cartelloni(cartella, blu=blu, nome=dati["nome"].upper())
     # ---- tunnel stile Camp Nou: pareti blu squadra, pavimento chiaro, corrimano oro, LED a soffitto
     m_blu = mat("Tunnel_Muro", "#ffffff", tex_muro_tunnel(cartella, _scuro_hex(blu, 0.62), "tunnel_muro"), 0.55)
     m_scala = mat("Tunnel_MuroScala", "#ffffff", tex_muro_tunnel(cartella, "#2a5ec0", "tunnel_scala"), 0.5)
@@ -1014,7 +1049,7 @@ def _costruisci_esterno(R, dati, cartella, erba_i, spalti_i, cart_i):
     def varco(a):
         d = (a - ang_tunnel + math.pi) % (2 * math.pi) - math.pi
         return abs(d) < 0.056                                # 4 spicchi di 192: circa 6,5 m
-    _anello_ciotola(R, m_cart, R_ - 0.05, 0.0, R_ - 0.05, 1.0, 192, modo="piena", salta=varco, uvm=(16.0, 0.0, 1.0), poli=48)
+    _anello_ciotola(R, m_cart, R_ - 0.05, 0.0, R_ - 0.05, 1.0, 192, modo="piena", salta=varco, uvm=(32.0, 0.0, 1.0), poli=48)
     _anello_ciotola(R, m_basso, R_ - 0.05, 1.0, R_ - 0.05, ST_ALTEZZA0, 192, modo="ext", salta=varco, sub=(1, 2), uvm=(8.0, 1.0, 2.5), poli=48)
     # ---- facciata attorno alla bocca (u = L): chiude il varco, la bocca resta aperta (z da 0,9 a H)
     zb, zt = ST_QUOTA, ST_ALTEZZA0 + ST_QUOTA          # facciata alta come il muro di base
