@@ -352,6 +352,22 @@ def tex_muro_tunnel(cartella, tinta, nome, w_=512, h_=384):
     return _img(nome, np.clip(rgb, 0, 1), cartella)
 
 
+def tex_soffitto(cartella, n=512):
+    """Soffitto del tunnel (tile 2,4 m): pannelli metallici scuri 0,6 m con fughe, feritoie di ventilazione e una trave centrale."""
+    rng = np.random.default_rng(43)
+    g = 0.88 + 0.12 * rng.random((n, n)) * 0.6 + 0.06 * _rumore(rng, n, n, 32)
+    rgb = _lin("#5a6272")[None, None, :] * g[..., None]
+    for k in range(0, n, n // 4):
+        rgb[k:k + 3, :] *= 0.45
+        rgb[:, k:k + 3] *= 0.45
+    for ky in (1, 3):                                             # feritoie: tre tacche scure ogni due pannelli
+        for kx in (0, 2):
+            y0, x0 = ky * n // 4 + n // 16, kx * n // 4 + n // 16
+            for j in range(3):
+                rgb[y0 + j * 14:y0 + j * 14 + 5, x0:x0 + n // 8] *= 0.35
+    return _img("tunnel_soffitto", np.clip(rgb, 0, 1), cartella)
+
+
 def tex_pav_tunnel(cartella, tinta, n=512):
     """Pavimento del tunnel (tile 3,2 m): cemento lucidato con macchie e giunti ogni 1,6 m."""
     rng = np.random.default_rng(37)
@@ -843,7 +859,7 @@ def costruisci(dati, cartella):
     m_alzata = mat("Tunnel_Alzata", "#2b2e34", None, 0.85)
     m_corsia = mat("Tunnel_Corsia", "#838b96", None, 0.62)
     m_oro = mat("Tunnel_Oro", "#c9a227", None, 0.3)
-    m_sof = mat("Tunnel_Soffitto", "#101318", None, 0.9)
+    m_sof = mat("Tunnel_Soffitto", "#ffffff", tex_soffitto(cartella), 0.9)
     m_led = mat("Tunnel_Luce", "#fff3de", None, 0.5, emis=8.0)
     m_filo = mat("Tunnel_Filetto", "#ffffff", None, 0.5)
     m_sc_b = mat("Tunnel_ScudoBordo", "#f4f4f4", None, 0.4, emis=0.5)
@@ -872,6 +888,12 @@ def costruisci(dati, cartella):
                (nx, 0, 0), nu=6, nv=3, uvs=(4.0, 3.0))
         R.sbarra(m_oro, (sg * (hw - 0.12), ST_SCALA_U0 - 0.3, 0.95), (sg * (hw - 0.12), L - 0.1, 0.95 + ST_QUOTA), 0.05)
     R.sbarra(m_oro, (0.0, ST_SCALA_U0 - 0.3, 0.95), (0.0, L - 0.4, 0.95 + ST_QUOTA * 0.93), 0.05)
+    # montanti dei corrimani laterali: dal gradino al corrimano, ogni 1,4 m (prima i corrimani sembravano sospesi)
+    for sg in (-1, 1):
+        for up in (ST_SCALA_U0 + 0.4, ST_SCALA_U0 + 1.8, ST_SCALA_U0 + 3.2, ST_SCALA_U0 + 4.6, ST_SCALA_U0 + 5.8):
+            zr = 0.95 + (up - (ST_SCALA_U0 - 0.3)) / (L - 0.1 - (ST_SCALA_U0 - 0.3)) * ST_QUOTA
+            zg = (int((up - ST_SCALA_U0) / du) + 1) * ST_ALZATA
+            R.scatola(m_oro, (sg * (hw - 0.12), up, (zg + zr) / 2), (0.035, 0.035, zr - zg), modo="int")
     for up in (ST_SCALA_U0 + 1.5, ST_SCALA_U0 + 3.5, ST_SCALA_U0 + 5.5):
         zg = 0.95 + (up - ST_SCALA_U0 + 0.3) / (L - ST_SCALA_U0) * ST_QUOTA * 0.93
         R.scatola(m_oro, (0.0, up, zg / 2), (0.04, 0.04, zg))
@@ -882,7 +904,7 @@ def costruisci(dati, cartella):
     testo_porta = maglia._mesh_testo("SPOGLIATOIO", 0.20, 1.9, bold=0.006, passo=1.0)
     _piano(testo_porta, (math.pi / 2, 0.0, 0.0), tuple(w((0.0, 0.03, 2.68))), m_tt, "Testo_Porta")
     # soffitto scuro con 5 lame di luce (come la foto: strisce LED sul blu)
-    R.parete(m_sof, -hw, hw, 0.0, L, H, H, (0, 0, -1), mx=0.8)
+    R.parete(m_sof, -hw, hw, 0.0, L, H, H, (0, 0, -1), mx=0.8, uvs=(2.4, 2.4))
     for fu in (2.5, 6.5, 10.5, 14.5, 17.5):
         # NOTA: sopra a H-0.02 (era a filo del soffitto = sfarfallio)
         R.scatola(m_led, (0, fu, H - 0.035), (W - 0.6, 0.10, 0.03), modo="piena")
@@ -996,9 +1018,9 @@ def _costruisci_esterno(R, dati, cartella, erba_i, spalti_i, cart_i):
     _anello_ciotola(R, m_basso, R_ - 0.05, 1.0, R_ - 0.05, ST_ALTEZZA0, 192, modo="ext", salta=varco, sub=(1, 2), uvm=(8.0, 1.0, 2.5), poli=48)
     # ---- facciata attorno alla bocca (u = L): chiude il varco, la bocca resta aperta (z da 0,9 a H)
     zb, zt = ST_QUOTA, ST_ALTEZZA0 + ST_QUOTA          # facciata alta come il muro di base
-    R.parete(m_fac, -3.5, -hw, L, L, zb, zt, (0, 1, 0), mx=1.0, modo="ext", uvs=(8.0, 2.5), uv0=(0.0, 0.0))
-    R.parete(m_fac, hw, 3.5, L, L, zb, zt, (0, 1, 0), mx=1.0, modo="ext", uvs=(8.0, 2.5), uv0=(0.0, 0.0))
-    R.parete(m_fac, -hw, hw, L, L, H, zt, (0, 1, 0), mx=1.0, modo="ext", uvs=(8.0, 2.5), uv0=(0.0, 0.0))
+    R.parete(m_fac, -3.5, -hw, L, L, zb, zt, (0, 1, 0), mx=1.0, modo="ext", uvs=(8.0, 3.5), uv0=(0.0, 0.0))
+    R.parete(m_fac, hw, 3.5, L, L, zb, zt, (0, 1, 0), mx=1.0, modo="ext", uvs=(8.0, 3.5), uv0=(0.0, 0.0))
+    R.parete(m_fac, -hw, hw, L, L, H, zt, (0, 1, 0), mx=1.0, modo="ext", uvs=(8.0, 3.5), uv0=(0.0, (H - zb) / 3.5))
     # cappello sopra la facciata: chiude la fessura di 5 cm fra il bordo della facciata (u = L) e l'inizio del primo anello (r - 0,05)
     R.parete(m_fac, -3.6, 3.6, L - 0.01, L + 0.20, zt, zt, (0, 0, 1), mx=1.0, modo="ext", uvs=(8.0, 2.5), uv0=(0.0, 0.0))
     # ---- ciotola: 3 anelli con corridoio (cemento) e parete con vomitori; l'ultima parete e' la facciata sotto il tetto
