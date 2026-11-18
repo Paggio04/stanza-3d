@@ -244,9 +244,9 @@ class _Geom:
         hw = 0.20 + 0.06 * _smooth(0.0, 0.30, zz)
         s = X / hw + 0.10 * _vn(Z * 2.6, X * 3.1, seed)
         am = 0.65 + 0.35 * (_vn(X * 4.0, Z * 1.7, seed + 3) * 0.5 + 0.5)
-        f = am * (0.0110 * np.sin(2 * math.pi * 1.45 * s + ph)
+        f = am * (0.0140 * np.sin(2 * math.pi * 1.45 * s + ph)
                   + 0.0060 * np.sin(2 * math.pi * 3.2 * s + ph * 1.7 + 1.3 * zz)
-                  + 0.0080 * np.sin(2 * math.pi * 0.75 * s + ph + 0.5))
+                  + 0.0115 * np.sin(2 * math.pi * 0.75 * s + ph + 0.5))
         ft = f * env
         # 2) ventagli dalle punte della gruccia (spalle)
         for sx in (+1.0, -1.0):
@@ -272,7 +272,7 @@ class _Geom:
               + 0.0045 * np.sin(2 * math.pi * 3.4 * u + 2.0 * ph))
         fs = fs + 0.0035 * (rn ** 3 - 0.30)
         fs = fs * _smooth(0.01, 0.09, v)
-        tot = (1 - b) * ft + b * fs
+        tot = (1 - b) * ft + b * fs * 0.55          # sulle maniche pieghe piu' piccole: a 2 mm di tessuto fanno denti ai polsini
         # 5) ventaglio dall'ascella (su torso e manica)
         for sx in (+1.0, -1.0):
             ax_, az_ = sx * ARMPIT[0], ARMPIT[1]
@@ -282,7 +282,7 @@ class _Geom:
             tot = tot + (0.0060 * np.exp(-r / 0.11) * _smooth(0.012, 0.05, r)
                          * np.sin(7.0 * th + ph + 1.4 * _vn(dx * 12, dz * 12, seed + 6)))
         w = _smooth(0.0, 0.040, d)
-        return 1.2 * tot * w
+        return 1.7 * tot * w
 
     def superficie(self, X, Z, lato):
         """Quota Y dell'esterno della maglia (lato +1 petto, -1 schiena)."""
@@ -290,6 +290,46 @@ class _Geom:
         Z = np.asarray(Z, float)
         d = self.d_cucitura(X, Z)
         return lato * (self.mezzo_spessore(X, Z, d) + self.piega(X, Z, lato, d))
+
+
+# ------------------------------------------------------------------ caduta del tessuto
+# Il tessuto non e' rigido: dopo aver costruito pannelli e pieghe (funzioni di X, Z) si applica una deformazione
+# morbida e continua, FUNZIONE SOLO DI (X, Z), cosi' i due pannelli restano saldati sulle cuciture e tutto quello
+# che sta sopra (colletto, scudo, nome, numero, sponsor) la subisce uguale.
+DROOP_MANICA = 0.20        # rad: le maniche cadono sotto il loro angolo
+SVASO_BUSTO = 0.050        # il busto si allarga verso il fondo (tessuto morbido, non teso sulla gruccia)
+ONDA_FIANCO = 0.014        # i fianchi non sono dritti: onde lente e diverse a destra e a sinistra
+ONDA_ORLO = 0.034          # l'orlo scende a festoni
+
+
+def deforma(X, Z):
+    """(X, Z) -> (X', Z', dY). Solo X e Z in ingresso. Zero sul collo/spalle, cresce verso orlo e maniche."""
+    X = np.asarray(X, float)
+    Z = np.asarray(Z, float)
+    zz = -Z
+    sg = np.where(X >= 0, 1.0, -1.0)
+    ax = np.abs(X)
+    b = _Geom._sleeve_blend(X, Z)
+    # busto: svaso, fianchi ondulati, orlo a festoni
+    flare = 1.0 + SVASO_BUSTO * _smooth(0.10, 0.62, zz)
+    onda = ONDA_FIANCO * _smooth(0.12, 0.50, zz) * np.sin(2 * math.pi * zz / 0.37 + np.where(X >= 0, 0.4, 2.3)) * np.clip(ax / 0.27, 0.0, 1.0)
+    Xn = sg * (ax * flare + onda)
+    festone = ONDA_ORLO * _smooth(0.46, 0.74, zz) * (0.55 + 0.45 * np.sin(2 * math.pi * X / 0.21 + 0.9)
+                                                       + 0.25 * _vn(X * 6.0, 0.0, 5.5))
+    Zn = Z - festone
+    # maniche: ruotano attorno alla spalla, sempre di piu' verso il polsino
+    v = (ax - SH_X) * math.cos(SLEEVE_ANG) - (Z - SH_Z) * math.sin(SLEEVE_ANG)
+    th = DROOP_MANICA * _smooth(0.035, 0.22, v) * b
+    dx, dz = ax - SH_X, Z - SH_Z
+    dxr = dx * np.cos(th) + dz * np.sin(th)
+    dzr = -dx * np.sin(th) + dz * np.cos(th)
+    Xs = sg * (SH_X + dxr)
+    Zs = SH_Z + dzr
+    Xo = (1 - b) * Xn + b * Xs
+    Zo = (1 - b) * Zn + b * Zs
+    # tutto il capo pende un po' in avanti verso il fondo (il tessuto cade, non sta in piano)
+    dY = 0.016 * _smooth(0.10, 0.70, zz) ** 1.5
+    return Xo, Zo, dY
 
 
 _GEO = None
@@ -494,6 +534,8 @@ def mesh_maglia(nome, coll=None, colore="#ffffff", dettagli="#173f9a"):
         v_man = (np.abs(X) - SH_X) * math.cos(SLEEVE_ANG) - (Z - SH_Z) * math.sin(SLEEVE_ANG)
         svasa = SVASATURA * b * _smooth(0.02, 0.20, v_man)       # la bocca della manica si apre verso chi guarda
         y = lato * (G.mezzo_spessore(X, Z, d) + pf + svasa)
+        Xd, Zd, dYd = deforma(X, Z)
+        y = y + dYd
         # ombreggiatura "cotta" nei vertici: valli delle pieghe, ascelle, interno manica
         ao = 0.20 * np.clip(-pf / 0.010, 0.0, 1.0)
         for sx in (+1.0, -1.0):
@@ -507,7 +549,7 @@ def mesh_maglia(nome, coll=None, colore="#ffffff", dettagli="#173f9a"):
         dh = np.minimum(dh, dc)               # orlo di fondo e orlo dei polsini: stessa cucitura
         vs = []
         for i in range(len(P)):
-            v = bm.verts.new((float(X[i]), float(y[i]), float(Z[i])))
+            v = bm.verts.new((float(Xd[i]), float(y[i]), float(Zd[i])))
             v[rib] = float(rv[i])
             v[lseam] = float(d[i])
             v[lhem] = float(dh[i])
@@ -598,6 +640,8 @@ def _proietta(me, lato, cx, cz, mat, nome, padre, coll):
     X = np.array([cx + segno * v.co.x for v in me.vertices])
     Z = np.array([cz + v.co.y for v in me.vertices])
     Y = G.superficie(X, Z, lato) + lato * 0.0015
+    X, Z, dY = deforma(X, Z)
+    Y = Y + dY
     bm = bmesh.new()
     bm.from_mesh(me)
     for i, v in enumerate(bm.verts):
@@ -668,6 +712,8 @@ def _nastro_curva(shirt, lato, curva, normali, d0, d1, sollevo, mat, nome, coll)
     t = (dd - d0) / (d1 - d0)
     lift = sollevo * (0.40 + 0.60 * np.sqrt(np.clip(1.0 - (2.0 * t - 1.0) ** 2, 0.0, 1.0)))
     Y = G.superficie(X, Z, lato) + lato * lift[None, :]
+    X, Z, dY = deforma(X, Z)
+    Y = Y + dY
     n = len(curva)
     bm = bmesh.new()
     vs = [[bm.verts.new((float(X[i, j]), float(Y[i, j]), float(Z[i, j]))) for j in range(nc)] for i in range(n)]
