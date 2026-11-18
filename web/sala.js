@@ -382,7 +382,9 @@ export async function avviaSala(host, opz = {}) {
       const m = o.material;
       // realismo: doppia faccia (le ciotole viste da sotto perdevano pezzi = triangoli neri) e niente piu guadagno
       const b = new THREE.MeshBasicMaterial({ map: m.map || null, vertexColors: !!o.geometry.attributes.color, side: THREE.DoubleSide });
-      b.color.copy(m.color).multiplyScalar(/Luce/.test(m.name) ? 2.0 : GAIN);
+      const ext = /^(Esterno_|Tunnel_Facciata)/.test(m.name);
+      const led = /Cartelloni|Schermo|TettoLed/.test(m.name);
+      b.color.copy(m.color).multiplyScalar(/Luce/.test(m.name) ? 2.0 : led ? 1.7 : ext ? (tunnelDati.gain_esterno || 1.0) : GAIN);
       o.material = b;
       o.castShadow = o.receiveShadow = false;
       if (m.map) m.map.anisotropy = renderer.capabilities.getMaxAnisotropy();
