@@ -506,6 +506,24 @@ def _costruisci_esterno(R, dati, cartella, erba_i, spalti_i, cart_i):
                              (-cx, -cx + 0.15, uc - cl, uc + cl), (cx - 0.15, cx, uc - cl, uc + cl),
                              (-cx, cx, uc - 0.075, uc + 0.075)):
         R.parete(m_linea, xa, xb, ua, ub, 0.004, 0.004, (0, 0, 1), mx=40.0, modo="ext")
+    # aree di rigore e di porta, cerchio di centrocampo, porte
+    for sgn in (-1, 1):
+        ug = uc + sgn * cl                                   # linea di porta
+        for (hx, prof) in ((20.0, 16.0), (9.0, 5.5)):
+            ue = ug - sgn * prof
+            ua, ub = min(ug, ue), max(ug, ue)
+            R.parete(m_linea, -hx, hx, ue - 0.075, ue + 0.075, 0.004, 0.004, (0, 0, 1), mx=40.0, modo="ext")
+            for xx in (-hx, hx):
+                R.parete(m_linea, xx - 0.075, xx + 0.075, ua, ub, 0.004, 0.004, (0, 0, 1), mx=40.0, modo="ext")
+        for xx in (-3.66, 3.66):                             # pali e traversa (7,32 x 2,44 m)
+            R.scatola(m_linea, (xx, ug, 1.22), (0.12, 0.12, 2.44), modo="ext")
+        R.scatola(m_linea, (0.0, ug, 2.44), (7.44, 0.12, 0.12), modo="ext")
+    for q in range(48):
+        a0, a1 = 2 * math.pi * q / 48, 2 * math.pi * (q + 1) / 48
+        ri, re = 9.0, 9.15
+        R.quad(m_linea, (ri * math.cos(a0), uc + ri * math.sin(a0), 0.004), (ri * math.cos(a1), uc + ri * math.sin(a1), 0.004),
+               (re * math.cos(a1), uc + re * math.sin(a1), 0.004), (re * math.cos(a0), uc + re * math.sin(a0), 0.004),
+               (0, 0, 1), modo="ext")
     # ---- muro di base (cartelloni in basso, cemento sopra) con il varco del tunnel: arriva alla quota del primo anello
     ang_tunnel = -math.pi / 2                                # il tunnel e' dalla parte di u piccolo
     def varco(a):
