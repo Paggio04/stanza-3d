@@ -220,12 +220,15 @@ class _Geom:
         Z = np.asarray(Z, float)
         d = self.d_cucitura(X, Z) if dcut is None else dcut
         b = self._sleeve_blend(X, Z)
-        R = 0.115 * (1 - b) + 0.075 * b
+        R = 0.140 * (1 - b) + 0.095 * b
         t = np.clip(d / R, 0.0, 1.0)
         prof = np.sqrt(1.0 - (1.0 - t) ** 2)
         zz = -Z
-        Dt = 0.032 * (0.35 + 0.65 * _smooth(0.0, 0.22, zz)) * (1 - 0.35 * _smooth(0.30, 0.74, zz))
-        D = Dt * (1 - b) + 0.030 * b
+        # sezione a ellisse piena: il capo e' un tubo morbido (petto fuori, fianchi che girano), non due lamine vicine.
+        # Piu' pieno al petto, si sgonfia verso l'orlo dove il tessuto cade e si chiude.
+        Dt = 0.078 * (0.30 + 0.70 * _smooth(0.0, 0.20, zz)) * (1 - 0.62 * _smooth(0.26, 0.74, zz))
+        D = Dt * (1 - b) + 0.050 * b
+        prof = prof * (0.78 + 0.22 * np.clip(1.0 - (np.asarray(X) / 0.30) ** 2, 0.0, 1.0))
         return D * prof
 
     def piega(self, X, Z, lato, dcut=None):
