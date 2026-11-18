@@ -26,8 +26,9 @@ def _smooth(a, b, x):
 
 # ------------------------------------------------------------------ forme
 TORSO = [  # z, rx, ry   (misurati sul riferimento: altezza 0,74 m, corpo largo 0,37 m, collo 0,155 m)
-    (0.000, 0.0775, 0.066), (-0.010, 0.110, 0.075), (-0.024, 0.150, 0.084), (-0.040, 0.176, 0.092),
-    (-0.070, 0.180, 0.099), (-0.130, 0.176, 0.105), (-0.220, 0.174, 0.106), (-0.330, 0.175, 0.102),
+    (0.000, 0.0775, 0.066), (-0.010, 0.112, 0.075), (-0.025, 0.162, 0.084), (-0.042, 0.202, 0.092),
+    (-0.062, 0.218, 0.097), (-0.085, 0.206, 0.100), (-0.110, 0.186, 0.103), (-0.140, 0.177, 0.105),
+    (-0.220, 0.174, 0.106), (-0.330, 0.175, 0.102),
     (-0.460, 0.176, 0.098), (-0.600, 0.185, 0.095), (-0.740, 0.192, 0.093)]
 Z_ORLO = -0.740
 NECK_RX, NECK_RY, NECK_Z = 0.0775, 0.062, -0.006
@@ -174,9 +175,9 @@ def pesi_orlo(ob):
         vg.add([i], w, "REPLACE")
         d2 = float(np.sqrt(((bp2 - pos[i]) ** 2).sum(1)).min()) if len(bp2) else 1.0
         x, y, z = pos[i]
-        wp = max(math.exp(-(((abs(x) - 0.17) ** 2 + (z + 0.12) ** 2) / 0.05 ** 2)),            # ascelle
-                 math.exp(-((x ** 2 + (z + 0.05) ** 2) / 0.07 ** 2)),                           # sotto il collo
-                 math.exp(-((z + 0.70) ** 2) / 0.04 ** 2))                                       # sopra l'orlo
+        wp = max(math.exp(-(((abs(x) - 0.17) ** 2 + (z + 0.12) ** 2) / 0.08 ** 2)),            # ascelle
+                 math.exp(-((x ** 2 + (z + 0.05) ** 2) / 0.09 ** 2)),                           # sotto il collo
+                 math.exp(-((z + 0.70) ** 2) / 0.07 ** 2))                                       # sopra l'orlo
         vp.add([i], wp, "REPLACE")
         wcu = math.exp(-(((d2 - 0.020) / 0.0055) ** 2))
         ca.data[i].color = (wcu, wcu, wcu, 1.0)
@@ -286,8 +287,8 @@ def materiale(nome, colore, rough=0.85, sheen=0.55, bump=0.4, scala=600.0, inter
     # leggera variazione di tono della maglia (maglia a punto jersey): moltiplica il colore di base
     mg = nt.nodes.new("ShaderNodeMath")
     mg.operation = "MULTIPLY_ADD"
-    mg.inputs[1].default_value = 0.10
-    mg.inputs[2].default_value = 0.92
+    mg.inputs[1].default_value = 0.26
+    mg.inputs[2].default_value = 0.84
     nt.links.new(mi.outputs["Value"], mg.inputs[0])
     mx = nt.nodes.new("ShaderNodeMix")
     mx.data_type = "RGBA"
@@ -468,7 +469,7 @@ def main():
     tx2.noise_depth = 3
     d2 = ob.modifiers.new("Drappeggio", "DISPLACE")
     d2.texture = tx2
-    d2.strength = 0.0035
+    d2.strength = 0.0050
     d2.vertex_group = "pieghe"
     d2.mid_level = 0.5
     for p in ob.data.polygons:
