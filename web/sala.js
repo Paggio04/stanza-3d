@@ -491,9 +491,23 @@ export async function avviaSala(host, opz = {}) {
       if (si === salaVisibile) return;
       salaVisibile = si;
       gltf.scene.visible = si;
-      if (specchio) specchio.visible = si;
       portaSala.visible = !si;
+      if (si) renderer.shadowMap.needsUpdate = true;        // la mappa d'ombra si rifa' una volta quando la sala ricompare
     };
+    // la sala e' ferma durante l'ingresso: mappa d'ombra congelata (a ogni fotogramma costava tutta la sala) e specchio
+    // acceso solo nelle ultime decine di metri, con dissolvenza (si vede solo dal pavimento della sala)
+    const aggiornaCostose = (p) => {
+      const dentro = p >= 1;
+      renderer.shadowMap.autoUpdate = dentro;
+      if (dentro) renderer.shadowMap.needsUpdate = true;
+      if (specchio) {
+        const fs = dentro ? 1 : liscio(0.86, 0.95, p);
+        specchio.visible = fs > 0.001;
+        if (specchio.material.uniforms && specchio.material.uniforms.forza) specchio.material.uniforms.forza.value = 0.20 * fs;
+      }
+    };
+    const ESP0 = renderer.toneMappingExposure, ADATT_FUORI = 0.88;
+    const adatt = { m: ADATT_FUORI, t: performance.now() };
     perc = {
       esiste: true, attivo: false, p: 1, anim: null, lunghezza: lung,
       applica() {
@@ -506,6 +520,13 @@ export async function avviaSala(host, opz = {}) {
         tmp.x += env * 0.006 * Math.sin(Math.PI * d);
         cam.position.copy(tmp);
         cam.lookAt(tmpT);
+        // adattamento dell'occhio: nello stadio al sole l'esposizione e' un po' piu' bassa; entrando nel tunnel risale piano
+        // (si parte "abbagliati" e il tunnel si apre), uscendo dal tunnel (scorrimento all'indietro) si richiude in fretta
+        const adesso = performance.now(), dtA = Math.min(0.1, (adesso - adatt.t) / 1000);
+        adatt.t = adesso;
+        const dentro = tmp.z - 5.05 < 21.5;
+        adatt.m += ((dentro ? 1.0 : ADATT_FUORI) - adatt.m) * (1 - Math.exp(-dtA / (dentro ? 1.2 : 0.4)));
+        renderer.toneMappingExposure = ESP0 * (RIDUCI() ? 1 : adatt.m);
         const k = t * (fovs.length - 1), i = Math.min(fovs.length - 2, Math.floor(k));
         const f = fovEff({ fov: fovs[i] + (fovs[i + 1] - fovs[i]) * (k - i) });
         if (cam.fov !== f) { cam.fov = f; cam.updateProjectionMatrix(); }
@@ -514,7 +535,9 @@ export async function avviaSala(host, opz = {}) {
         p = Math.min(1, Math.max(0, p));
         this.p = p;
         mostraSala(p >= SOGLIA_SALA);
+        aggiornaCostose(p);
         if (p >= 1) {
+          adatt.m = 1; renderer.toneMappingExposure = ESP0;
           if (this.attivo) {
             this.attivo = false;
             host.classList.remove('intro', 'corre');
@@ -558,11 +581,18 @@ export async function avviaSala(host, opz = {}) {
         await this.avvia({ durata: opz.durataPercorso });
       },
       collegaScorrimento(el = host.parentElement) {
+        let tS = 0;
         const f = () => {
           const r = el.getBoundingClientRect();
           const tot = r.height - window.innerHeight;
+          const tgt = Math.min(1, Math.max(0, tot > 0 ? -r.top / tot : 1));
+          const adesso = performance.now(), dtS = Math.min(0.1, (adesso - tS) / 1000);
+          const primo = tS === 0;
+          tS = adesso;
+          // la rotella da' scatti: la camera insegue lo scorrimento con una molla morbida (0,12 s) invece di saltare
+          const nuovo = primo || Math.abs(tgt - this.p) < 1e-4 ? tgt : this.p + (tgt - this.p) * (1 - Math.exp(-dtS / 0.12));
           this.ferma();
-          this.progresso(tot > 0 ? -r.top / tot : 1);
+          this.progresso(nuovo);
         };
         window.addEventListener('scroll', f, { passive: true });
         f();
@@ -795,7 +825,7 @@ export async function avviaSala(host, opz = {}) {
     ora = now;
     if (perc && perc._f) perc._f();
     if (perc && perc.attivo) {
-      perc.passo(dt);
+      perc.passo(Math.min(dt, 0.04));   // un fotogramma lento diventa una pausa breve, non un salto in avanti
     } else {
       passoTween(now);
       aggiornaHover();
@@ -831,6 +861,14 @@ export async function avviaSala(host, opz = {}) {
       for (const k of ['map', 'emissiveMap', 'roughnessMap', 'metalnessMap', 'normalMap', 'aoMap']) if (m[k] && m[k].isTexture) renderer.initTexture(m[k]);
     }
   });
+  // upload di TUTTE le geometrie e delle ombre prima di muovere la camera: senza, ogni mesh fuori campo si carica sulla GPU
+  // la prima volta che entra nell'inquadratura (scatti durante l'ingresso)
+  {
+    const cull = [];
+    scena.traverse((o) => { if (o.isMesh && o.frustumCulled) { cull.push(o); o.frustumCulled = false; } });
+    try { renderer.render(scena, cam); } catch (e) { /* il riscaldamento non deve mai bloccare l'avvio */ }
+    for (const o of cull) o.frustumCulled = true;
+  }
   applica(vista);
   ridim();
   raf = requestAnimationFrame(giro);

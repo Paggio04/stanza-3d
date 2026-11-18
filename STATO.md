@@ -75,3 +75,8 @@ Ancora diverso dalle foto:
 - **Dettagli**: dischetti e archi delle aree, bandierine d'angolo, panchine con tettoia alle linee laterali, muro di base e facciata a pannelli con zoccolo e filetto, LED lineari alle pareti del tunnel, scritta SPOGLIATOIO sopra la porta in fondo.
 - Non fatto: reti delle porte (servirebbe PNG con alpha, il glb usa JPEG), spettatori, fps reali.
 
+### Quinto giro (18/11/2026): fluidita' dell'ingresso, nuvole
+- **Fluidita'** (`sala.js`): (1) riscaldamento con un render a frustum spento: tutte le geometrie (sala, stadio) sono sulla GPU prima di partire, niente caricamenti quando una mesh entra in campo; (2) mappa d'ombra congelata durante l'ingresso (ricalcolata una volta quando la sala ricompare e all'arrivo); (3) specchio acceso solo da p=0,86 con dissolvenza (prima ogni frame disegnava la scena due volte); (4) dt dell'animazione limitato a 40 ms: un fotogramma lento diventa una pausa, non un salto in avanti; (5) scorrimento con molla morbida (0,12 s) invece di seguire gli scatti della rotella. Simulato l'ingresso intero a 60 fps: velocita' 2,6 m/s costante, rampe dolci, arrivo senza salti. Non misurato su GPU vera.
+- **Adattamento dell'occhio**: esposizione 0,88 x nello stadio, sale a 1,0 entrando nel tunnel (costante di tempo 1,2 s), torna a 0,9 nella sala.
+- **Cielo**: cumuli procedurali (rumore frattale proiettato, ombreggiati rispetto al sole) in `cielo.py`.
+

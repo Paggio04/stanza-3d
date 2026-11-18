@@ -18,6 +18,46 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import tunnel  # noqa: E402
 
 
+def _fbm(px, py, rng_seed=7):
+    """Rumore frattale (valore, 6 ottave) su coordinate piane; reticolo 64x64 ripetuto."""
+    g = np.random.default_rng(rng_seed).random((64, 64))
+    tot = np.zeros_like(px)
+    amp, fr, norm = 1.0, 1.0, 0.0
+    for _ in range(6):
+        x, y = px * fr, py * fr
+        x0, y0 = np.floor(x).astype(int), np.floor(y).astype(int)
+        fx, fy = x - x0, y - y0
+        fx, fy = fx * fx * (3 - 2 * fx), fy * fy * (3 - 2 * fy)
+        a00, a10 = g[y0 % 64, x0 % 64], g[y0 % 64, (x0 + 1) % 64]
+        a01, a11 = g[(y0 + 1) % 64, x0 % 64], g[(y0 + 1) % 64, (x0 + 1) % 64]
+        tot += amp * (a00 * (1 - fx) * (1 - fy) + a10 * fx * (1 - fy) + a01 * (1 - fx) * fy + a11 * fx * fy)
+        norm += amp
+        amp *= 0.5
+        fr *= 2.07
+    return tot / norm
+
+
+def _nuvole(a, W, H):
+    """Cumuli sparsi sulla cupola: densita' da rumore frattale proiettato su un piano; piu' scuri dal lato opposto al sole."""
+    col, riga = np.meshgrid((np.arange(W) + 0.5) / W, (np.arange(H) + 0.5) / H)
+    lon = (col - 0.5) * 2 * math.pi
+    lat = (0.5 - riga) * math.pi
+    dx, dy, dz = np.cos(lat) * np.cos(lon), np.sin(lat), np.cos(lat) * np.sin(lon)
+    up = np.clip(dy, 0.0, 1.0)
+    px = dx / (dy + 0.10) * 1.6 + 13.0
+    py = dz / (dy + 0.10) * 1.6 + 7.0
+    d0 = _fbm(px, py)
+    sx, sz = tunnel.SOLE[0], tunnel.SOLE[1]
+    d1 = _fbm(px + sx * 0.06, py + sz * 0.06)
+    dens = np.clip((d0 - 0.52) / 0.16, 0.0, 1.0)
+    dens = dens * dens * (3 - 2 * dens)
+    dens *= np.clip((up - 0.03) / 0.22, 0.0, 1.0)                 # sfuma verso l'orizzonte
+    luce = np.clip(0.80 + (d1 - d0) * 5.0, 0.55, 1.1)              # verso il sole piu' chiaro
+    nuv = (1.35 * luce)[..., None] * np.array([1.0, 0.99, 0.97])[None, None, :]
+    cop = (dens * 0.9)[..., None]
+    return a * (1 - cop) + nuv * cop
+
+
 def main():
     argv = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
     out = os.path.abspath(argv[0]) if argv else os.path.abspath("out_tunnel")
@@ -90,6 +130,7 @@ def main():
     med = float(np.median(cielo.mean(axis=2)))
     print("CIELO_MEDIANA_PRIMA", med)
     a = a * (0.25 / max(med, 1e-6))
+    a = _nuvole(a, W, H)
     a = np.clip(a / (1.0 + a) * 1.5, 0, 1)            # spalla morbida: l'orizzonte resta velato, non bianco
     a[h:] = a[h - 6:h - 3].mean(axis=(0, 1))[None, None, :] * 0.92
     # sRGB (view_transform Standard: l'EXR e' lineare)
