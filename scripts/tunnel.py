@@ -151,7 +151,7 @@ def _seggiolino(cell):
     return np.outer(riga, col)
 
 
-_VESTITI = [_lin(c) for c in ("#e8ecf2", "#e8ecf2", "#e8ecf2", "#e8ecf2", "#6fa4e6", "#6fa4e6", "#14234f", "#1a1d24", "#7d838d", "#7d838d", "#c8302f", "#e0b81c")]
+_VESTITI = [_lin(c) for c in ("#e8ecf2", "#e8ecf2", "#e8ecf2", "#e8ecf2", "#e8ecf2", "#6fa4e6", "#6fa4e6", "#6fa4e6", "#14234f", "#14234f", "#1a1d24", "#1a1d24", "#7d838d", "#7d838d", "#9aa3b2", "#c8302f")]
 _PELLI = [_lin(c) for c in ("#e0b293", "#c98f6b", "#a56a47", "#7a4a30", "#efc9a8")]
 
 
@@ -175,7 +175,7 @@ def _spettatore(cella, seg, cell, rng):
     return out
 
 
-def tex_spalti(cartella, blu="#1d3f96", rosso="#3a6fd0", nome="", w_=1536, h_=768, nomefile="spalti"):
+def tex_spalti(cartella, blu="#1d3f96", rosso="#3a6fd0", nome="", w_=2048, h_=1024, nomefile="spalti"):
     """Spalti: 128 x 64 seggiolini (cella = w_/128 px). Ogni seggiolino ha schienale, seduta, fessure e ombra per fila.
     Fasce blu / azzurro / blu con diagonali di cemento, corridoi a gradini fra gli spicchi e, sull'azzurro,
     una banda bianca col nome in mosaico. Si ripete 6 volte attorno alla ciotola."""
@@ -482,7 +482,7 @@ def ciotola_livelli():
     """Anelli della ciotola: dict con la tribuna (r0,z0 -> r1,z1), il corridoio (-> pr1,pz1) e la parete che sale al
     livello successivo (fino a zmuro). L'ultima parete e' la facciata che chiude gli spalti sotto il tetto."""
     out = []
-    r, z = ST_RAGGIO, ST_ALTEZZA0
+    r, z = ST_RAGGIO - 0.05, ST_ALTEZZA0           # il primo anello parte dove arriva il muro di base (r - 0,05): senza fessura
     for i, (prof, alz) in enumerate(ST_ANELLI):
         t = {"r0": r, "z0": z, "r1": r + prof, "z1": z + alz, "pr1": r + prof + 1.2, "pz1": z + alz + 0.4}
         if i == len(ST_ANELLI) - 1:
@@ -556,6 +556,73 @@ def luce_esterna(P, N):
     amb = (AMB_CIELO[None, :] * (0.5 + 0.5 * nz)[:, None] * ao[:, None]
            + AMB_TERRA[None, :] * (0.5 - 0.5 * nz)[:, None])
     return np.clip((sole + amb) / GAIN_ESTERNO, 0.0, 1.0)
+
+
+# ------------------------------------------------------------------ cosa si vede davvero dal percorso
+VIS_ORIZZ = math.radians(66.0)            # semi-apertura orizzontale (16:9 stringe, 9:16 allarga in verticale: copro entrambi + margine)
+VIS_VERT = math.radians(60.0)
+_CAMERE = None
+
+
+def _camere_percorso(passo=0.5):
+    """Camere (posizione, avanti, destra, su) campionate ogni `passo` m lungo il percorso, in coordinate locali (x, u, z)."""
+    pts = percorso()
+    pos = np.array([[k["p"][0], k["p"][2] - T0, k["p"][1]] for k in pts], float)
+    tgt = np.array([[k["t"][0], k["t"][2] - T0, k["t"][1]] for k in pts], float)
+    seg = np.linalg.norm(np.diff(pos, axis=0), axis=1)
+    cum = np.concatenate([[0.0], np.cumsum(seg)])
+    ss = np.arange(0.0, cum[-1] + 1e-6, passo)
+    P = np.stack([np.interp(ss, cum, pos[:, i]) for i in range(3)], axis=1)
+    T = np.stack([np.interp(ss, cum, tgt[:, i]) for i in range(3)], axis=1)
+    f = T - P
+    f /= np.linalg.norm(f, axis=1)[:, None]
+    r = np.cross(f, np.array([0.0, 0.0, 1.0]))
+    r /= np.linalg.norm(r, axis=1)[:, None]
+    u = np.cross(r, f)
+    return P, f, r, u
+
+
+def _visibile(Q):
+    """Q (N,3) locale (x, u, z finale): True se il punto cade in almeno una delle camere del percorso."""
+    global _CAMERE
+    if _CAMERE is None:
+        _CAMERE = _camere_percorso()
+    P, f, r, u = _CAMERE
+    ok = np.zeros(len(Q), bool)
+    th, tv = math.tan(VIS_ORIZZ), math.tan(VIS_VERT)
+    for i in range(len(P)):
+        v = Q - P[i]
+        dep = v @ f[i]
+        ok |= (dep > 0.05) & (np.abs(v @ r[i]) <= th * dep) & (np.abs(v @ u[i]) <= tv * dep)
+    return ok
+
+
+def _filtra_visibili(d, zoff):
+    """Toglie da un gruppo di facce (dict di Raccolta) quelle che non entrano mai in campo: nove punti per faccia
+    (angoli, metà lati, centro). I vertici non piu' usati si buttano."""
+    V = np.array(d["v"], float)
+    F = np.array(d["f"], int)
+    if len(F) == 0:
+        return 0
+    Q = np.stack([V[:, 0], -V[:, 1] - T0, V[:, 2] + zoff], axis=1)
+    c = Q[F]                                                    # (nf, 4, 3)
+    pts = []
+    for s_ in (0.0, 0.5, 1.0):
+        for t_ in (0.0, 0.5, 1.0):
+            pts.append((c[:, 0] * (1 - s_) + c[:, 1] * s_) * (1 - t_) + (c[:, 3] * (1 - s_) + c[:, 2] * s_) * t_)
+    pts = np.stack(pts, axis=1)                                 # (nf, 9, 3)
+    ok = _visibile(pts.reshape(-1, 3)).reshape(len(F), 9).any(axis=1)
+    tolte = int((~ok).sum())
+    keep = F[ok]
+    usati = np.unique(keep.ravel())
+    nuovo = -np.ones(len(V), int)
+    nuovo[usati] = np.arange(len(usati))
+    d["v"] = [d["v"][i] for i in usati]
+    d["n"] = [d["n"][i] for i in usati]
+    d["uv"] = [d["uv"][i] for i in usati]
+    d["modo"] = [d["modo"][i] for i in usati]
+    d["f"] = [tuple(int(nuovo[i]) for i in f) for f in keep]
+    return tolte
 
 
 # ------------------------------------------------------------------ raccolta delle facce
@@ -634,6 +701,11 @@ class Raccolta:
         for m, d in self.d.items():
             me = bpy.data.meshes.new("T_" + m.name)
             zoff = ST_QUOTA if m.name.startswith("Esterno_") else 0.0   # campo e stadio 90 cm sopra il tunnel
+            if zoff or m.name == "Tunnel_Facciata":
+                tolte = _filtra_visibili(d, zoff)          # niente di cio' che la camera non vede mai (il video del drone copre il resto)
+                print("TAGLIO", m.name, "facce tolte", tolte, "rimaste", len(d["f"]))
+                if not d["f"]:
+                    continue
             me.from_pydata([(float(v[0]), float(v[1]), float(v[2]) + zoff) for v in d["v"]], [], [tuple(f) for f in d["f"]])
             me.update()
             uvl = me.uv_layers.new(name="UVMap")
@@ -695,7 +767,7 @@ def scudo_parete(k, m, loc_local, nome, rot):
 
 
 # ------------------------------------------------------------------ anelli della ciotola
-def _anello_ciotola(R, m, r0, z0, r1, z1, n, uvscala=0.12, modo="ext", salta=None, doppia=False, uvm=None, sub=(1, 1), uvk=None):
+def _anello_ciotola(R, m, r0, z0, r1, z1, n, uvscala=0.12, modo="ext", salta=None, doppia=False, uvm=None, sub=(1, 1), uvk=None, poli=None):
     """Anello di spalti (ciotola): n spicchi, normale verso il campo, ognuno suddiviso in sub = (nu, nv) per la luce cotta.
     salta(a_medio) = True per saltare lo spicchio (varco tunnel). doppia = facce da entrambi i lati.
     uvm = (metri per ripetizione in u, quota di riferimento, metri per ripetizione in v): UV continue
@@ -709,10 +781,19 @@ def _anello_ciotola(R, m, r0, z0, r1, z1, n, uvscala=0.12, modo="ext", salta=Non
         a1 = 2 * math.pi * (k + 1) / n
         if salta is not None and salta((a0 + a1) / 2):
             continue
-        p00 = (r0 * math.cos(a0), r0 * math.sin(a0), z0)
-        p10 = (r0 * math.cos(a1), r0 * math.sin(a1), z0)
-        p11 = (r1 * math.cos(a1), r1 * math.sin(a1), z1)
-        p01 = (r1 * math.cos(a0), r1 * math.sin(a0), z1)
+        if poli:     # i punti stanno sulle corde di un poligono di `poli` lati: coincidono con l'anello di spalti (niente fessura)
+            def pt(r, a, am=(a0 + a1) / 2):
+                kk = int(am / (2 * math.pi / poli))
+                ak, ak1 = kk * 2 * math.pi / poli, (kk + 1) * 2 * math.pi / poli
+                t = (a - ak) / (ak1 - ak)
+                return (r * ((1 - t) * math.cos(ak) + t * math.cos(ak1)), r * ((1 - t) * math.sin(ak) + t * math.sin(ak1)))
+        else:
+            def pt(r, a, am=0.0):
+                return (r * math.cos(a), r * math.sin(a))
+        p00 = pt(r0, a0) + (z0,)
+        p10 = pt(r0, a1) + (z0,)
+        p11 = pt(r1, a1) + (z1,)
+        p01 = pt(r1, a0) + (z1,)
         P = [w((p[0], ST_CENTRO_U + p[1], p[2])) for p in (p00, p10, p11, p01)]
         d = R.d.setdefault(m, {"v": [], "n": [], "uv": [], "f": [], "modo": []})
         e1, e2 = P[1] - P[0], P[3] - P[0]
@@ -904,28 +985,29 @@ def _costruisci_esterno(R, dati, cartella, erba_i, spalti_i, cart_i):
     def varco(a):
         d = (a - ang_tunnel + math.pi) % (2 * math.pi) - math.pi
         return abs(d) < 0.056                                # 4 spicchi di 192: circa 6,5 m
-    _anello_ciotola(R, m_cart, R_ - 0.05, 0.0, R_ - 0.05, 1.0, 192, modo="piena", salta=varco, uvm=(16.0, 0.0, 1.0))
-    _anello_ciotola(R, m_basso, R_ - 0.05, 1.0, R_ - 0.05, ST_ALTEZZA0, 192, modo="ext", salta=varco, sub=(1, 2), uvm=(8.0, 1.0, 2.5))
+    _anello_ciotola(R, m_cart, R_ - 0.05, 0.0, R_ - 0.05, 1.0, 192, modo="piena", salta=varco, uvm=(16.0, 0.0, 1.0), poli=48)
+    _anello_ciotola(R, m_basso, R_ - 0.05, 1.0, R_ - 0.05, ST_ALTEZZA0, 192, modo="ext", salta=varco, sub=(1, 2), uvm=(8.0, 1.0, 2.5), poli=48)
     # ---- facciata attorno alla bocca (u = L): chiude il varco, la bocca resta aperta (z da 0,9 a H)
     zb, zt = ST_QUOTA, ST_ALTEZZA0 + ST_QUOTA          # facciata alta come il muro di base
     R.parete(m_fac, -3.5, -hw, L, L, zb, zt, (0, 1, 0), mx=1.0, modo="ext", uvs=(8.0, 2.5), uv0=(0.0, 0.0))
     R.parete(m_fac, hw, 3.5, L, L, zb, zt, (0, 1, 0), mx=1.0, modo="ext", uvs=(8.0, 2.5), uv0=(0.0, 0.0))
     R.parete(m_fac, -hw, hw, L, L, H, zt, (0, 1, 0), mx=1.0, modo="ext", uvs=(8.0, 2.5), uv0=(0.0, 0.0))
+    # cappello sopra la facciata: chiude la fessura di 5 cm fra il bordo della facciata (u = L) e l'inizio del primo anello (r - 0,05)
+    R.parete(m_fac, -3.6, 3.6, L - 0.01, L + 0.20, zt, zt, (0, 0, 1), mx=1.0, modo="ext", uvs=(8.0, 2.5), uv0=(0.0, 0.0))
     # ---- ciotola: 3 anelli con corridoio (cemento) e parete con vomitori; l'ultima parete e' la facciata sotto il tetto
     livelli = ciotola_livelli()
     for i, t in enumerate(livelli):
         lseg = 2 * math.pi * ((t["r0"] + t["r1"]) / 2) / 48
         lung = math.hypot(t["r1"] - t["r0"], t["z1"] - t["z0"])
         _anello_ciotola(R, m_spalti, t["r0"], t["z0"], t["r1"], t["z1"], 48, modo="ext",
-                        uvm=(8 * lseg, ST_ALTEZZA0, 24.0), sub=(10, max(3, int(lung * 1.4))))
+                        uvm=(8 * lseg, ST_ALTEZZA0, 24.0), sub=(14, max(4, int(lung * 2.0))))
         _anello_ciotola(R, m_cem, t["r1"], t["z1"], t["pr1"], t["pz1"], 48, modo="ext", uvk=(4.0, 1.2), sub=(6, 1))
         if i < len(livelli) - 1:
             _anello_ciotola(R, m_vomi, t["pr1"], t["pz1"], t["pr1"], t["zmuro"], 48, modo="ext", uvk=(2.0, ST_MURETTO), sub=(6, 2))
         else:
             _anello_ciotola(R, m_faccia, t["pr1"], t["pz1"], t["pr1"], t["zmuro"], 48, modo="ext", uvk=(2.0, t["zmuro"] - t["pz1"]), sub=(6, 4))
     # ---- tetto ad anello: estradosso bianco, intradosso con travi radiali, fascia interna con nastro LED
-    _anello_ciotola(R, m_tetto, ST_TETTO_R0, ST_TETTO_Z, ST_TETTO_R1, ST_TETTO_Z + 1.5, 64, modo="ext", sub=(2, 2))
-    _anello_ciotola(R, m_tetto_s, ST_TETTO_R0, ST_TETTO_Z - 0.3, ST_TETTO_R1, ST_TETTO_Z, 64, modo="sotto", uvk=(1.0, 20.0))
+    _anello_ciotola(R, m_tetto_s, ST_TETTO_R0, ST_TETTO_Z - 0.3, ST_TETTO_R1, ST_TETTO_Z, 64, modo="sotto", uvk=(1.0, 20.0), sub=(2, 4))
     _anello_ciotola(R, m_fascia, ST_TETTO_R0, ST_TETTO_Z - 0.3, ST_TETTO_R0, ST_TETTO_Z + 1.5, 64, modo="ext", sub=(2, 1))
     _anello_ciotola(R, m_nastro, ST_TETTO_R0 - 0.03, ST_TETTO_Z + 0.2, ST_TETTO_R0 - 0.03, ST_TETTO_Z + 0.55, 64, modo="piena")
     # ---- 4 maxischermi appesi al tetto: ai lati e in fondo, mai sopra la camera di ingresso
