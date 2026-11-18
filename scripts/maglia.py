@@ -279,8 +279,8 @@ class _Geom:
             dx, dz = X - ax_, Z - az_
             r = np.hypot(dx, dz)
             th = np.arctan2(dz, dx)
-            tot = tot + (0.0060 * np.exp(-r / 0.11) * _smooth(0.012, 0.05, r)
-                         * np.sin(7.0 * th + ph + 1.4 * _vn(dx * 12, dz * 12, seed + 6)))
+            tot = tot + (0.0120 * np.exp(-r / 0.24) * _smooth(0.012, 0.06, r)
+                         * np.sin(4.2 * th + ph + 1.1 * _vn(dx * 7, dz * 7, seed + 6)))
         w = _smooth(0.0, 0.040, d)
         return 1.7 * tot * w
 
@@ -297,9 +297,9 @@ class _Geom:
 # morbida e continua, FUNZIONE SOLO DI (X, Z), cosi' i due pannelli restano saldati sulle cuciture e tutto quello
 # che sta sopra (colletto, scudo, nome, numero, sponsor) la subisce uguale.
 DROOP_MANICA = 0.20        # rad: le maniche cadono sotto il loro angolo
-SVASO_BUSTO = 0.050        # il busto si allarga verso il fondo (tessuto morbido, non teso sulla gruccia)
-ONDA_FIANCO = 0.014        # i fianchi non sono dritti: onde lente e diverse a destra e a sinistra
-ONDA_ORLO = 0.034          # l'orlo scende a festoni
+SVASO_BUSTO = 0.070        # il busto si allarga verso il fondo (tessuto morbido, non teso sulla gruccia)
+ONDA_FIANCO = 0.020        # i fianchi non sono dritti: onde lente e diverse a destra e a sinistra
+ONDA_ORLO = 0.045          # l'orlo scende a festoni
 
 
 def deforma(X, Z):
@@ -328,7 +328,10 @@ def deforma(X, Z):
     Xo = (1 - b) * Xn + b * Xs
     Zo = (1 - b) * Zn + b * Zs
     # tutto il capo pende un po' in avanti verso il fondo (il tessuto cade, non sta in piano)
-    dY = 0.016 * _smooth(0.10, 0.70, zz) ** 1.5
+    # spalle: il tessuto si arrotonda sui bracci della gruccia, non resta a spigolo
+    spalla = np.exp(-((ax - 0.185) / 0.075) ** 2) * (1 - b)
+    Zo = Zo - 0.016 * spalla * _smooth(-0.02, 0.0, Z - SH_Z + 0.06)
+    dY = 0.016 * _smooth(0.10, 0.70, zz) ** 1.5 + 0.007 * spalla
     return Xo, Zo, dY
 
 
