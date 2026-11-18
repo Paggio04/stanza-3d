@@ -13,14 +13,14 @@
       "nome": "PORTIERI",
       "numeri": [
         1,
-        2,
-        3
+        2
       ],
       "colore": "portieri"
     },
     {
       "nome": "DIFENSORI",
       "numeri": [
+        3,
         4,
         5,
         6,
@@ -57,123 +57,144 @@
   "giocatori": [
     {
       "numero": 1,
-      "nome": "GIOCATORE 1",
+      "nome": "Lorenzo Poggi",
+      "scritta": "POGGI",
       "reparto": "PORTIERI",
       "titolare": true
     },
     {
       "numero": 2,
-      "nome": "GIOCATORE 2",
+      "nome": "Tommaso Sorelli",
+      "scritta": "SORELLI",
       "reparto": "PORTIERI",
       "titolare": false
     },
     {
       "numero": 3,
-      "nome": "GIOCATORE 3",
-      "reparto": "PORTIERI",
-      "titolare": false
+      "nome": "Tommaso Acanti",
+      "scritta": "ACANTI",
+      "reparto": "DIFENSORI",
+      "titolare": true
     },
     {
       "numero": 4,
-      "nome": "GIOCATORE 4",
+      "nome": "Lorenzo Bettini",
+      "scritta": "BETTINI",
       "reparto": "DIFENSORI",
       "titolare": true
     },
     {
       "numero": 5,
-      "nome": "GIOCATORE 5",
+      "nome": "Alessandro Dei",
+      "scritta": "DEI",
       "reparto": "DIFENSORI",
       "titolare": true
     },
     {
       "numero": 6,
-      "nome": "GIOCATORE 6",
+      "nome": "Alessio Demo",
+      "scritta": "DEMO",
       "reparto": "DIFENSORI",
       "titolare": true
     },
     {
       "numero": 7,
-      "nome": "GIOCATORE 7",
+      "nome": "Cosimo Marchi",
+      "scritta": "MARCHI",
       "reparto": "DIFENSORI",
-      "titolare": true
+      "titolare": false
     },
     {
       "numero": 8,
-      "nome": "GIOCATORE 8",
+      "nome": "Tommaso Piantini",
+      "scritta": "PIANTINI",
       "reparto": "DIFENSORI",
       "titolare": false
     },
     {
       "numero": 9,
-      "nome": "GIOCATORE 9",
+      "nome": "Elia Rialti",
+      "scritta": "RIALTI",
       "reparto": "DIFENSORI",
       "titolare": false
     },
     {
       "numero": 10,
-      "nome": "GIOCATORE 10",
+      "nome": "Riccardo Buset",
+      "scritta": "BUSET",
       "reparto": "CENTROCAMPISTI",
       "titolare": true
     },
     {
       "numero": 11,
-      "nome": "GIOCATORE 11",
+      "nome": "Carlos Campaioli",
+      "scritta": "CAMPAIOLI",
       "reparto": "CENTROCAMPISTI",
       "titolare": true
     },
     {
       "numero": 12,
-      "nome": "GIOCATORE 12",
+      "nome": "Lapo Becattini",
+      "scritta": "BECATTINI",
       "reparto": "CENTROCAMPISTI",
       "titolare": true
     },
     {
       "numero": 13,
-      "nome": "GIOCATORE 13",
+      "nome": "Riccardo Corsi",
+      "scritta": "CORSI",
       "reparto": "CENTROCAMPISTI",
       "titolare": false
     },
     {
       "numero": 14,
-      "nome": "GIOCATORE 14",
+      "nome": "Nicola D'Alessandro",
+      "scritta": "D'ALESSANDRO",
       "reparto": "CENTROCAMPISTI",
       "titolare": false
     },
     {
       "numero": 15,
-      "nome": "GIOCATORE 15",
+      "nome": "Elvis Gjata",
+      "scritta": "GJATA",
       "reparto": "CENTROCAMPISTI",
       "titolare": false
     },
     {
       "numero": 16,
-      "nome": "GIOCATORE 16",
+      "nome": "Leonardo Dini",
+      "scritta": "DINI",
       "reparto": "ATTACCANTI",
       "titolare": true
     },
     {
       "numero": 17,
-      "nome": "GIOCATORE 17",
+      "nome": "Edoardo Focardi",
+      "scritta": "FOCARDI",
       "reparto": "ATTACCANTI",
       "titolare": true
     },
     {
       "numero": 18,
-      "nome": "GIOCATORE 18",
+      "nome": "Niccolò Giusti",
+      "scritta": "GIUSTI",
       "reparto": "ATTACCANTI",
       "titolare": true
     },
     {
       "numero": 19,
-      "nome": "GIOCATORE 19",
+      "nome": "Francesco Raffaelli",
+      "scritta": "RAFFAELLI",
       "reparto": "ATTACCANTI",
       "titolare": false
     },
     {
       "numero": 20,
-      "nome": "GIOCATORE 20",
+      "nome": "Lapo Torricelli",
+      "scritta": "TORRICELLI",
       "reparto": "ATTACCANTI",
       "titolare": false
     }
-  ]
+  ],
+  "_nota_rosa": "Nomi veri della prima squadra 2026/27 (stampa locale). Numeri di maglia PROVVISORI (1-20 per reparto) finché il club non manda quelli veri; fuori dai 20 armadietti per ora Pietosi, Tozzi, Violi, Natale."
 }

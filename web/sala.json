@@ -27,7 +27,7 @@
  "giocatori": [
   {
    "numero": 1,
-   "nome": "GIOCATORE 1",
+   "nome": "Lorenzo Poggi",
    "reparto": "PORTIERI",
    "titolare": true,
    "slot": 5,
@@ -36,48 +36,48 @@
    "maglia": "Maglia_01"
   },
   {
-   "numero": 4,
-   "nome": "GIOCATORE 4",
+   "numero": 3,
+   "nome": "Tommaso Acanti",
    "reparto": "DIFENSORI",
    "titolare": true,
    "slot": 6,
    "phi": -1.3463968515384828,
+   "nodo": "Armadietto_03",
+   "maglia": "Maglia_03"
+  },
+  {
+   "numero": 4,
+   "nome": "Lorenzo Bettini",
+   "reparto": "DIFENSORI",
+   "titolare": true,
+   "slot": 7,
+   "phi": -1.0471975511965965,
    "nodo": "Armadietto_04",
    "maglia": "Maglia_04"
   },
   {
    "numero": 5,
-   "nome": "GIOCATORE 5",
+   "nome": "Alessandro Dei",
    "reparto": "DIFENSORI",
    "titolare": true,
-   "slot": 7,
-   "phi": -1.0471975511965965,
+   "slot": 8,
+   "phi": -0.747998250854712,
    "nodo": "Armadietto_05",
    "maglia": "Maglia_05"
   },
   {
    "numero": 6,
-   "nome": "GIOCATORE 6",
-   "reparto": "DIFENSORI",
-   "titolare": true,
-   "slot": 8,
-   "phi": -0.747998250854712,
-   "nodo": "Armadietto_06",
-   "maglia": "Maglia_06"
-  },
-  {
-   "numero": 7,
-   "nome": "GIOCATORE 7",
+   "nome": "Alessio Demo",
    "reparto": "DIFENSORI",
    "titolare": true,
    "slot": 9,
    "phi": -0.4487989505128276,
-   "nodo": "Armadietto_07",
-   "maglia": "Maglia_07"
+   "nodo": "Armadietto_06",
+   "maglia": "Maglia_06"
   },
   {
    "numero": 10,
-   "nome": "GIOCATORE 10",
+   "nome": "Riccardo Buset",
    "reparto": "CENTROCAMPISTI",
    "titolare": true,
    "slot": 10,
@@ -87,7 +87,7 @@
   },
   {
    "numero": 11,
-   "nome": "GIOCATORE 11",
+   "nome": "Carlos Campaioli",
    "reparto": "CENTROCAMPISTI",
    "titolare": true,
    "slot": 11,
@@ -97,7 +97,7 @@
   },
   {
    "numero": 12,
-   "nome": "GIOCATORE 12",
+   "nome": "Lapo Becattini",
    "reparto": "CENTROCAMPISTI",
    "titolare": true,
    "slot": 12,
@@ -107,7 +107,7 @@
   },
   {
    "numero": 16,
-   "nome": "GIOCATORE 16",
+   "nome": "Leonardo Dini",
    "reparto": "ATTACCANTI",
    "titolare": true,
    "slot": 13,
@@ -117,7 +117,7 @@
   },
   {
    "numero": 17,
-   "nome": "GIOCATORE 17",
+   "nome": "Edoardo Focardi",
    "reparto": "ATTACCANTI",
    "titolare": true,
    "slot": 14,
@@ -127,7 +127,7 @@
   },
   {
    "numero": 18,
-   "nome": "GIOCATORE 18",
+   "nome": "Niccolò Giusti",
    "reparto": "ATTACCANTI",
    "titolare": true,
    "slot": 15,
@@ -137,7 +137,7 @@
   },
   {
    "numero": 2,
-   "nome": "GIOCATORE 2",
+   "nome": "Tommaso Sorelli",
    "reparto": "PORTIERI",
    "titolare": false,
    "slot": 16,
@@ -146,18 +146,18 @@
    "maglia": "Maglia_02"
   },
   {
-   "numero": 3,
-   "nome": "GIOCATORE 3",
-   "reparto": "PORTIERI",
+   "numero": 7,
+   "nome": "Cosimo Marchi",
+   "reparto": "DIFENSORI",
    "titolare": false,
    "slot": 17,
    "phi": 1.9447954522222535,
-   "nodo": "Armadietto_03",
-   "maglia": "Maglia_03"
+   "nodo": "Armadietto_07",
+   "maglia": "Maglia_07"
   },
   {
    "numero": 8,
-   "nome": "GIOCATORE 8",
+   "nome": "Tommaso Piantini",
    "reparto": "DIFENSORI",
    "titolare": false,
    "slot": 18,
@@ -167,7 +167,7 @@
   },
   {
    "numero": 9,
-   "nome": "GIOCATORE 9",
+   "nome": "Elia Rialti",
    "reparto": "DIFENSORI",
    "titolare": false,
    "slot": 19,
@@ -177,7 +177,7 @@
   },
   {
    "numero": 13,
-   "nome": "GIOCATORE 13",
+   "nome": "Riccardo Corsi",
    "reparto": "CENTROCAMPISTI",
    "titolare": false,
    "slot": 20,
@@ -187,7 +187,7 @@
   },
   {
    "numero": 14,
-   "nome": "GIOCATORE 14",
+   "nome": "Nicola D'Alessandro",
    "reparto": "CENTROCAMPISTI",
    "titolare": false,
    "slot": 1,
@@ -197,7 +197,7 @@
   },
   {
    "numero": 15,
-   "nome": "GIOCATORE 15",
+   "nome": "Elvis Gjata",
    "reparto": "CENTROCAMPISTI",
    "titolare": false,
    "slot": 2,
@@ -207,7 +207,7 @@
   },
   {
    "numero": 19,
-   "nome": "GIOCATORE 19",
+   "nome": "Francesco Raffaelli",
    "reparto": "ATTACCANTI",
    "titolare": false,
    "slot": 3,
@@ -217,7 +217,7 @@
   },
   {
    "numero": 20,
-   "nome": "GIOCATORE 20",
+   "nome": "Lapo Torricelli",
    "reparto": "ATTACCANTI",
    "titolare": false,
    "slot": 4,

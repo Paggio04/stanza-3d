@@ -41,6 +41,7 @@ def phi_slot(j):
     return (a + math.pi) % (2 * math.pi) - math.pi if j else math.pi
 
 
+SITO = False         # True = glb senza meshopt, per il sito (argomento "sito")
 WEB = False           # True = materiali e mesh adatti a glTF (sito)
 LOD = False           # True = versione leggera per telefoni (sala_bassa.glb)
 OUT_TEX = "."
@@ -370,7 +371,7 @@ def baia(i, g, col_maglia, dettagli, scritte_col, base_m, phi, _non_usato):
     key = (col_maglia, dettagli)
     base = ESEMPLARI.get(key)
     if base is None:
-        m = maglia.costruisci("Maglia_%02d" % g["numero"], g["nome"], g["numero"],
+        m = maglia.costruisci("Maglia_%02d" % g["numero"], g.get("scritta", g["nome"]), g["numero"],
                               col_maglia, dettagli, scritte_col, coll=None, con_scudo=True)
         sh, gr = m.shirt, m.gruccia
         if WEB:
@@ -380,7 +381,7 @@ def baia(i, g, col_maglia, dettagli, scritte_col, base_m, phi, _non_usato):
     else:
         mt = None if WEB else maglia.materiale_tessuto(
             "M_Tessuto_" + col_maglia.lstrip("#") + dettagli.lstrip("#"), col_maglia, dettagli)
-        sh = maglia.duplica(base.shirt, "Maglia_%02d" % g["numero"], g["nome"], g["numero"],
+        sh = maglia.duplica(base.shirt, "Maglia_%02d" % g["numero"], g.get("scritta", g["nome"]), g["numero"],
                             scritte_col, materiale=mt)
         gr = bpy.data.objects.new("Gruccia_%02d" % g["numero"], base.gruccia.data)
         bpy.context.scene.collection.objects.link(gr)
@@ -732,7 +733,7 @@ def esporta_web(out, dati, lista):
         filepath=glb, export_format="GLB", export_apply=True, export_yup=True,
         export_animations=False, export_extras=True,
         export_cameras=False, export_lights=False, export_materials="EXPORT",
-        export_meshopt_compression_enable=True)
+        export_meshopt_compression_enable=not SITO)   # sito: senza meshopt (la CSP non ammette WebAssembly)
     man = {
         "squadra": dati["nome"], "stagione": dati["stagione"], "colori": dati["colori"],
         "reparti": [r["nome"] for r in dati["reparti"]],
@@ -773,6 +774,7 @@ if __name__ == "__main__":
     if modo == "web":
         WEB = True
         LOD = "lod" in argv[1:]
+        SITO = "sito" in argv[1:]
         OUT_TEX = out
         maglia.PASSO_TESTO = 0.030 if LOD else 0.014
         maglia.TRI_MAGLIETTA = 9000 if LOD else 22000
@@ -786,6 +788,8 @@ if __name__ == "__main__":
         esporta_web(out, dati, lista)
         peso = os.path.getsize(os.path.join(out, "sala_bassa.glb" if LOD else "sala.glb"))
         budget_peso, budget_tri = (3.2e6, 450000) if LOD else (6.0e6, 900000)
+        if SITO:
+            budget_peso *= 1.8          # senza meshopt il glb pesa circa il 75% in piu
         print("SALA_MISURE triangoli_stimati", tri_scena, "figli_maglia", n_figli, "peso", peso)
         if peso > budget_peso:
             print("SALA_ERRORE peso %d oltre il budget %d" % (peso, budget_peso))

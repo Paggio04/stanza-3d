@@ -249,12 +249,10 @@ def tex_cartelloni(cartella, blu="#1d3f96", w_=4096, h_=128, nomefile="cartellon
     e filetto, griglia di pixel LED. Il tile e' continuo: il primo pannello riparte dove finisce l'ultimo."""
     rng = np.random.default_rng(9)
     img = np.zeros((h_, w_, 3)) + _lin("#070a18")
-    spons = [("TOSCANA ENERGIA", "#ffffff", "#c8302f"), ("BANCA DEL VALDARNO", "#ffffff", blu),
-             ("PIZZERIA DA MARIO", "#14234f", "#f2c30f"), ("EDILIZIA BIANCHI", "#ffffff", "#1f9d5c"),
-             (nome, "#ffffff", "#14234f"), ("FARMACIA CENTRALE", "#14234f", "#e8ecf2"),
-             ("CANTINA DEL BORGO", "#f2c30f", "#5b1a2a"), ("AUTO ROSSI 4.0", "#ffffff", "#2d6bd6"),
-             ("MOBILI CHIANTI", "#14234f", "#e8571c"),
-             ("BAR SPORT", "#ffffff", "#1f9d5c"), ("FORNO LUCA", "#14234f", "#f2c30f"), ("IDRAULICA", "#ffffff", "#c8302f"), ("ASD 1975", "#ffffff", "#2d6bd6")]
+    # niente sponsor inventati (potrebbero essere aziende vere): solo scritte del club, finche' il club non da' i loghi veri
+    spons = [(nome, "#ffffff", "#14234f"), ("FORZA RESCO", "#14234f", "#ffffff"), ("DAL 1909", "#ffffff", blu),
+             ("STADIO SILVANO BETTINI", "#ffffff", "#14234f"), ("REGGELLO", "#14234f", "#e8ecf2"),
+             ("BIANCO E BLU", "#ffffff", blu), ("FORZA RESCO", "#ffffff", "#14234f"), ("RESCO 1909", "#14234f", "#ffffff")]
     x = 0
     i = 0
     while x < w_:

@@ -843,6 +843,8 @@ export async function avviaSala(host, opz = {}) {
       const l = dati.giocatori, i = l.findIndex((g) => g.numero === scelta);
       this.seleziona(l[(i + d + l.length) % l.length].numero);
     },
+    // sospende il disegno quando la sala non si vede (la pagina che la ospita scorre oltre), riprende con false
+    sospendi(v) { sospesa = !!v; },
     distruggi() {
       cancelAnimationFrame(raf);
       if (perc) { perc.ferma(); if (perc._scorrimento) perc._scorrimento(); }
@@ -1037,6 +1039,7 @@ export async function avviaSala(host, opz = {}) {
   window.addEventListener('resize', ridim);
   let ultimo = performance.now();
   let raf = 0;
+  let sospesa = false;
   // HD: discesa automatica se il telefono non regge: prima via la SAO, poi lo specchio a meta' risoluzione, poi le ombre. Niente ricarica.
   // Decisione pura (testabile da console con `sala._valuta`): niente calo per i primi 4 s validi, mai per un singolo scatto
   // (compilazione shader, scheda nascosta, dt tagliato): conta la mediana su 2 s, e servono 2 finestre lente di fila.
@@ -1130,6 +1133,7 @@ export async function avviaSala(host, opz = {}) {
   }
   const giro = (now) => {
     raf = requestAnimationFrame(giro);
+    if (sospesa) { ultimo = now; return; }   // sala fuori dallo schermo: niente disegno, la GPU riposa
     const dt = Math.min(0.25, (now - ultimo) / 1000);
     ultimo = now;
     passo(now, dt);
