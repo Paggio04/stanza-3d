@@ -477,6 +477,23 @@ export async function avviaSala(host, opz = {}) {
       video.src = opz.video.src;
       host.appendChild(video);
     }
+    // Prestazioni: finche' la camera e' nello stadio (p < 0.08, oltre ~30 m dalla porta) la sala, lo specchio e le sue ombre non
+    // si disegnano (400k triangoli + un secondo passaggio dello specchio + la mappa d'ombra). Dalla porta si vede solo un
+    // riquadro caldo al loro posto, della stessa tinta della luce della sala.
+    const SOGLIA_SALA = 0.08;
+    const portaSala = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 2.35),
+      new THREE.MeshBasicMaterial({ color: 0xa8957c, fog: false, toneMapped: true }));
+    portaSala.position.set(0, 1.175, 5.05 - 0.35);
+    portaSala.visible = false;
+    scena.add(portaSala);
+    let salaVisibile = true;
+    const mostraSala = (si) => {
+      if (si === salaVisibile) return;
+      salaVisibile = si;
+      gltf.scene.visible = si;
+      if (specchio) specchio.visible = si;
+      portaSala.visible = !si;
+    };
     perc = {
       esiste: true, attivo: false, p: 1, anim: null, lunghezza: lung,
       applica() {
@@ -496,6 +513,7 @@ export async function avviaSala(host, opz = {}) {
       progresso(p) {
         p = Math.min(1, Math.max(0, p));
         this.p = p;
+        mostraSala(p >= SOGLIA_SALA);
         if (p >= 1) {
           if (this.attivo) {
             this.attivo = false;

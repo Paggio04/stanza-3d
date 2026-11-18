@@ -69,3 +69,9 @@ Ancora diverso dalle foto:
 - Fps non misurabili (pannello senza GPU).
 - Screenshot del pannello: dopo qualche `__v` la scena compare rimpicciolita nell'angolo; ricaricare la pagina prima di catturare.
 
+### Quarto giro (18/11/2026): prestazioni e dettagli
+- **Prestazioni** (`sala.js`): finche' la camera e' nello stadio (p < 0,08, oltre ~30 m dalla porta) sala, specchio e relative ombre non si disegnano; al loro posto un riquadro caldo nella porta. Misurato con `renderer.info`: a p=0 59k triangoli / 40 chiamate (prima ~740k / ~300); da p=0,08 tutto come prima. Con `?q=bassa` 23k a p=0, 331k totali.
+- **Ombre del tetto piu' fitte**: anelli 10 x ~1,4 celle/m (era 6 x 1), tunnel.glb 2,3 MB / 29k facce, tunnel_bassa 0,85 MB / 11k.
+- **Dettagli**: dischetti e archi delle aree, bandierine d'angolo, panchine con tettoia alle linee laterali, muro di base e facciata a pannelli con zoccolo e filetto, LED lineari alle pareti del tunnel, scritta SPOGLIATOIO sopra la porta in fondo.
+- Non fatto: reti delle porte (servirebbe PNG con alpha, il glb usa JPEG), spettatori, fps reali.
+

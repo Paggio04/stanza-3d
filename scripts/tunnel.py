@@ -329,6 +329,19 @@ def tex_pav_tunnel(cartella, tinta, n=512):
     return _img("tunnel_pav", np.clip(rgb, 0, 1), cartella)
 
 
+def tex_basso(cartella, blu, w_=512, h_=160):
+    """Muro di base e facciata (tile 8 m x 2,5 m): pannelli blu notte da 2 m con fughe, zoccolo scuro, filetto chiaro in alto."""
+    rng = np.random.default_rng(41)
+    g = 0.90 + 0.10 * rng.random((h_, w_)) + 0.06 * _rumore(rng, h_, w_, 20)
+    rgb = _lin(_scuro_hex(blu, 0.62))[None, None, :] * g[..., None]
+    for x in range(0, w_, w_ // 4):
+        rgb[:, x:x + 2] *= 0.5
+        rgb[:, x + 2:x + 4] *= 1.15
+    rgb[int(h_ * 0.88):] *= 0.5                                   # zoccolo
+    rgb[:5] = _lin("#aeb6c8") * 0.8                               # filetto in alto
+    return _img("basso", np.clip(rgb, 0, 1), cartella)
+
+
 def tex_schermo(cartella, nome, blu="#1d3f96", w_=1024, h_=640):
     """Maxischermo (un tile = tutto lo schermo): fondo blu a gradiente, nome a blocchi, fascia bassa, pixel LED."""
     rng = np.random.default_rng(29)
@@ -746,6 +759,12 @@ def costruisci(dati, cartella):
     for up in (ST_SCALA_U0 + 1.5, ST_SCALA_U0 + 3.5, ST_SCALA_U0 + 5.5):
         zg = 0.95 + (up - ST_SCALA_U0 + 0.3) / (L - ST_SCALA_U0) * ST_QUOTA * 0.93
         R.scatola(m_oro, (0.0, up, zg / 2), (0.04, 0.04, zg))
+    # LED lineari lungo le pareti (come la foto) e scritta sopra la porta in fondo
+    for sg in (-1, 1):
+        R.scatola(m_led, (sg * (hw - 0.02), (ST_SCALA_U0 + 0.5) / 2, 2.62), (0.03, ST_SCALA_U0 - 0.5, 0.05), modo="piena")
+    m_tt = mat("Tunnel_Testo", "#ffffff", None, 0.6)
+    testo_porta = maglia._mesh_testo("SPOGLIATOIO", 0.20, 1.9, bold=0.006, passo=1.0)
+    _piano(testo_porta, (math.pi / 2, 0.0, 0.0), tuple(w((0.0, 0.03, 2.68))), m_tt, "Testo_Porta")
     # soffitto scuro con 5 lame di luce (come la foto: strisce LED sul blu)
     R.parete(m_sof, -hw, hw, 0.0, L, H, H, (0, 0, -1), mx=0.8)
     for fu in (2.5, 6.5, 10.5, 14.5, 17.5):
@@ -782,14 +801,14 @@ def _costruisci_esterno(R, dati, cartella, erba_i, spalti_i, cart_i):
     m_cem = mat("Esterno_Cemento", "#ffffff", tex_cemento(cartella), 0.9)
     m_vomi = mat("Esterno_Muro", "#ffffff", tex_muro(cartella), 0.9)
     m_faccia = mat("Esterno_Facciata", "#ffffff", tex_facciata(cartella), 0.9)
-    m_basso = mat("Esterno_MuroBase", _scuro_hex(blu, 0.62), None, 0.8)
+    m_basso = mat("Esterno_MuroBase", "#ffffff", tex_basso(cartella, blu), 0.8)
     m_tetto = mat("Esterno_Tetto", "#e6e9ef", None, 0.6)
     m_tetto_s = mat("Esterno_TettoSotto", "#ffffff", tex_tetto(cartella), 0.8)
     m_fascia = mat("Esterno_TettoFascia", "#eef1f6", None, 0.6)
     m_nastro = mat("Esterno_TettoLed", "#cfe6ff", None, 0.5)
     m_schermo = mat("Esterno_Schermo", "#ffffff", tex_schermo(cartella, dati["nome"], blu=blu), 0.4)
     m_telaio = mat("Esterno_Telaio", "#1a1d24", None, 0.6)
-    m_fac = mat("Tunnel_Facciata", _scuro_hex(blu, 0.62), None, 0.8)
+    m_fac = mat("Tunnel_Facciata", "#ffffff", tex_basso(cartella, blu), 0.8)
     m_testo = mat("Esterno_Testo", "#ffffff", None, 0.6)
     hw = W / 2
     uc = ST_CENTRO_U
@@ -820,25 +839,56 @@ def _costruisci_esterno(R, dati, cartella, erba_i, spalti_i, cart_i):
         R.quad(m_linea, (ri * math.cos(a0), uc + ri * math.sin(a0), 0.004), (ri * math.cos(a1), uc + ri * math.sin(a1), 0.004),
                (re * math.cos(a1), uc + re * math.sin(a1), 0.004), (re * math.cos(a0), uc + re * math.sin(a0), 0.004),
                (0, 0, 1), modo="ext")
+    # dischetti (rigore e centrocampo), archi delle aree, bandierine d'angolo, panchine delle riserve
+    m_panca = mat("Esterno_Panchina", "#1c2230", None, 0.7)
+    m_tettoia = mat("Esterno_Tettoia", "#c4cad6", None, 0.5)
+    m_rosso = mat("Esterno_Bandierina", "#d93232", None, 0.6)
+    for (uu, xx0) in ((uc, 0.0),) + tuple((uc + sg_ * cl - sg_ * 11.0, 0.0) for sg_ in (-1, 1)):
+        R.parete(m_linea, xx0 - 0.11, xx0 + 0.11, uu - 0.11, uu + 0.11, 0.004, 0.004, (0, 0, 1), mx=40.0, modo="ext")
+    for sgn in (-1, 1):
+        ug = uc + sgn * cl
+        cu = ug - sgn * 11.0
+        n_arc = 40
+        for q in range(n_arc):
+            a0 = -math.pi / 2 + math.pi * q / n_arc
+            a1 = -math.pi / 2 + math.pi * (q + 1) / n_arc
+            pts = []
+            for ang in (a0, a1):
+                pts.append((9.15 * math.sin(ang), cu - sgn * 9.15 * math.cos(ang)))
+            # solo il tratto fuori dall'area (distanza dalla linea di porta > 16 m)
+            if all(abs(pt[1] - ug) > 16.0 for pt in pts):
+                (x0_, u0_), (x1_, u1_) = pts
+                R.quad(m_linea, (x0_ - 0.075, u0_, 0.004), (x1_ - 0.075, u1_, 0.004), (x1_ + 0.075, u1_, 0.004), (x0_ + 0.075, u0_, 0.004), (0, 0, 1), modo="ext")
+        for sx in (-1, 1):                                   # bandierine d'angolo
+            R.scatola(m_linea, (sx * cx, ug, 0.75), (0.04, 0.04, 1.5), modo="ext")
+            R.scatola(m_rosso, (sx * cx - sx * 0.19, ug, 1.35), (0.34, 0.02, 0.26), modo="ext")
+    for sx in (-1, 1):                                       # panchine: due aree tecniche ai lati, a meta' campo
+        for du in (-9.0, 9.0):
+            xp = sx * (cx + 3.0)
+            R.scatola(m_panca, (xp, uc + du, 0.45), (0.6, 7.0, 0.1), modo="ext")                      # seduta
+            R.scatola(m_panca, (xp + sx * 0.35, uc + du, 0.9), (0.08, 7.0, 0.9), modo="ext")          # schienale
+            R.scatola(m_tettoia, (xp + sx * 0.1, uc + du, 2.15), (1.7, 7.4, 0.08), modo="ext")        # tettoia
+            for dd in (-3.4, 3.4):
+                R.scatola(m_panca, (xp + sx * 0.8, uc + du + dd, 1.1), (0.08, 0.08, 2.2), modo="ext")
     # ---- muro di base (cartelloni LED in basso, blu notte sopra) con il varco del tunnel: arriva alla quota del primo anello
     ang_tunnel = -math.pi / 2                                # il tunnel e' dalla parte di u piccolo
     def varco(a):
         d = (a - ang_tunnel + math.pi) % (2 * math.pi) - math.pi
         return abs(d) < 0.056                                # 4 spicchi di 192: circa 6,5 m
     _anello_ciotola(R, m_cart, R_ - 0.05, 0.0, R_ - 0.05, 1.0, 192, modo="piena", salta=varco, uvm=(16.0, 0.0, 1.0))
-    _anello_ciotola(R, m_basso, R_ - 0.05, 1.0, R_ - 0.05, ST_ALTEZZA0, 192, modo="ext", salta=varco, sub=(1, 2))
+    _anello_ciotola(R, m_basso, R_ - 0.05, 1.0, R_ - 0.05, ST_ALTEZZA0, 192, modo="ext", salta=varco, sub=(1, 2), uvm=(8.0, 1.0, 2.5))
     # ---- facciata attorno alla bocca (u = L): chiude il varco, la bocca resta aperta (z da 0,9 a H)
     zb, zt = ST_QUOTA, ST_ALTEZZA0 + ST_QUOTA          # facciata alta come il muro di base
-    R.parete(m_fac, -3.5, -hw, L, L, zb, zt, (0, 1, 0), mx=1.0, modo="ext")
-    R.parete(m_fac, hw, 3.5, L, L, zb, zt, (0, 1, 0), mx=1.0, modo="ext")
-    R.parete(m_fac, -hw, hw, L, L, H, zt, (0, 1, 0), mx=1.0, modo="ext")
+    R.parete(m_fac, -3.5, -hw, L, L, zb, zt, (0, 1, 0), mx=1.0, modo="ext", uvs=(8.0, 2.5), uv0=(0.0, 0.0))
+    R.parete(m_fac, hw, 3.5, L, L, zb, zt, (0, 1, 0), mx=1.0, modo="ext", uvs=(8.0, 2.5), uv0=(0.0, 0.0))
+    R.parete(m_fac, -hw, hw, L, L, H, zt, (0, 1, 0), mx=1.0, modo="ext", uvs=(8.0, 2.5), uv0=(0.0, 0.0))
     # ---- ciotola: 3 anelli con corridoio (cemento) e parete con vomitori; l'ultima parete e' la facciata sotto il tetto
     livelli = ciotola_livelli()
     for i, t in enumerate(livelli):
         lseg = 2 * math.pi * ((t["r0"] + t["r1"]) / 2) / 48
         lung = math.hypot(t["r1"] - t["r0"], t["z1"] - t["z0"])
         _anello_ciotola(R, m_spalti, t["r0"], t["z0"], t["r1"], t["z1"], 48, modo="ext",
-                        uvm=(8 * lseg, ST_ALTEZZA0, 24.0), sub=(6, max(2, int(lung))))
+                        uvm=(8 * lseg, ST_ALTEZZA0, 24.0), sub=(10, max(3, int(lung * 1.4))))
         _anello_ciotola(R, m_cem, t["r1"], t["z1"], t["pr1"], t["pz1"], 48, modo="ext", uvk=(4.0, 1.2), sub=(6, 1))
         if i < len(livelli) - 1:
             _anello_ciotola(R, m_vomi, t["pr1"], t["pz1"], t["pr1"], t["zmuro"], 48, modo="ext", uvk=(2.0, ST_MURETTO), sub=(6, 2))
