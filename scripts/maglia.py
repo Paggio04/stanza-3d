@@ -227,7 +227,7 @@ class _Geom:
         # sezione a ellisse piena: il capo e' un tubo morbido (petto fuori, fianchi che girano), non due lamine vicine.
         # Piu' pieno al petto, si sgonfia verso l'orlo dove il tessuto cade e si chiude.
         Dt = 0.078 * (0.30 + 0.70 * _smooth(0.0, 0.20, zz)) * (1 - 0.62 * _smooth(0.26, 0.74, zz))
-        D = Dt * (1 - b) + 0.050 * b
+        D = Dt * (1 - b) + 0.062 * b
         prof = prof * (0.78 + 0.22 * np.clip(1.0 - (np.asarray(X) / 0.30) ** 2, 0.0, 1.0))
         return D * prof
 
@@ -547,11 +547,11 @@ def mesh_maglia(nome, coll=None, colore="#ffffff", dettagli="#173f9a"):
         Xd, Zd, dYd = deforma(X, Z)
         y = y + dYd
         # ombreggiatura "cotta" nei vertici: valli delle pieghe, ascelle, interno manica
-        ao = 0.20 * np.clip(-pf / 0.010, 0.0, 1.0)
+        ao = 0.34 * np.clip(-pf / 0.014, 0.0, 1.0)
         for sx in (+1.0, -1.0):
             ao = ao + 0.22 * np.exp(-np.hypot(X - sx * ARMPIT[0], Z - ARMPIT[1]) / 0.045)
         ao = ao + 0.10 * b * _smooth(0.06, 0.20, v_man)
-        ao = np.clip(ao, 0.0, 0.45)
+        ao = np.clip(ao, 0.0, 0.55)
         dn = G._mindist(P, G.neck[lato])
         dc = G._mindist(P, G.cuff)
         dh = G._mindist(P, G.hem)
@@ -941,12 +941,14 @@ def prepara_web(shirt, colore, dettagli, cartella="."):
         it = nt.nodes.new("ShaderNodeTexImage")
         it.image = _immagine_trama(cartella)
         nm_ = nt.nodes.new("ShaderNodeNormalMap")
-        nm_.inputs["Strength"].default_value = 0.35
+        nm_.inputs["Strength"].default_value = 0.55
         nt.links.new(it.outputs["Color"], nm_.inputs["Color"])
         nt.links.new(nm_.outputs["Normal"], pb.inputs["Normal"])
-        pb.inputs["Roughness"].default_value = 0.5
+        pb.inputs["Roughness"].default_value = 0.62
         if "Sheen Weight" in pb.inputs:
-            pb.inputs["Sheen Weight"].default_value = 0.4
+            pb.inputs["Sheen Weight"].default_value = 0.85
+        if "Sheen Roughness" in pb.inputs:
+            pb.inputs["Sheen Roughness"].default_value = 0.45
         m.use_backface_culling = False
     me.materials.clear()
     me.materials.append(m)
