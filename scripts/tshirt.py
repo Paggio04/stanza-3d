@@ -231,7 +231,7 @@ def collo(ob_parent):
         for s in range(nsec):
             a = 2 * math.pi * s / nsec
             c_, s_ = math.cos(a), math.sin(a)
-            ro, rz = 0.0050 * math.copysign(abs(c_) ** 0.6, c_), 0.0105 * math.copysign(abs(s_) ** 0.6, s_)
+            ro, rz = 0.0050 * math.copysign(abs(c_) ** 0.85, c_), 0.0105 * math.copysign(abs(s_) ** 0.85, s_)
             q = Vector(P[k]) + out * (ro + 0.0015) + up * (rz - 0.003)
             ring.append(tuple(q))
         anelli.append(ring)
@@ -246,7 +246,7 @@ def collo(ob_parent):
 
 
 # ------------------------------------------------------------------ materiali, luci, resa
-def materiale(nome, colore, rough=0.85, sheen=0.55, bump=0.4, scala=600.0, interno_scuro=False, cuciture=False):
+def materiale(nome, colore, rough=0.85, sheen=0.55, bump=0.4, scala=600.0, interno_scuro=False, cuciture=False, fres=0.40, ao_dist=0.07):
     m = bpy.data.materials.new(nome)
     m.use_nodes = True
     nt = m.node_tree
@@ -297,14 +297,14 @@ def materiale(nome, colore, rough=0.85, sheen=0.55, bump=0.4, scala=600.0, inter
     nt.links.new(mg.outputs["Value"], mx.inputs[7])
     # profondita': occlusione ambientale nelle pieghe + scurimento morbido verso il bordo della sagoma
     ao = nt.nodes.new("ShaderNodeAmbientOcclusion")
-    ao.inputs["Distance"].default_value = 0.07
+    ao.inputs["Distance"].default_value = ao_dist
     ao.samples = 16
     nt.links.new(mx.outputs[2], ao.inputs["Color"])
     lw = nt.nodes.new("ShaderNodeLayerWeight")
     lw.inputs["Blend"].default_value = 0.55
     fa = nt.nodes.new("ShaderNodeMath")
     fa.operation = "MULTIPLY_ADD"
-    fa.inputs[1].default_value = -0.40
+    fa.inputs[1].default_value = -fres
     fa.inputs[2].default_value = 1.0
     nt.links.new(lw.outputs["Fresnel"], fa.inputs[0])
     m2 = nt.nodes.new("ShaderNodeMix")
@@ -476,7 +476,7 @@ def main():
     bianco = materiale("Cotone", (0.80, 0.81, 0.86, 1.0), interno_scuro=True, cuciture=True)
     ob.data.materials.append(bianco)
     c = collo(ob)
-    c.data.materials.append(materiale("Costine", (0.92, 0.93, 0.97, 1.0), bump=0.6, scala=1400.0, interno_scuro=True))
+    c.data.materials.append(materiale("Costine", (0.92, 0.93, 0.97, 1.0), bump=0.6, scala=1400.0, interno_scuro=True, fres=0.10, ao_dist=0.012))
     sc.render.engine = "CYCLES"
     sc.cycles.device = "CPU"
     sc.cycles.samples = camp
