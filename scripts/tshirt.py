@@ -108,7 +108,7 @@ def unisci_e_taglia():
     bpy.ops.object.modifier_apply(modifier="Remesh")
     sm = ob.modifiers.new("Liscia", "SMOOTH")
     sm.factor = 0.8
-    sm.iterations = 14
+    sm.iterations = 34
     bpy.ops.object.modifier_apply(modifier="Liscia")
     # taglio delle aperture: orlo e polsini con piani esatti (bordi puliti), collo con scollo piu' basso davanti
     bm = bmesh.new()
