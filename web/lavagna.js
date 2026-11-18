@@ -154,5 +154,7 @@ export function creaLavagna(renderer, ambiente, dati, form) {
       posa();
     },
     ripristina() { st.az = st.tAz = 0; posa(); },
+    // distanza della camera dal cavalletto (il passaggio dallo spogliatoio la fa avanzare dalla parete); senza argomento la legge
+    distanza(d) { if (d !== undefined) { st.dist = d; posa(); } return st.dist; },
   };
 }

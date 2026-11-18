@@ -59,8 +59,8 @@ const CSS = `
 .sala .indietro{position:absolute;left:16px;top:16px;z-index:4;display:none}
 .sala.lavagna .indietro{display:block}
 .sala.lavagna .top,.sala.lavagna .nastro,.sala.lavagna .scheda,.sala.lavagna .etichetta{opacity:0;pointer-events:none}
-.sala .vela{position:absolute;inset:0;background:#0b0d10;opacity:0;pointer-events:none;transition:opacity .35s;z-index:5}
-.sala .vela.su{opacity:1}
+.sala.transita .top,.sala.transita .nastro,.sala.transita .scheda,.sala.transita .etichetta{opacity:0;pointer-events:none}
+.sala.transita canvas{pointer-events:none}
 .sala .etichetta{position:absolute;pointer-events:none;transform:translate(-50%,-130%);padding:6px 10px;border-radius:8px;background:#000c;font-size:13px;white-space:nowrap;opacity:0;transition:opacity .15s}
 .sala .etichetta b{font-size:15px;margin-right:6px}
 .sala .scheda{position:absolute;right:0;top:0;bottom:0;width:min(340px,86%);padding:26px 24px;background:#0b0d10ee;transform:translateX(105%);transition:transform .45s cubic-bezier(.2,.8,.2,1);display:flex;flex-direction:column;gap:6px}
@@ -107,7 +107,7 @@ export async function avviaSala(host, opz = {}) {
   host.classList.add('sala');
   host.innerHTML = `
     <div class="top"><div class="titolo"></div><div class="sotto"></div><div class="pillole" role="group" aria-label="Reparti"></div><button class="formazione">Guarda la formazione ufficiale</button></div>
-    <button class="indietro">‹ Torna allo spogliatoio</button><div class="vela"></div>
+    <button class="indietro">‹ Torna allo spogliatoio</button>
     <div class="etichetta"></div>
     <aside class="scheda" aria-live="polite">
       <div class="num"></div><div class="nome"></div><div class="ruolo"></div><div class="pos"></div>
@@ -162,6 +162,9 @@ export async function avviaSala(host, opz = {}) {
   scena.add(centro, dall, new THREE.HemisphereLight(0xffffff, 0xcfd3d8, alta ? 0.18 : 0.5));
   const faro = new THREE.PointLight(0xfff0dd, 0, 3.2, 2);       // si accende sulla maglia scelta
   scena.add(faro);
+  // le luci devono valere anche nel passaggio dello specchio (strato 1): stesse luci = stessi shader, niente ricompilazioni
+  for (const l of [centro, dall, faro]) l.layers.enable(1);
+  scena.children.forEach((o) => { if (o.isLight) o.layers.enable(1); });
   const nodoLuce = (m) => {
     const p = m.nodo.getWorldPosition(new THREE.Vector3());
     const dentro = new THREE.Vector3(-p.x, 0, -p.z).normalize();
@@ -180,31 +183,53 @@ export async function avviaSala(host, opz = {}) {
     }
   });
   gltf.scene.traverse((o) => {
+    // strato 1 = cio' che il pavimento riflette (solo la sala: stadio e tunnel no). Il pavimento stesso no: e' a doppia
+    // faccia, 4 mm sotto lo specchio, e nel passaggio del riflesso copriva tutto oltre un paio di metri (riflesso solo
+    // vicino alla camera, poi pavimento grigio fino agli armadietti)
+    if (o.name !== 'Fisso_Pavimento') o.layers.enable(1);
     if (!o.isMesh) return;
     o.castShadow = alta && !SENZA_OMBRA.test(o.name);
     o.receiveShadow = alta;
+    // il pavimento lucido: il riflesso vero lo da' lo specchio; l'ambiente finto (stanza grigia) lo velava di sbieco
+    if (o.name === 'Fisso_Pavimento' && alta) o.material.envMapIntensity = 0.4;
   });
   // pavimento lucido: il riflesso della sala (piano a specchio) si fonde sopra il pavimento del .glb
   let specchio = null;
   if (alta) {
-    const sh = Reflector.ReflectorShader;
     const latoSp = esplicita ? 2048 : 1024; // fluidita: specchio 2048 solo con ?q=alta, in auto 1024 (era il freeze)
     specchio = new Reflector(new THREE.CircleGeometry(dati.raggio + 0.3, 96), { // HD: 96 segmenti = bordo piu liscio
       textureWidth: latoSp, textureHeight: latoSp, clipBias: 0.003,
+      multisample: 0,                     // la sfocatura 3x3 fa gia' da antialias: il MSAA 4x costava senza vedersi
       shader: {
         name: 'RiflessoPavimento',
         uniforms: { color: { value: null }, tDiffuse: { value: null }, textureMatrix: { value: null }, forza: { value: 0.20 } }, // HD: 0.20, prima 0.30 troppo lattiginoso
-        vertexShader: sh.vertexShader,
-        fragmentShader: `
-          uniform sampler2D tDiffuse; uniform float forza; varying vec4 vUv;
+        vertexShader: `
+          uniform mat4 textureMatrix; varying vec4 vUv; varying vec3 vPos;
+          #include <common>
+          #include <logdepthbuf_pars_vertex>
           void main() {
+            vUv = textureMatrix * vec4(position, 1.0);
+            vec4 w = modelMatrix * vec4(position, 1.0);
+            vPos = w.xyz;
+            gl_Position = projectionMatrix * viewMatrix * w;
+            #include <logdepthbuf_vertex>
+          }`,
+        // Fresnel: guardando di sbieco (il pavimento lontano, sotto gli armadietti) un pavimento lucido riflette molto di piu'
+        // che guardando in basso; con una forza costante il riflesso restava solo vicino alla camera e il resto era grigio.
+        fragmentShader: `
+          uniform sampler2D tDiffuse; uniform float forza; varying vec4 vUv; varying vec3 vPos;
+          #include <logdepthbuf_pars_fragment>
+          void main() {
+            #include <logdepthbuf_fragment>
             vec4 uv = vUv; vec2 p = uv.xy / uv.w;
             vec3 c = vec3(0.0); float w = 0.0;
             for (int i = -1; i <= 1; i++) for (int j = -1; j <= 1; j++) { // HD: sfocatura 3x3 (prima 5x5) = riflesso piu nitido
               float k = 1.0 / (1.0 + float(i*i + j*j));
               c += texture2D(tDiffuse, p + vec2(float(i), float(j)) * 0.0012).rgb * k; w += k;
             }
-            gl_FragColor = vec4(c / w, forza);
+            float cosT = clamp(normalize(cameraPosition - vPos).y, 0.0, 1.0);
+            float fr = pow(1.0 - cosT, 3.0);
+            gl_FragColor = vec4(c / w, clamp(forza * (1.0 + 2.6 * fr), 0.0, 0.75));
           }`,
       },
     });
@@ -213,6 +238,18 @@ export async function avviaSala(host, opz = {}) {
     specchio.rotation.x = -Math.PI / 2;
     specchio.position.y = 0.004;
     specchio.renderOrder = 1;
+    specchio.camera.layers.set(1);          // nel riflesso solo la sala: lo stadio dietro la porta non serve e costava
+    // il riflesso si ridisegna solo quando cambia qualcosa (camera, maglie, luci): a sala ferma costava un secondo
+    // disegno dell'intera sala a ogni fotogramma, ed era quello che faceva scattare il calo automatico (e lo spariva)
+    const disegnaRiflesso = specchio.onBeforeRender;
+    const mPrec = new THREE.Matrix4(), pPrec = new THREE.Matrix4();
+    specchio.sporco = true;
+    specchio.onBeforeRender = function (r, s, c, ...resto) {
+      if (!this.sporco && c.matrixWorld.equals(mPrec) && c.projectionMatrix.equals(pPrec)) return;
+      mPrec.copy(c.matrixWorld); pPrec.copy(c.projectionMatrix);
+      this.sporco = false;
+      disegnaRiflesso.call(this, r, s, c, ...resto);
+    };
     scena.add(specchio);
   }
   const cam = new THREE.PerspectiveCamera(80, 16 / 9, 0.1, 220);
@@ -232,8 +269,23 @@ export async function avviaSala(host, opz = {}) {
     composer.addPass(saoPass);
     composer.addPass(new OutputPass());
   }
-  let lav = null, inLav = false;
-  const disegna = () => (inLav && lav ? renderer.render(lav.scena, lav.cam) : composer ? composer.render() : renderer.render(scena, cam));
+  let lav = null, inLav = false, trans = null;   // trans: passaggio in corso fra spogliatoio e lavagna
+  const disegna = () => {
+    if (inLav && lav) { renderer.render(lav.scena, lav.cam); return; }
+    if (trans && trans.mix > 0.001) {           // la lavagna nel suo target, poi la sala, poi la lavagna sopra in dissolvenza
+      renderer.setRenderTarget(rtLav);
+      renderer.render(lav.scena, lav.cam);
+      renderer.setRenderTarget(null);
+    }
+    if (composer) composer.render(); else renderer.render(scena, cam);
+    if (trans && trans.mix > 0.001) {
+      quadLav.material.opacity = trans.mix;
+      const ac = renderer.autoClear;
+      renderer.autoClear = false;
+      renderer.render(scenaQuad, camQuad);
+      renderer.autoClear = ac;
+    }
+  };
 
   // ---- maglie: gruppo che gira per il trascinamento, materiali propri (scurimento, ondeggio del tessuto)
   // I gesti (hover, selezione) sono molle pilotate da sala.json: niente clip da riavvolgere, tutto interrompibile.
@@ -304,7 +356,7 @@ export async function avviaSala(host, opz = {}) {
     const H = GESTI.hover, S = GESTI.selezione, M = GESTI.molle;
     const quieto = Math.abs(m.h.x - m.h.t) < 1e-4 && Math.abs(m.s.x - m.s.t) < 1e-4 && Math.abs(m.h.v) + Math.abs(m.s.v) < 1e-3
       && Math.abs(m.osc.x) < 1e-4 && Math.abs(m.osc.v) < 1e-3 && m.onda < 0.01;
-    if (quieto && !m.sporca) return;
+    if (quieto && !m.sporca) return false;          // ferma: niente da ridisegnare (ombre e riflesso restano quelli)
     let vel = 0;
     if (RIDUCI()) {
       m.h.x = m.h.t; m.s.x = m.s.t; m.h.v = m.s.v = 0; m.osc.x = m.osc.v = 0; m.onda = 0; m.vPrec = 0;
@@ -336,6 +388,7 @@ export async function avviaSala(host, opz = {}) {
       const sh = mt.userData.sh;
       if (sh) { sh.uniforms.uOnda.value = m.onda; sh.uniforms.uT.value = tempo.t; }
     }
+    return true;
   };
 
   // ---- camera: stato in coordinate polari attorno al centro della sala
@@ -484,7 +537,9 @@ export async function avviaSala(host, opz = {}) {
     const S = VISTE.sala;
     const fin = { p: gl(S.r, S.a), t: gl(S.tr, S.ta) };
     // apertura "dall'alto": si parte sopra il campo, di fronte alla bocca del tunnel, e si scende fino all'altezza degli occhi
-    const APERTURA = { p: new V3(-6.0, 12.5, 66.0), t: new V3(0.0, 2.6, 27.0), fov: 56 };
+    // la stessa di tunnel.py (tunnel.json "apertura"): lo stadio e' tagliato a cio' che si vede da qui in poi
+    const ap = tunnelDati.apertura || { p: [-6.0, 12.5, 66.0], t: [0.0, 2.6, 27.0], fov: 56 };
+    const APERTURA = { p: new V3(...ap.p), t: new V3(...ap.t), fov: ap.fov };
     const pos = [APERTURA.p, ...tunnelDati.percorso.map((k) => new V3(...k.p)), new V3(fin.p.x, S.y, fin.p.z)];
     const tgt = [APERTURA.t, ...tunnelDati.percorso.map((k) => new V3(...k.t)), new V3(fin.t.x, S.ty, fin.t.z)];
     const fovs = [APERTURA.fov, ...tunnelDati.percorso.map((k) => k.fov), S.fov];
@@ -525,14 +580,46 @@ export async function avviaSala(host, opz = {}) {
       salaVisibile = si;
       gltf.scene.visible = si;
       portaSala.visible = !si;
-      if (si) renderer.shadowMap.needsUpdate = true;        // la mappa d'ombra si rifa' una volta quando la sala ricompare
+      // niente nuova mappa d'ombra: quella del riscaldamento resta valida (la sala e' ferma) e rifarla a meta' tunnel
+      // era un fotogramma lungo (6 facce della luce puntiforme per tutta la sala)
+      if (specchio) specchio.sporco = true;
     };
-    // la sala e' ferma durante l'ingresso: mappa d'ombra congelata (a ogni fotogramma costava tutta la sala) e specchio
-    // acceso solo nelle ultime decine di metri, con dissolvenza (si vede solo dal pavimento della sala)
+    // Dal tunnel la sala si vede solo attraverso la porta: si disegnano solo i pezzi che stanno nel cuneo fra la camera e
+    // gli stipiti (due piani verticali, validi anche per il riflesso, che specchia solo in altezza). Prima: tutta la sala,
+    // ~740k triangoli, per un riquadro di 1,2 m. Mai durante un aggiornamento d'ombra: le ombre si rifanno solo nella sala.
+    const ZP = R + ((dati.porta && dati.porta.spessore) || 0.55), XP = ((dati.porta && dati.porta.larghezza) || 1.2) / 2;
+    const pezzi = [];
+    gltf.scene.updateMatrixWorld(true);
+    gltf.scene.traverse((o) => {
+      if (!o.isMesh) return;
+      if (!o.geometry.boundingSphere) o.geometry.computeBoundingSphere();
+      const s = o.geometry.boundingSphere.clone().applyMatrix4(o.matrixWorld);
+      pezzi.push({ o, c: s.center, r: s.radius + 0.15 });   // margine: maglie e ante si muovono di qualche cm
+    });
+    let ritagliata = false;
+    const nL = new V3(), nR = new V3(), dC = new V3();
+    const ritaglia = (attivo) => {
+      const C = cam.position;
+      if (!attivo || C.z <= ZP + 0.02) {
+        if (ritagliata) { for (const k of pezzi) k.o.visible = true; ritagliata = false; if (specchio) specchio.sporco = true; }
+        return;
+      }
+      // normali dei due piani (in xz, per camera e stipite) rivolte verso l'interno del cuneo
+      const piano = (n, ex) => {
+        const dx = ex - C.x, dz = ZP - C.z;
+        n.set(-dz, 0, dx).normalize();
+        if (n.x * (0 - C.x) + n.z * (ZP - 1 - C.z) < 0) n.multiplyScalar(-1);   // verso il centro della sala
+      };
+      piano(nL, -XP); piano(nR, XP);
+      for (const k of pezzi) {
+        dC.subVectors(k.c, C);
+        k.o.visible = dC.x * nL.x + dC.z * nL.z > -k.r && dC.x * nR.x + dC.z * nR.z > -k.r;
+      }
+      ritagliata = true;
+    };
+    // specchio acceso solo nelle ultime decine di metri, con dissolvenza (si vede solo dal pavimento della sala)
     const aggiornaCostose = (p) => {
       const dentro = p >= 1;
-      renderer.shadowMap.autoUpdate = dentro;
-      if (dentro) renderer.shadowMap.needsUpdate = true;
       if (saoPass) {   // l'occlusione ambiente serve solo nella sala: costa un secondo passaggio dell'intera scena
         const fa = dentro ? 1 : liscio(0.92, 1.0, p);
         saoPass.enabled = fa > 0.001;
@@ -551,6 +638,7 @@ export async function avviaSala(host, opz = {}) {
       if (antaL) antaL.position.x = baseL - 0.62 * f;      // glTF: x = x del mondo
       if (antaR) antaR.position.x = baseR + 0.62 * f;
     };
+    apriPorta(1);          // senza ingresso (sala aperta direttamente) la porta e' gia' aperta: ci si passa per la lavagna
     const ESP0 = renderer.toneMappingExposure, ADATT_FUORI = 0.88;
     const adatt = { m: ADATT_FUORI, t: performance.now() };
     perc = {
@@ -587,6 +675,7 @@ export async function avviaSala(host, opz = {}) {
         const k = t * (fovs.length - 1), i = Math.min(fovs.length - 2, Math.floor(k));
         const f = fovEff({ fov: fovs[i] + (fovs[i + 1] - fovs[i]) * (k - i) });
         if (cam.fov !== f) { cam.fov = f; cam.updateProjectionMatrix(); }
+        ritaglia(p < 1);
       },
       progresso(p) {
         p = Math.min(1, Math.max(0, p));
@@ -595,6 +684,7 @@ export async function avviaSala(host, opz = {}) {
         aggiornaCostose(p);
         if (p >= 1) {
           adatt.m = 1; renderer.toneMappingExposure = ESP0; apriPorta(1);
+          ritaglia(false);
           if (this.attivo) {
             this.attivo = false;
             host.classList.remove('intro', 'corre');
@@ -758,6 +848,7 @@ export async function avviaSala(host, opz = {}) {
       if (perc) { perc.ferma(); if (perc._scorrimento) perc._scorrimento(); }
       window.removeEventListener('resize', ridim);
       window.removeEventListener('keydown', tasto);
+      if (rtLav) rtLav.dispose();
       renderer.dispose();
       host.innerHTML = '';
     },
@@ -766,6 +857,7 @@ export async function avviaSala(host, opz = {}) {
   q('.prec').addEventListener('click', () => api.prossimo(-1));
   q('.succ').addEventListener('click', () => api.prossimo(1));
   const tasto = (e) => {
+    if (trans || inLav) return;
     if (e.key === 'Escape') api.torna();
     else if (e.key === 'ArrowRight') api.prossimo(1);
     else if (e.key === 'ArrowLeft') api.prossimo(-1);
@@ -796,7 +888,7 @@ export async function avviaSala(host, opz = {}) {
   renderer.domElement.addEventListener('pointerdown', (e) => { giu = { x: e.clientX, mosso: false }; });
   window.addEventListener('pointerup', () => { setTimeout(() => { giu = null; }, 0); });
   renderer.domElement.addEventListener('click', () => {
-    if (perc && perc.attivo) return;
+    if ((perc && perc.attivo) || trans || inLav) return;   // nella lavagna il clic non deve scegliere una maglia nascosta
     if (giu && giu.mosso) return;
     scena.updateMatrixWorld();
     cam.updateMatrixWorld();
@@ -805,7 +897,7 @@ export async function avviaSala(host, opz = {}) {
     if (n !== null && n !== scelta) api.seleziona(n);
   });
   const aggiornaHover = () => {
-    if (!sporco || scelta !== null) return;
+    if (!sporco || scelta !== null || inLav || trans) return;
     sporco = false;
     if (perc && perc.attivo) return; // HD: niente raycast mentre la camera del tunnel si muove
     scena.updateMatrixWorld();
@@ -831,24 +923,104 @@ export async function avviaSala(host, opz = {}) {
   };
 
   // ---- stanza della formazione ufficiale (lavagna tattica); formazione.json e' l'unico file che l'allenatore cambia
-  const bFormazione = q('.formazione'), bIndietro = q('.indietro'), vela = q('.vela');
+  const bFormazione = q('.formazione'), bIndietro = q('.indietro');
   try {
     const form = await (await fetch(opz.formazione || 'formazione.json')).json();
     lav = creaLavagna(renderer, scena.environment, dati, form);
   } catch (e) { console.warn('formazione non caricata', e); bFormazione.remove(); }
+  // Passaggio fra le due stanze in movimento, mai a schermo nero:
+  //  - andata: ci si gira verso la porta e si esce camminando; sulla soglia la stanza della lavagna sfuma dentro mentre
+  //    la sua camera avanza dalla parete verso il cavalletto;
+  //  - ritorno: la camera della lavagna arretra e sfuma nel tunnel, poi si rientra nello spogliatoio a piedi, dalla porta,
+  //    con lo stesso percorso (e la stessa posa d'arrivo) dell'ingresso.
+  // La lavagna in dissolvenza si disegna in un target e si sovrappone alla sala con un quadrato a tutto schermo (il tone
+  // mapping si applica solo all'uscita a schermo: il quadrato lo riceve come il disegno diretto).
+  let rtLav = null, quadLav = null, scenaQuad = null, camQuad = null;
+  const preparaVelo = () => {
+    if (!lav) return;
+    if (!rtLav) {
+      rtLav = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: 4 });
+      quadLav = new THREE.Mesh(new THREE.PlaneGeometry(2, 2),
+        new THREE.MeshBasicMaterial({ map: rtLav.texture, transparent: true, depthTest: false, depthWrite: false }));
+      quadLav.frustumCulled = false;
+      scenaQuad = new THREE.Scene();
+      scenaQuad.add(quadLav);
+      camQuad = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+      camQuad.position.z = 0.5;
+    }
+    const s = renderer.getDrawingBufferSize(new THREE.Vector2());
+    rtLav.setSize(s.x, s.y);
+  };
+  const DIST_PARETE = 4.4, DIST_LAV = 3.5;            // camera della lavagna: dalla parete al cavalletto
+  const SOGLIA = new THREE.Vector3(0, 1.6, R + 0.35);   // nel vano della porta della sala (la porta e' a phi = 180: +z)
+  const sguardo = (yaw, pitch, da, out) => out.set(da.x + Math.sin(yaw) * Math.cos(pitch), da.y + Math.sin(pitch), da.z + Math.cos(yaw) * Math.cos(pitch));
+  const fra = (a, b, x) => Math.min(1, Math.max(0, (x - a) / (b - a)));
+  const sfuma = (a, b, x) => { const t = fra(a, b, x); return t * t * (3 - 2 * t); };
+  const vT = new THREE.Vector3(), vF = new THREE.Vector3();
+  const finisciLav = (dentro) => {
+    trans = null;
+    inLav = dentro;
+    host.classList.remove('transita');
+    host.classList.toggle('lavagna', dentro);
+    if (lav) { lav.attiva(dentro); if (dentro) lav.distanza(DIST_LAV); }
+    if (!dentro && !(perc && perc.attivo)) { vista = { ...VISTE.sala }; tween = null; applica(vista); }
+    ridim();
+  };
   const entraLav = (dentro) => {
-    vela.classList.add('su');
-    setTimeout(() => {
-      inLav = dentro;
-      host.classList.toggle('lavagna', dentro);
-      if (lav) { lav.attiva(dentro); if (dentro) lav.ripristina(); }
-      ridim();
-      vela.classList.remove('su');
-    }, RIDUCI() ? 0 : 380);
+    if (!lav || trans || dentro === inLav) return;
+    if (dentro) {          // si lascia la sala com'e': scheda chiusa, niente maglia sollevata, niente etichetta
+      if (scelta !== null) api.torna();
+      tween = null;
+      if (sopra !== null) { const mm = maglie.get(sopra); mm.h.t = 0; mm.sporca = true; sopra = null; }
+      etichetta.style.opacity = 0;
+      renderer.domElement.style.cursor = '';
+      lav.ripristina();
+    }
+    if (RIDUCI()) { finisciLav(dentro); return; }
+    preparaVelo();
+    host.classList.add('transita');
+    if (dentro) {
+      cam.getWorldDirection(vF);
+      trans = {
+        t: 0, dur: 2.7, mix: 0, p0: cam.position.clone(), fov0: cam.fov,
+        yaw0: Math.atan2(vF.x, vF.z), pitch0: Math.asin(Math.max(-1, Math.min(1, vF.y))),
+        passo(dt) {
+          this.t += dt;
+          const u = Math.min(1, this.t / this.dur);
+          const giro = ease(fra(0, 0.55, u)), cammino = ease(fra(0.12, 1, u));
+          cam.position.lerpVectors(this.p0, SOGLIA, cammino);
+          cam.position.y += 0.011 * Math.sin(Math.PI * cammino) * Math.sin(2 * Math.PI * cammino * 2.2);   // il passo
+          const yaw = this.yaw0 + dAng(this.yaw0, 0) * giro, pitch = this.pitch0 + (-0.03 - this.pitch0) * giro;
+          cam.lookAt(sguardo(yaw, pitch, cam.position, vT));
+          const f = fovEff({ fov: this.fov0 + (66 - this.fov0) * giro });
+          if (cam.fov !== f) { cam.fov = f; cam.updateProjectionMatrix(); }
+          this.mix = sfuma(0.55, 0.92, u);
+          lav.distanza(DIST_PARETE - (DIST_PARETE - DIST_LAV) * ease(fra(0.45, 1, u)));
+          if (u >= 1) finisciLav(true);
+        },
+      };
+    } else {
+      lav.attiva(false);
+      host.classList.remove('lavagna');
+      inLav = false;
+      const l = perc ? perc.lunghezza : 1, P0 = perc ? Math.max(0.5, 1 - 6.5 / l) : 1;
+      if (perc) perc.progresso(P0);                      // si riparte nel tunnel, a 6,5 m dalla porta (ante socchiuse)
+      trans = {
+        t: 0, dur: perc ? 3.4 : 1.4, mix: 1, d0: lav.distanza(),
+        passo(dt) {
+          this.t += dt;
+          const u = Math.min(1, this.t / this.dur);
+          this.mix = 1 - sfuma(0.06, 0.42, u);
+          lav.distanza(this.d0 + (DIST_PARETE - this.d0) * ease(fra(0, 0.45, u)));
+          if (perc) perc.progresso(u >= 1 ? 1 : P0 + (1 - P0) * PROFILO(u * this.dur, this.dur, 1, 0.9));
+          if (u >= 1) finisciLav(false);
+        },
+      };
+    }
   };
   bFormazione.addEventListener('click', () => entraLav(true));
   bIndietro.addEventListener('click', () => entraLav(false));
-  window.addEventListener('keydown', (e) => { if (e.key === 'Escape' && inLav) entraLav(false); });
+  window.addEventListener('keydown', (e) => { if (e.key === 'Escape' && inLav && !trans) entraLav(false); });
 
   // ---- ciclo
   const ridim = () => {
@@ -858,12 +1030,14 @@ export async function avviaSala(host, opz = {}) {
     cam.aspect = w / h;
     cam.updateProjectionMatrix();
     if (lav) lav.ridim(w, h);
+    if (rtLav) preparaVelo();
+    if (trans) return;                    // la camera la guida il passaggio
     if (perc && perc.attivo) perc.applica(); else applica(vista);
   };
   window.addEventListener('resize', ridim);
   let ultimo = performance.now();
   let raf = 0;
-  // HD: discesa automatica se il telefono non regge: prima via la SAO, poi lo specchio, poi le ombre. Niente ricarica.
+  // HD: discesa automatica se il telefono non regge: prima via la SAO, poi lo specchio a meta' risoluzione, poi le ombre. Niente ricarica.
   // Decisione pura (testabile da console con `sala._valuta`): niente calo per i primi 4 s validi, mai per un singolo scatto
   // (compilazione shader, scheda nascosta, dt tagliato): conta la mediana su 2 s, e servono 2 finestre lente di fila.
   let cali = 0;
@@ -886,27 +1060,35 @@ export async function avviaSala(host, opz = {}) {
     };
   };
   const valuta = valutatore();
+  // Ordine del calo: SAO (se c'e'), specchio a meta' risoluzione, ombre. Lo specchio non sparisce mai: prima, sui PC con
+  // scheda video modesta, dopo una decina di secondi restava il pavimento grigio. Ogni passo conta solo se cambia qualcosa.
+  let specchioRidotto = false;
   const segnaFps = (dt) => {
-    if (!alta || RIDUCI() || cali >= 3) return;
+    if (!alta || RIDUCI() || cali >= 3 || trans) return;
     if (valuta(dt * 1000, document.hidden) !== 'calo') return;
-    if (cali >= 2 && perc && perc.attivo) return;   // spegnere le ombre ricompila gli shader: mai durante l'ingresso, a fine percorso
-    cali++;
-    if (cali === 1 && composer) {
+    if (composer && composer.passes.includes(saoPass)) {
       const senzaSao = composer.passes.filter((p) => p !== saoPass);
       composer.passes.length = 0;
       for (const p of senzaSao) composer.addPass(p);
-    } else if (cali === 2 && specchio) {
-      scena.remove(specchio);
-    } else if (cali === 3) {
+    } else if (specchio && !specchioRidotto) {
+      specchio.getRenderTarget().setSize(512, 512);
+      specchioRidotto = true;
+      specchio.sporco = true;
+    } else if (centro.castShadow) {
+      if (perc && perc.attivo) return;   // spegnere le ombre ricompila gli shader: mai durante l'ingresso, a fine percorso
       centro.castShadow = false;
       gltf.scene.traverse((o) => { if (o.isMesh) { o.castShadow = false; o.receiveShadow = false; } });
-    }
+    } else return;
+    cali++;
   };
+  let ombreDaRifare = false;
   let dtAnim = 1 / 60;
   const passo = (now, dt) => {
     ora = now;
-    if (perc && perc._f) perc._f();
-    if (perc && perc.attivo) {
+    if (perc && perc._f && !trans) perc._f();
+    if (trans) {
+      trans.passo(Math.min(dt, 0.05));
+    } else if (perc && perc.attivo) {
       // dt filtrato: un fotogramma lento o irregolare (vsync, GC, GPU occupata) non diventa un salto in avanti ma un
       // incremento quasi uniforme; la durata totale cambia di pochi decimi
       dtAnim += (Math.min(dt, 0.05) - dtAnim) * 0.2;
@@ -916,20 +1098,29 @@ export async function avviaSala(host, opz = {}) {
       aggiornaHover();
     }
     tempo.t += dt;
-    if (inLav && lav) lav.passo(dt);
+    if ((inLav || trans) && lav) lav.passo(dt);
+    // ombre e riflesso si ridisegnano solo quando qualcosa si muove (la luce e' ferma): a sala ferma costavano ~20 ms
+    // a fotogramma su una scheda video modesta, ed era questo a far partire il calo automatico
+    let mosse = false, cambia = false;
     for (const m of maglie.values()) {
-      aggiornaMaglia(m, dt);
+      if (aggiornaMaglia(m, dt)) mosse = true;
       if (Math.abs(m.k - m.kTarget) > 0.002) {
         m.k += (m.kTarget - m.k) * Math.min(1, dt * 8);
         for (const mt of m.mats) mt.color.copy(mt.userData.base).multiplyScalar(m.k);
+        cambia = true;
       }
       if (Math.abs(m.spin - m.gira.rotation.y) > 1e-4) {
         m.gira.rotation.y += (m.spin - m.gira.rotation.y) * Math.min(1, dt * 10);
+        mosse = true;
       }
     }
     // faro di scena sulla maglia scelta
     const target = scelta !== null ? 2.6 : 0;
-    faro.intensity += (target - faro.intensity) * Math.min(1, dt * 4);
+    if (Math.abs(target - faro.intensity) > 1e-3) { faro.intensity += (target - faro.intensity) * Math.min(1, dt * 4); cambia = true; }
+    if (mosse) ombreDaRifare = true;
+    // mai con la sala ritagliata dalla porta (percorso in corso): la mappa d'ombra perderebbe i pezzi nascosti
+    if (ombreDaRifare && !(perc && perc.attivo)) { renderer.shadowMap.needsUpdate = true; ombreDaRifare = false; }
+    if ((mosse || cambia) && specchio) specchio.sporco = true;
   };
   const dbg = opz.fps ? Object.assign(document.createElement('div'), { className: 'dbg-fps' }) : null;
   const dbgAcc = { n: 0, t: 0, max: 0 };
@@ -970,6 +1161,9 @@ export async function avviaSala(host, opz = {}) {
     try { renderer.render(scena, cam); } catch (e) { /* il riscaldamento non deve mai bloccare l'avvio */ }
     for (const o of cull) o.frustumCulled = true;
   }
+  // la mappa d'ombra fatta qui resta valida finche' non si muove una maglia (vedi `passo`); la lavagna pronta per il passaggio
+  renderer.shadowMap.autoUpdate = false;
+  if (lav) renderer.compile(lav.scena, lav.cam);
   applica(vista);
   ridim();
   raf = requestAnimationFrame(giro);

@@ -619,11 +619,14 @@ def luce_esterna(P, N):
 VIS_ORIZZ = math.radians(66.0)            # semi-apertura orizzontale (16:9 stringe, 9:16 allarga in verticale: copro entrambi + margine)
 VIS_VERT = math.radians(60.0)
 _CAMERE = None
+# apertura dall'alto (coordinate glTF): da qui la camera scende sul campo fino al primo punto di percorso().
+# Il sito la legge da tunnel.json ("apertura"): deve entrare anche nel taglio, altrimenti dall'alto si vedono i buchi.
+APERTURA = {"p": [-6.0, 12.5, 66.0], "t": [0.0, 2.6, 27.0], "fov": 56}
 
 
 def _camere_percorso(passo=0.5):
     """Camere (posizione, avanti, destra, su) campionate ogni `passo` m lungo il percorso, in coordinate locali (x, u, z)."""
-    pts = percorso()
+    pts = [APERTURA] + percorso()
     pos = np.array([[k["p"][0], k["p"][2] - T0, k["p"][1]] for k in pts], float)
     tgt = np.array([[k["t"][0], k["t"][2] - T0, k["t"][1]] for k in pts], float)
     seg = np.linalg.norm(np.diff(pos, axis=0), axis=1)
@@ -1115,17 +1118,16 @@ def _costruisci_esterno(R, dati, cartella, erba_i, spalti_i, cart_i):
             R.scatola(m_tettoia, (xp + sx * 0.1, uc + du, 2.15), (1.7, 7.4, 0.08), modo="ext")        # tettoia
             for dd in (-3.4, 3.4):
                 R.scatola(m_panca, (xp + sx * 0.8, uc + du + dd, 1.1), (0.08, 0.08, 2.2), modo="ext")
-    # ---- imbocco del tunnel sul campo: cappa di 3,2 m (pareti a pannelli, soffitto con LED, tappeto di gomma), cornice e scudi
+    # ---- imbocco del tunnel sul campo: cappa di 3,2 m (pareti a pannelli, soffitto con LED), cornice e scudi.
+    # Niente tappeto di gomma: a 4 mm dall'erba faceva z-fighting e sembrava un'ombra del tetto che sfarfallava.
     m_cappa = mat("Esterno_Cappa", "#ffffff", tex_basso(cartella, blu), 0.7)
     m_cappa_t = mat("Esterno_CappaTetto", "#59627a", None, 0.7)
-    m_gomma = mat("Esterno_Gomma", "#202328", None, 0.95)
     m_cornice = mat("Esterno_Cornice", "#b4bccb", None, 0.4)
     m_led2 = mat("Tunnel_Luce", "#fff3de", None, 0.5, emis=8.0)
     HU, HZ = 3.2, H - ST_QUOTA
     for sg in (-1, 1):
         R.parete(m_cappa, sg * hw, sg * hw, L, L + HU, 0.0, HZ, (-sg, 0, 0), mx=0.8, modo="ext", uvs=(8.0, 2.5))
     R.parete(m_cappa_t, -hw, hw, L, L + HU, HZ, HZ, (0, 0, -1), mx=0.8, modo="ext")
-    R.parete(m_gomma, -hw, hw, L, L + HU, 0.004, 0.004, (0, 0, 1), mx=0.8, modo="ext")
     for sg in (-1, 1):
         R.scatola(m_cornice, (sg * (hw + 0.13), L + HU, HZ / 2 + 0.1), (0.26, 0.32, HZ + 0.2), modo="ext")
     R.scatola(m_cornice, (0.0, L + HU, HZ + 0.13), (2 * hw + 0.52, 0.32, 0.26), modo="ext")
@@ -1222,7 +1224,8 @@ def verifica(ob):
     mx = max(max(abs(v.co.x) for v in o.data.vertices) for o in ob.values())
     ok = lambda c, msg: err.append(msg) if not c else None  # noqa: E731
     ok(tri < 60000, "troppe facce %d" % tri)  # stadio: la ciotola vera ha piu facce del corridoio vecchio
-    ok(abs(mx - ST_TETTO_R1) < 2.0, "larghezza stadio %.1f" % mx)
+    # col taglio delle facce invisibili lo stadio non arriva sempre al bordo del tetto: si controlla solo che non lo superi
+    ok(mx < ST_TETTO_R1 + 2.0, "larghezza stadio %.1f" % mx)
     # il varco della parete di fondo combacia con la porta della sala
     ok(abs(sala.PORTA_H - 2.35) < 1e-6 and sala.PORTA_H < H, "porta piu' alta del tunnel")
     ok(abs(T0 - sala.RAGGIO - sala.SPESSORE_MURO) < 1e-9, "u = 0 non coincide con l'imbotte")
@@ -1253,8 +1256,8 @@ if __name__ == "__main__":
         filepath=glb, export_format="GLB", export_apply=True, export_yup=True, export_animations=False,
         export_cameras=False, export_lights=False, export_materials="EXPORT", export_vertex_color="ACTIVE",
         export_image_format="JPEG", export_image_quality=90,
-        export_meshopt_compression_enable=True)
-    man = {"u0": T0, "larghezza": W, "altezza": H, "lunghezza": L,
+        export_meshopt_compression_enable="sito" not in argv)   # "sito": senza meshopt (la CSP del sito vieta WebAssembly)
+    man = {"u0": T0, "apertura": APERTURA, "larghezza": W, "altezza": H, "lunghezza": L,
            "bocca": {"z": T0 + L}, "percorso": percorso(),
            "passo": 1.1, "ampiezza_bob": 0.012, "gain_esterno": GAIN_ESTERNO, "gain_interno": GAIN_INTERNO,
            "sole": [float(SOLE[0]), float(SOLE[2]), float(SOLE[1] + 0.0)]}
