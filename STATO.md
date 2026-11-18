@@ -101,3 +101,10 @@ Il video iniziale e' un drone reale: il 3D parte dal punto attuale (camera a ter
 - **Tunnel**: soffitto a pannelli con feritoie, montanti dei corrimani laterali sulla scalinata, facciata sopra la bocca senza zoccolo ripetuto (un tile = tutta l'altezza).
 - **Nebbia** da 45 a 230 m (prima 90-260): prospettiva aerea sulle tribune lontane.
 
+### Nono giro (18/11/2026): entrata e tunnel immersivi
+Richiesta: tutta l'esperienza (entrata, tunnel, porta, spogliatoio) deve sembrare vista da una persona vera.
+- **Cappa d'imbocco** (`_costruisci_esterno`): 3,2 m di tunnel che sporge sul campo, pareti a pannelli, soffitto con LED, tappeto di gomma, cornice in acciaio, scudi sulle pareti interne. Quote: i materiali `Esterno_*` sono in z locale (+0,9 dal sito), i `Tunnel_*` in z finale (trappola pagata con le strisce LED a mezz'aria).
+- **Dettagli del tunnel**: bordo giallo antiscivolo su ogni gradino, passerelle portacavi e tubazione al soffitto, estintore, frasi sulle pareti (ORGOGLIO DI RESCO / UNA SOLA MAGLIA), segnale USCITA appeso, soffitto a pannelli.
+- **Porta a due ante animata**: `Anta_L`/`Anta_R` (oggetti a se' nel glb, acciaio + vetro) si aprono scorrendo da p=0,84 a 0,935 (`apriPorta` in `sala.js`); telaio e soglia gialla. Resta aperta nella sala.
+- **Camera da persona**: rollio/beccheggio piccolissimi legati al passo piu' una lenta deriva dello sguardo (`env`), oltre al bob e all'adattamento dell'esposizione. tunnel.glb 3,1 MB, bassa 1,0 MB.
+

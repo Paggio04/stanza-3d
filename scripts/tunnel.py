@@ -807,6 +807,34 @@ def _piano(me, rot, loc, m, nome):
     return ob
 
 
+def _anta(nome, m_anta, m_vetro, cx, u, larg, alt, colore):
+    """Anta scorrevole come oggetto a se' (il sito la sposta): scatola in acciaio con finestra in vetro scuro sul lato del tunnel.
+    Origine al centro dell'anta; due materiali (primitive diverse nel glb)."""
+    hx, hy, hz = larg / 2, 0.025, alt / 2
+    V = [(-hx, -hy, -hz), (hx, -hy, -hz), (hx, hy, -hz), (-hx, hy, -hz), (-hx, -hy, hz), (hx, -hy, hz), (hx, hy, hz), (-hx, hy, hz)]
+    F = [(0, 3, 2, 1), (4, 5, 6, 7), (0, 1, 5, 4), (1, 2, 6, 5), (2, 3, 7, 6), (3, 0, 4, 7)]
+    wx, wz0, wz1 = larg * 0.28, hz * 0.05, hz * 0.85                      # finestra: sul lato +u del tunnel = -y mondo
+    off = len(V)
+    V += [(-wx, -hy - 0.004, wz0), (wx, -hy - 0.004, wz0), (wx, -hy - 0.004, wz1), (-wx, -hy - 0.004, wz1)]
+    F += [(off, off + 1, off + 2, off + 3)]
+    me = bpy.data.meshes.new(nome)
+    me.from_pydata(V, [], F)
+    me.update()
+    me.materials.append(m_anta)
+    me.materials.append(m_vetro)
+    for i, pl in enumerate(me.polygons):
+        pl.material_index = 1 if i == len(F) - 1 else 0
+        pl.use_smooth = False
+    uvl = me.uv_layers.new(name="UVMap")
+    col = me.color_attributes.new("Col", "FLOAT_COLOR", "POINT")
+    for i in range(len(me.vertices)):
+        col.data[i].color = (colore[0], colore[1], colore[2], 1.0)
+    ob = bpy.data.objects.new(nome, me)
+    bpy.context.scene.collection.objects.link(ob)
+    ob.location = tuple(w((cx, u, alt / 2)))
+    return ob
+
+
 def testo_facciata(txt, h, wmax, m, loc_local):
     me = maglia._mesh_testo(txt, h, wmax, bold=0.012, passo=1.0)
     return _piano(me, (math.pi / 2, 0.0, 0.0), tuple(w(loc_local)), m, "Testo_" + txt[:10])
@@ -953,11 +981,47 @@ def costruisci(dati, cartella):
             for kk, mm, dx in ((0.62, m_sc_b, 0.012), (0.54, m_sc_c, 0.020)):
                 scudo_parete(kk, mm, (x - sg * dx, u_scudo, 1.95), "ScudoMuro%d_%s_%d" % (sg, int(u_scudo), int(kk * 100)),
                              (math.pi / 2, 0.0, sg * -math.pi / 2))
+    # ---- dettagli del tunnel (come in un vero tunnel dei giocatori)
+    m_giallo = mat("Tunnel_Giallo", "#e0b81c", None, 0.6)
+    m_metallo = mat("Tunnel_Metallo", "#6c7482", None, 0.45)
+    m_rosso = mat("Tunnel_Rosso", "#c8302f", None, 0.5)
+    m_uscita = mat("Tunnel_Uscita", "#17c15a", None, 0.5, emis=1.2)
+    m_tt = mat("Tunnel_Testo", "#ffffff", None, 0.6)
+    for g in range(ST_N_GRADINI):                                    # bordo giallo antiscivolo su ogni gradino
+        zg = (g + 1) * ST_ALZATA
+        R.parete(m_giallo, -hw + 0.1, hw - 0.1, ST_SCALA_U0 + g * du, ST_SCALA_U0 + g * du + 0.07, zg + 0.003, zg + 0.003,
+                 (0, 0, 1), mx=2.5)
+    for sg in (-1, 1):                                                # passerelle portacavi e tubazione sul soffitto
+        R.scatola(m_metallo, (sg * 1.55, L / 2, H - 0.10), (0.30, L - 1.0, 0.04))
+        for up in (2.5, 6.5, 10.5, 14.5, 18.0):
+            R.scatola(m_metallo, (sg * 1.55, up, H - 0.05), (0.04, 0.05, 0.10))
+    R.scatola(m_metallo, (-2.05, L / 2, H - 0.22), (0.09, L - 1.0, 0.09))
+    R.scatola(m_giallo, (-2.05, 4.0, H - 0.22), (0.095, 0.25, 0.095))
+    R.scatola(m_rosso, (hw - 0.09, 8.0, 1.30), (0.16, 0.16, 0.52))     # estintore e staffa
+    R.scatola(m_metallo, (hw - 0.04, 8.0, 1.62), (0.05, 0.12, 0.08))
+    for sg, scritta in ((-1, "ORGOGLIO DI RESCO"), (1, "UNA SOLA MAGLIA")):   # frasi sulle pareti, fra uno scudo e l'altro
+        me_t = maglia._mesh_testo(scritta, 0.26, 3.4, bold=0.008, passo=1.0)
+        _piano(me_t, (math.pi / 2, 0.0, sg * -math.pi / 2), tuple(w((sg * (hw - 0.015), 9.25, 1.95))), m_tt, "Testo_Parete%d" % sg)
+    R.scatola(m_uscita, (0.0, 11.0, 2.78), (0.62, 0.06, 0.20), modo="piena")        # segnale di uscita appeso
+    me_u = maglia._mesh_testo("USCITA", 0.13, 0.54, bold=0.004, passo=1.0)
+    _piano(me_u, (math.pi / 2, 0.0, 0.0), tuple(w((0.0, 11.04, 2.78))), m_tt, "Testo_Uscita")
+    R.scatola(m_metallo, (0.0, 11.0, 2.92), (0.04, 0.04, 0.16))
     # parete di fondo (u = 0) con il varco della porta
     pw, ph = sala.PORTA_W / 2, sala.PORTA_H
     for (xa, xb) in ((-hw, -pw), (pw, hw)):
         R.parete(m_blu, xa, xb, 0.0, 0.0, 0.0, H, (0, 1, 0), mx=0.6)
     R.parete(m_blu, -pw, pw, 0.0, 0.0, ph, H, (0, 1, 0), mx=0.6)
+    # porta a due ante in acciaio e vetro (si aprono quando ci si avvicina: lo fa il sito) con telaio
+    m_anta = mat("Tunnel_Anta", "#8c95a6", None, 0.35)
+    m_vetro = mat("Tunnel_Vetro", "#0c1a33", None, 0.15)
+    ci = luce_interna(w((0.0, 0.07, 1.2)), wn((0.0, 1.0, 0.0)))
+    col_a = tuple(float(v) for v in np.clip(ci * 0.95, 0, 1))
+    _anta("Anta_L", m_anta, m_vetro, -pw / 2 - 0.005, 0.07, pw + 0.01, ph, col_a)
+    _anta("Anta_R", m_anta, m_vetro, pw / 2 + 0.005, 0.07, pw + 0.01, ph, col_a)
+    for sg in (-1, 1):
+        R.scatola(m_metallo, (sg * (pw + 0.05), 0.02, ph / 2 + 0.02), (0.10, 0.12, ph + 0.04))
+    R.scatola(m_metallo, (0.0, 0.02, ph + 0.05), (2 * pw + 0.2, 0.12, 0.10))
+    R.scatola(m_giallo, (0.0, 0.085, 0.03), (2 * pw, 0.01, 0.03))                   # soglia gialla
     # bagliore del campo alla bocca (u = L): NIENTE parete, la bocca resta aperta
     # (la luce viene dal campo vero dietro: un muro qui coprirebbe l'entrata)
     return _costruisci_esterno(R, dati, cartella, erba_i, spalti_i, cart_i)
@@ -1044,6 +1108,28 @@ def _costruisci_esterno(R, dati, cartella, erba_i, spalti_i, cart_i):
             R.scatola(m_tettoia, (xp + sx * 0.1, uc + du, 2.15), (1.7, 7.4, 0.08), modo="ext")        # tettoia
             for dd in (-3.4, 3.4):
                 R.scatola(m_panca, (xp + sx * 0.8, uc + du + dd, 1.1), (0.08, 0.08, 2.2), modo="ext")
+    # ---- imbocco del tunnel sul campo: cappa di 3,2 m (pareti a pannelli, soffitto con LED, tappeto di gomma), cornice e scudi
+    m_cappa = mat("Esterno_Cappa", "#ffffff", tex_basso(cartella, blu), 0.7)
+    m_cappa_t = mat("Esterno_CappaTetto", "#59627a", None, 0.7)
+    m_gomma = mat("Esterno_Gomma", "#202328", None, 0.95)
+    m_cornice = mat("Esterno_Cornice", "#b4bccb", None, 0.4)
+    m_led2 = mat("Tunnel_Luce", "#fff3de", None, 0.5, emis=8.0)
+    HU, HZ = 3.2, H - ST_QUOTA
+    for sg in (-1, 1):
+        R.parete(m_cappa, sg * hw, sg * hw, L, L + HU, 0.0, HZ, (-sg, 0, 0), mx=0.8, modo="ext", uvs=(8.0, 2.5))
+    R.parete(m_cappa_t, -hw, hw, L, L + HU, HZ, HZ, (0, 0, -1), mx=0.8, modo="ext")
+    R.parete(m_gomma, -hw, hw, L, L + HU, 0.004, 0.004, (0, 0, 1), mx=0.8, modo="ext")
+    for sg in (-1, 1):
+        R.scatola(m_cornice, (sg * (hw + 0.13), L + HU, HZ / 2 + 0.1), (0.26, 0.32, HZ + 0.2), modo="ext")
+    R.scatola(m_cornice, (0.0, L + HU, HZ + 0.13), (2 * hw + 0.52, 0.32, 0.26), modo="ext")
+    R.scatola(m_led2, (0.0, L + HU - 0.17, HZ - 0.03 + ST_QUOTA), (2 * hw - 0.3, 0.05, 0.04), modo="piena")   # Tunnel_*: quote finali
+    for xx in (-1.2, 1.2):
+        R.scatola(m_led2, (xx, L + HU / 2, HZ - 0.02 + ST_QUOTA), (0.08, HU - 0.5, 0.03), modo="piena")
+    m_scb = mat("Tunnel_ScudoBordo", "#f4f4f4", None, 0.4, emis=0.5)
+    m_scc = mat("Tunnel_ScudoCampo", "#2f5fc4", None, 0.4, emis=0.7)
+    for sg in (-1, 1):
+        for kk, mm, dx in ((0.55, m_scb, 0.012), (0.47, m_scc, 0.020)):
+            scudo_parete(kk, mm, (sg * hw - sg * dx, L + 1.6, 1.95), "CappaScudo%d_%d" % (sg, int(kk * 100)), (math.pi / 2, 0.0, sg * -math.pi / 2))
     # ---- muro di base (cartelloni LED in basso, blu notte sopra) con il varco del tunnel: arriva alla quota del primo anello
     ang_tunnel = -math.pi / 2                                # il tunnel e' dalla parte di u piccolo
     def varco(a):

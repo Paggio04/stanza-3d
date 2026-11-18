@@ -513,6 +513,13 @@ export async function avviaSala(host, opz = {}) {
         if (specchio.material.uniforms && specchio.material.uniforms.forza) specchio.material.uniforms.forza.value = 0.20 * fs;
       }
     };
+    // porta a due ante in fondo al tunnel: si apre scorrendo di lato mentre ci si avvicina (p 0,84 -> 0,935)
+    const antaL = tunnelGltf.scene.getObjectByName('Anta_L'), antaR = tunnelGltf.scene.getObjectByName('Anta_R');
+    const baseL = antaL ? antaL.position.x : 0, baseR = antaR ? antaR.position.x : 0;
+    const apriPorta = (f) => {
+      if (antaL) antaL.position.x = baseL - 0.62 * f;      // glTF: x = x del mondo
+      if (antaR) antaR.position.x = baseR + 0.62 * f;
+    };
     const ESP0 = renderer.toneMappingExposure, ADATT_FUORI = 0.88;
     const adatt = { m: ADATT_FUORI, t: performance.now() };
     perc = {
@@ -527,6 +534,13 @@ export async function avviaSala(host, opz = {}) {
         tmp.x += env * 0.006 * Math.sin(Math.PI * d);
         cam.position.copy(tmp);
         cam.lookAt(tmpT);
+        // la testa di chi cammina: rollio e beccheggio piccolissimi legati al passo, piu' una deriva lenta dello sguardo
+        if (env > 0) {
+          const tt = performance.now() / 1000;
+          cam.rotateY(env * (0.0035 * Math.sin(Math.PI * d + 0.7) + 0.0025 * Math.sin(tt * 0.63)));
+          cam.rotateX(env * (0.0030 * Math.sin(2 * Math.PI * d + 1.1) + 0.0020 * Math.sin(tt * 0.41 + 2.0)));
+        }
+        apriPorta(RIDUCI() ? 1 : liscio(0.84, 0.935, p));
         // adattamento dell'occhio: nello stadio al sole l'esposizione e' un po' piu' bassa; entrando nel tunnel risale piano
         // (si parte "abbagliati" e il tunnel si apre), uscendo dal tunnel (scorrimento all'indietro) si richiude in fretta
         const adesso = performance.now(), dtA = Math.min(0.1, (adesso - adatt.t) / 1000);
@@ -544,7 +558,7 @@ export async function avviaSala(host, opz = {}) {
         mostraSala(p >= SOGLIA_SALA);
         aggiornaCostose(p);
         if (p >= 1) {
-          adatt.m = 1; renderer.toneMappingExposure = ESP0;
+          adatt.m = 1; renderer.toneMappingExposure = ESP0; apriPorta(1);
           if (this.attivo) {
             this.attivo = false;
             host.classList.remove('intro', 'corre');
