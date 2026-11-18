@@ -26,6 +26,7 @@ import { SAOPass } from 'three/addons/postprocessing/SAOPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { Reflector } from 'three/addons/objects/Reflector.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
+import { creaLavagna } from './lavagna.js';
 
 const RIDUCI = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
@@ -52,6 +53,14 @@ const CSS = `
 .sala .pillole button b{opacity:.7;font-weight:500;margin-left:6px}
 .sala .pillole button.attiva{background:#fff;color:#111}
 .sala .pillole button:focus-visible,.sala .scheda button:focus-visible{outline:2px solid #6cf;outline-offset:2px}
+.sala .formazione,.sala .indietro{all:unset;cursor:pointer;padding:9px 18px;border-radius:999px;background:#173f9a;color:#fff;border:1px solid #fff6;font-size:14px;font-weight:600;letter-spacing:.03em;pointer-events:auto;box-shadow:0 4px 14px #0006}
+.sala .formazione:hover,.sala .indietro:hover{background:#1f4fc0}
+.sala .formazione:focus-visible,.sala .indietro:focus-visible{outline:2px solid #6cf;outline-offset:2px}
+.sala .indietro{position:absolute;left:16px;top:16px;z-index:4;display:none}
+.sala.lavagna .indietro{display:block}
+.sala.lavagna .top,.sala.lavagna .nastro,.sala.lavagna .scheda,.sala.lavagna .etichetta{opacity:0;pointer-events:none}
+.sala .vela{position:absolute;inset:0;background:#0b0d10;opacity:0;pointer-events:none;transition:opacity .35s;z-index:5}
+.sala .vela.su{opacity:1}
 .sala .etichetta{position:absolute;pointer-events:none;transform:translate(-50%,-130%);padding:6px 10px;border-radius:8px;background:#000c;font-size:13px;white-space:nowrap;opacity:0;transition:opacity .15s}
 .sala .etichetta b{font-size:15px;margin-right:6px}
 .sala .scheda{position:absolute;right:0;top:0;bottom:0;width:min(340px,86%);padding:26px 24px;background:#0b0d10ee;transform:translateX(105%);transition:transform .45s cubic-bezier(.2,.8,.2,1);display:flex;flex-direction:column;gap:6px}
@@ -88,7 +97,8 @@ export async function avviaSala(host, opz = {}) {
   }
   host.classList.add('sala');
   host.innerHTML = `
-    <div class="top"><div class="titolo"></div><div class="sotto"></div><div class="pillole" role="group" aria-label="Reparti"></div></div>
+    <div class="top"><div class="titolo"></div><div class="sotto"></div><div class="pillole" role="group" aria-label="Reparti"></div><button class="formazione">Guarda la formazione ufficiale</button></div>
+    <button class="indietro">‹ Torna allo spogliatoio</button><div class="vela"></div>
     <div class="etichetta"></div>
     <aside class="scheda" aria-live="polite">
       <div class="num"></div><div class="nome"></div><div class="ruolo"></div><div class="pos"></div>
@@ -212,7 +222,8 @@ export async function avviaSala(host, opz = {}) {
     composer.addPass(saoPass);
     composer.addPass(new OutputPass());
   }
-  const disegna = () => (composer ? composer.render() : renderer.render(scena, cam));
+  let lav = null, inLav = false;
+  const disegna = () => (inLav && lav ? renderer.render(lav.scena, lav.cam) : composer ? composer.render() : renderer.render(scena, cam));
 
   // ---- maglie: gruppo che gira per il trascinamento, materiali propri (scurimento, ondeggio del tessuto)
   // I gesti (hover, selezione) sono molle pilotate da sala.json: niente clip da riavvolgere, tutto interrompibile.
@@ -797,6 +808,26 @@ export async function avviaSala(host, opz = {}) {
     renderer.domElement.style.cursor = n !== null ? 'pointer' : '';
   };
 
+  // ---- stanza della formazione ufficiale (lavagna tattica); formazione.json e' l'unico file che l'allenatore cambia
+  const bFormazione = q('.formazione'), bIndietro = q('.indietro'), vela = q('.vela');
+  try {
+    const form = await (await fetch(opz.formazione || 'formazione.json')).json();
+    lav = creaLavagna(renderer, scena.environment, dati, form);
+  } catch (e) { console.warn('formazione non caricata', e); bFormazione.remove(); }
+  const entraLav = (dentro) => {
+    vela.classList.add('su');
+    setTimeout(() => {
+      inLav = dentro;
+      host.classList.toggle('lavagna', dentro);
+      if (lav) { lav.attiva(dentro); if (dentro) lav.ripristina(); }
+      ridim();
+      vela.classList.remove('su');
+    }, RIDUCI() ? 0 : 380);
+  };
+  bFormazione.addEventListener('click', () => entraLav(true));
+  bIndietro.addEventListener('click', () => entraLav(false));
+  window.addEventListener('keydown', (e) => { if (e.key === 'Escape' && inLav) entraLav(false); });
+
   // ---- ciclo
   const ridim = () => {
     const w = host.clientWidth || 800, h = host.clientHeight || 450;
@@ -804,6 +835,7 @@ export async function avviaSala(host, opz = {}) {
     if (composer) composer.setSize(w, h);
     cam.aspect = w / h;
     cam.updateProjectionMatrix();
+    if (lav) lav.ridim(w, h);
     if (perc && perc.attivo) perc.applica(); else applica(vista);
   };
   window.addEventListener('resize', ridim);
@@ -862,6 +894,7 @@ export async function avviaSala(host, opz = {}) {
       aggiornaHover();
     }
     tempo.t += dt;
+    if (inLav && lav) lav.passo(dt);
     for (const m of maglie.values()) {
       aggiornaMaglia(m, dt);
       if (Math.abs(m.k - m.kTarget) > 0.002) {

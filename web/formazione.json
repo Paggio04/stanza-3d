@@ -1,0 +1,7 @@
+{
+  "_come_si_cambia": "Ogni settimana: cambia partita, modulo e i 11 numeri di maglia in 'titolari' (il primo e' il portiere, poi difesa, centrocampo, attacco da sinistra a destra, come nel modulo). I nomi arrivano dalla rosa. Salva e ripubblica.",
+  "partita": { "avversario": "da inserire", "data": "", "casa": true },
+  "modulo": "4-3-3",
+  "titolari": [1, 4, 5, 6, 7, 10, 11, 12, 16, 17, 18],
+  "panchina": [2, 3, 8, 9, 13, 14, 15]
+}
