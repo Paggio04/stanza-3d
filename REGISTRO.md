@@ -1,53 +1,29 @@
-# REGISTRO.md — Realismo sito v2 (video 18/11/2026 09:54, 10 fotogrammi + 2 utente)
+# REGISTRO.md — Seggiolini + scale chiuse (18/11/2026, 2 render Cycles)
 
-Fotogrammi dal video `Videos/Registrazione 2026-11-18 095402.mp4` (10 scatti Blender VSE,
-`render/video2_*.png`) + 2 fotogrammi utente: tunnel (interno con scalinata) e sala (arco titolari).
+2 render di verifica da `scripts/prove/render_seggiolini.py` (stessa scena del sito):
+`render/stadio_seggiolini.png` (campo dall'uscita del tunnel), `render/tunnel_scale_chiuse.png`
+(interno tunnel verso la scalinata).
 
-Misure: TUNNEL_OK out_prova/tunnel.glb 512488 facce 2371; WEB_OK out_prova/sala.glb 5565532;
-SALA_MISURE triangoli_stimati 403994 figli_maglia 180 peso 5565532 (budget 6.0 MB / 900k tri).
-Nessun SALA_ERRORE, nessun TUNNEL_ERRORE.
+Misure: TUNNEL_OK out_prova/tunnel.glb 941560 facce 4903. Nessun TUNNEL_ERRORE (budget 60000 facce).
 
-Cosa si vede nei 12 fotogrammi del sito (fatti, niente giudizi).
-- video2 f047: nero con scritta "Carico la sala..." al centro.
-- video2 f094-f188: campo dall'uscita del tunnel: erba verde con macchie, righe bianche,
-  cartelloni a blocchi ai lati, spalti a mosaico blu/rossi, scritte a blocchi, tetto chiaro,
-  facciata grigia con scritta blu "RESCO REGGELLO" sopra la bocca buia del tunnel.
-- video2 f235-f283 (tunnel dritto): pareti blu uniformi, strisce LED bianche a soffitto
-  e lungo le pareti, pavimento grigio con 2 righe bianche che corrono e riga oro centrale,
-  scalinata finale grigia senza stacchi fra pedate e alzate, fondo scuro con porta.
-- video2 f330 (curva tunnel): parete blu che curva verso la porta, porta azzurra con armadietti
-  e maglie sullo sfondo, quadretti neri sulle pareti (aliasing delle strisce LED lontane).
-- video2 f377-f471 (sala): arco degli 11 titolari, pareti/pilastri/sedute/pavimento bianchi
-  senza ombre, legno chiaro uniforme, maglie bianche piatte appese, targhe blu, stemma blu
-  piatto a terra.
-- foto utente tunnel: scalinata grigia con riga chiara che corre al centro fino in fondo,
-  senza profondita fra un gradino e l'altro.
-- foto utente sala: 10 armadietti, bianchi tutti uguali, legno chiaro, maglie piatte,
-  stemma blu piatto.
-
-Differenze dai riferimenti.
-- Scalinata: riga chiara che corre al centro senza stacchi (sembra una strada, non gradini);
-  pedate e alzate stesso grigio = niente profondita.
-- Tunnel: pareti blu piatte (luce cotta senza volume); strisce LED sulle pareti fanno
-  quadretti neri da lontano; corsia grigia troppo vicina al pavimento.
-- Sala: bianchi tutti uguali (pareti/pilastri/sedute/pavimento); legno chiaro slavato;
-  maglie bianche piatte; soffitto ancora emissivo.
+Cosa si vede nei 2 render (fatti, niente giudizi).
+- stadio_seggiolini: campo dall'uscita del tunnel: erba, cartelloni a blocchi, spalti blu
+  con seggiolini veri (seduta + schienale) in 2 file per anello, fascia bianca col nome,
+  tetto chiaro sopra, facciata grigia con scritta blu sopra la bocca.
+- tunnel_scale_chiuse: interno tunnel: pareti blu, LED a soffitto, pavimento grigio con
+  corsia e riga oro solo sul piano, scalinata con pedate chiare e alzate scure senza buchi.
 
 Correzioni di questo giro (fatti, nei file indicati).
-- scripts/tunnel.py: tolta ogni riga che corre sulla scalinata (corsia/oro solo sul piano);
-  alzate scure #2b2e34 contro pedate chiare = i 12 gradini si leggono da costruzione;
-  luce cotta con componente laterale (le pareti blu prendono volume); luce esterna
-  0.80 -> 0.62 (niente piu bruciato); corsia scurita #8f97a3 -> #838b96.
-- scripts/sala.py: parete #e4e5e6 -> #d5d7da (staccata dai pilastri); pilastri/cuscino
-  scuriti (#dedfe2/#cfd1d4); pavimento #b9bdc4 -> #a9adb6; soffitto emis 0.55 -> 0.35,
-  centro 0.40 -> 0.25, tamburo 0.35 -> 0.20.
-- web/tunnel.glb + web/sala.glb + json rigenerati (vedi Misure) e copiati in web/.
+- scripts/tunnel.py: ogni gradino della scalinata e una scatola chiusa (non si vede
+  il sotto); `_seggiolini` con seduta + schienale nei colori della squadra (LOD: 1 spicchio
+  ogni 4, 2 file per anello, 3 seggiolini per spicchio); budget facce resta 60000.
+- web/tunnel.glb + web/tunnel.json rigenerati (vedi Misure) e copiati in web/.
 - maglia.py NON toccata (congelata).
 
-Rimane diverso (terzo giro, dopo verifica nel browser).
-- Strisce LED sulle pareti del tunnel: da valutare se toglierle (fanno quadretti neri).
-- Legno procedurale invece di foto vera; maglie poco modellate dalla luce.
-- video2 + render di prova cancellati da render/ prima del commit (solo web/ + script).
+Rimane diverso (giro dopo, dopo verifica nel browser).
+- Cartelloni ancora a blocchi invece di scritte vere; erba con macchie; cielo piatto.
+- Sala: da rivedere dopo lo stadio (bianchi, legno, maglie).
+- render di prova cancellati da render/ prima del commit (solo web/ + script).
 
 
 Dati: bake_all ok 100f; mesh 7429V/8863F sald=157; pin spalla 120;

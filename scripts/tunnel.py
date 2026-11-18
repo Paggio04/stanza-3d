@@ -333,6 +333,35 @@ def scudo_parete(k, m, loc_local, nome, rot):
     return _piano(me, rot, tuple(w(loc_local)), m, nome)
 
 
+# ------------------------------------------------------------------ seggiolini veri
+def _seggiolini(R, m_seg, m_base, z, r, prof, alz, n, salta):
+    """File di seggiolini veri (seduta + schienale + base) sui 3 anelli.
+    I seggiolini riempiono la ciotola: non sembra piu vuota."""
+    for k in range(n):
+        a0 = 2 * math.pi * k / n
+        a1 = 2 * math.pi * (k + 1) / n
+        if salta is not None and salta((a0 + a1) / 2):
+            continue
+        am = (a0 + a1) / 2
+        # 8 seggiolini per spicchio per fila (riempiono davvero la ciotola)
+        # LOD stadio: 1 seggiolino ogni 4 spicchi, 2 file per anello, solo seduta+schienale
+        if (k % 4) != 0:
+            continue
+        for f in (1, 3):
+            t = (f + 0.5) / 4
+            rr = r + prof * t
+            zz = z + alz * t
+            for q in (1, 4, 6):
+                aq = a0 + (a1 - a0) * (q + 0.5) / 8
+                cx = rr * math.cos(aq)
+                cy = ST_CENTRO_U + rr * math.sin(aq)
+                # seduta (la base e' la ciotola stessa: niente scatola sotto)
+                R.scatola(m_seg, (cx, cy, zz + 0.25), (0.42, 0.40, 0.08), modo="ext")
+                # schienale (verso l'esterno della ciotola)
+                dx, dy = math.cos(aq), math.sin(aq)
+                R.scatola(m_seg, (cx + dx * 0.20, cy + dy * 0.20, zz + 0.45), (0.42, 0.08, 0.40), modo="ext")
+
+
 # ------------------------------------------------------------------ costruzione
 def _anello_ciotola(R, m, r0, z0, r1, z1, n, uvscala=0.12, modo="ext", salta=None, doppia=True):
     """Anello di spalti inclinato (ciotola): n spicchi, normale verso il campo.
@@ -395,11 +424,12 @@ def costruisci(dati, cartella):
     R.parete(m_corsia, -0.55, 0.55, 0.0, ST_SCALA_U0, 0.004, 0.004, (0, 0, 1), mx=1.0)
     R.parete(m_oro, -0.03, 0.03, 0.0, ST_SCALA_U0, 0.006, 0.006, (0, 0, 1), mx=4.0)
     # scalinata finale: 12 gradini da 7,5 cm (sale di 90 cm verso la luce, come al Camp Nou)
+    # NOTA: ogni gradino e' una scatola CHIUSA (pedata + alzata + fondo): non si vede mai il sotto
     du = (L - ST_SCALA_U0) / ST_N_GRADINI
     for g in range(ST_N_GRADINI):
         zg = (g + 1) * ST_ALZATA
-        R.parete(m_pav, -hw, hw, ST_SCALA_U0 + g * du, ST_SCALA_U0 + (g + 1) * du, zg, zg,
-                 (0, 0, 1), mx=0.8, uvs=(3.2, 3.2))
+        R.scatola(m_pav, (0, ST_SCALA_U0 + (g + 0.5) * du, zg - 0.04),
+                  (2 * hw, du + 0.02, 0.08), modo="int")
         R.parete(m_alzata, -hw, hw, ST_SCALA_U0 + (g + 1) * du, ST_SCALA_U0 + (g + 1) * du,
                  zg - ST_ALZATA, zg, (0, -1, 0), mx=0.8)
     # soffitto scuro con 5 lame di luce (come la foto: strisce LED sul blu)
@@ -427,11 +457,13 @@ def costruisci(dati, cartella):
 
 
 def _costruisci_esterno(R, dati, cartella, erba_i, spalti_i, cart_i):
-    """Ciotola vera stile Camp Nou: 3 anelli di spalti, tetto ad anello, 4 maxischermi, campo con righe."""
+    """Ciotola vera stile Camp Nou: 3 anelli di spalti con seggiolini veri, tetto ad anello, 4 maxischermi, campo con righe."""
     m_erba = mat("Esterno_Erba", "#ffffff", erba_i, 0.95)
     m_asfalto = mat("Esterno_Asfalto", "#4a4e55", None, 0.9)
     m_linea = mat("Esterno_Linea", "#f4f4f4", None, 0.8)
     m_spalti = mat("Esterno_Spalti", "#ffffff", spalti_i, 0.85)
+    m_seg = mat("Esterno_Seggiolini", dati["colori"]["dettagli"], None, 0.55)
+    m_seg_base = mat("Esterno_SeggioliniBase", "#2a2d33", None, 0.9)
     m_cart = mat("Esterno_Cartelloni", "#ffffff", cart_i, 0.6, emis=0.0)
     m_cem = mat("Esterno_Cemento", "#d9dce1", None, 0.9)
     m_tetto = mat("Esterno_Tetto", "#c8ccd4", None, 0.6)
@@ -461,6 +493,7 @@ def _costruisci_esterno(R, dati, cartella, erba_i, spalti_i, cart_i):
     for (prof, alz) in ST_ANELLI:
         _anello_ciotola(R, m_spalti, r, z, r + prof, z + alz, 48, modo="ext", salta=e_sud)
         _anello_ciotola(R, m_cem, r + prof, z + alz, r + prof + 1.2, z + alz + 0.4, 48, modo="ext", salta=e_sud)
+        _seggiolini(R, m_seg, m_seg_base, z, r, prof, alz, 48, salta=e_sud)
         r += prof + 1.2
         z += alz + 0.4
     # tetto ad anello con intradosso (come il Camp Nou nuovo)
