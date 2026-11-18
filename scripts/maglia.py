@@ -281,7 +281,9 @@ class _Geom:
             th = np.arctan2(dz, dx)
             tot = tot + (0.0120 * np.exp(-r / 0.24) * _smooth(0.012, 0.06, r)
                          * np.sin(4.2 * th + ph + 1.1 * _vn(dx * 7, dz * 7, seed + 6)))
-        w = _smooth(0.0, 0.040, d)
+        # sotto nome e numero (e sponsor) il tessuto e' piu' piatto: la scritta segue le pieghe ma resta leggibile
+        piatto = np.exp(-(np.abs(X / 0.20) ** 4 + np.abs((Z + 0.36) / 0.23) ** 4))
+        w = _smooth(0.0, 0.040, d) * (1.0 - 0.60 * piatto)
         return 1.7 * tot * w
 
     def superficie(self, X, Z, lato):
@@ -533,6 +535,8 @@ def mesh_maglia(nome, coll=None, colore="#ffffff", dettagli="#173f9a"):
         Z = P[:, 1]
         d = G._mindist(P, G.seam)
         pf = G.piega(X, Z, lato, d)
+        bordo = np.minimum(np.minimum(G._mindist(P, G.hem), G._mindist(P, G.cuff)), G._mindist(P, G.neck[lato]))
+        pf = pf * (0.30 + 0.70 * _smooth(0.0, 0.05, bordo))       # vicino ai bordi liberi le pieghe si spengono: orli netti
         b = G._sleeve_blend(X, Z)
         v_man = (np.abs(X) - SH_X) * math.cos(SLEEVE_ANG) - (Z - SH_Z) * math.sin(SLEEVE_ANG)
         svasa = SVASATURA * b * _smooth(0.02, 0.20, v_man)       # la bocca della manica si apre verso chi guarda
@@ -880,8 +884,33 @@ def prepara_web(shirt, colore, dettagli, cartella="."):
     """Versione leggera per glTF: niente modificatori (la mesh e' gia' fitta), colore a vertici
     con l'ombreggiatura cotta (valli delle pieghe, ascelle), materiale semplice, doppia faccia."""
     me = shirt.data
+    n0 = len(me.vertices)
     for m in list(shirt.modifiers):
-        shirt.modifiers.remove(m)
+        if m.type == "SOLIDIFY":                      # lo spessore si cuoce nella mesh: bordi di polsini e orlo visibili
+            bpy.ops.object.select_all(action="DESELECT")
+            shirt.select_set(True)
+            bpy.context.view_layer.objects.active = shirt
+            bpy.ops.object.modifier_apply(modifier=m.name)
+        else:
+            shirt.modifiers.remove(m)
+    me = shirt.data
+    if len(me.vertices) > n0:
+        # la pelle interna serve solo vicino ai bordi liberi (interno di maniche e orlo, 2,5 cm): altrove si butta (budget)
+        bm = bmesh.new()
+        bm.from_mesh(me)
+        bm.verts.ensure_lookup_table()
+        dh = bm.verts.layers.float.get("dhem")
+        rb = bm.verts.layers.float.get("rib")
+        togli = []
+        for f in bm.faces:
+            if all(v.index >= n0 for v in f.verts):
+                dmin = min(min(v[dh], v[rb] + COLL_W) for v in f.verts)
+                if dmin > 0.025:
+                    togli.append(f)
+        bmesh.ops.delete(bm, geom=togli, context="FACES_ONLY")
+        bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context="VERTS")
+        bm.to_mesh(me)
+        bm.free()
     shirt.vertex_groups.clear()
     ao = np.array([a.value for a in me.attributes["ao"].data])
     c0 = np.array(_hex(colore)[:3])
