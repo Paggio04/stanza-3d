@@ -169,6 +169,8 @@ def pieghe_frontali(ob):
         dy += k * cresta((sg * 0.176, -0.160), (sg * 0.075, -0.345), 0.0023, 0.020)
         dy += k * cresta((sg * 0.168, -0.098), (sg * 0.060, -0.172), -0.0023, 0.015)
         dy += k * cresta((sg * 0.080, -0.045), (sg * 0.135, -0.105), -0.0020, 0.016)
+        dy += k * cresta((sg * 0.105, -0.200), (sg * 0.118, -0.700), 0.0045, 0.035)       # ombre larghe e morbide verticali del busto
+        dy += k * cresta((sg * 0.152, -0.210), (sg * 0.158, -0.660), -0.0035, 0.030)
         dy += k * cresta((sg * 0.205, -0.105), (sg * 0.240, -0.265), 0.0030, 0.012)       # pieghe di caduta sulle maniche
         dy += k * cresta((sg * 0.188, -0.115), (sg * 0.214, -0.250), -0.0061, 0.011)
         dy += k * cresta((sg * 0.232, -0.125), (sg * 0.252, -0.215), 0.0038, 0.010)
@@ -329,7 +331,7 @@ def materiale(nome, colore, rough=0.90, sheen=0.60, bump=0.6, scala=800.0, inter
     nt.links.new(no.outputs["Fac"], mi.inputs[2])
     if coste:                               # nervature verticali del jersey (coste a maglia), visibili sul busto
         m2c = nt.nodes.new("ShaderNodeMapping")
-        m2c.inputs["Scale"].default_value = (230.0, 18.0, 6.0)
+        m2c.inputs["Scale"].default_value = (150.0, 14.0, 5.0)
         wv2 = nt.nodes.new("ShaderNodeTexWave")
         wv2.wave_type = "BANDS"
         wv2.bands_direction = "X"
@@ -340,7 +342,7 @@ def materiale(nome, colore, rough=0.90, sheen=0.60, bump=0.6, scala=800.0, inter
         nt.links.new(m2c.outputs["Vector"], wv2.inputs["Vector"])
         ad = nt.nodes.new("ShaderNodeMath")
         ad.operation = "MULTIPLY_ADD"
-        ad.inputs[1].default_value = 0.9
+        ad.inputs[1].default_value = 1.0
         nt.links.new(wv2.outputs["Fac"], ad.inputs[0])
         nt.links.new(mi.outputs["Value"], ad.inputs[2])
         nt.links.new(ad.outputs["Value"], bp.inputs["Height"])
