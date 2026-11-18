@@ -25,16 +25,16 @@ def _smooth(a, b, x):
 
 
 # ------------------------------------------------------------------ forme
-TORSO = [  # z, rx, ry   (misurati sul riferimento: altezza 0,74 m, corpo largo 0,37 m, collo 0,155 m)
-    (0.000, 0.0775, 0.066), (-0.010, 0.112, 0.075), (-0.025, 0.162, 0.084), (-0.042, 0.202, 0.092),
-    (-0.062, 0.218, 0.097), (-0.085, 0.206, 0.100), (-0.110, 0.186, 0.103), (-0.140, 0.177, 0.105),
-    (-0.220, 0.174, 0.106), (-0.330, 0.175, 0.102),
-    (-0.460, 0.176, 0.098), (-0.600, 0.185, 0.095), (-0.740, 0.192, 0.093)]
+TORSO = [  # z, rx, ry   (misurati sul riferimento: altezza 0,74 m, corpo largo ~0,34 m, collo 0,155 m)
+    (0.000, 0.0775, 0.066), (-0.010, 0.110, 0.075), (-0.025, 0.155, 0.084), (-0.042, 0.188, 0.092),
+    (-0.062, 0.200, 0.097), (-0.085, 0.192, 0.100), (-0.110, 0.166, 0.103), (-0.140, 0.152, 0.105),
+    (-0.220, 0.146, 0.106), (-0.330, 0.140, 0.102),
+    (-0.460, 0.140, 0.098), (-0.600, 0.150, 0.095), (-0.740, 0.164, 0.093)]
 Z_ORLO = -0.740
 NECK_RX, NECK_RY, NECK_Z = 0.0775, 0.062, -0.006
 SLEEVE = {  # manica "set-in": parte quasi orizzontale sulla spalla e poi cade, svasata verso il polsino
-    "pts": [(0.120, -0.090), (0.170, -0.098), (0.208, -0.130), (0.240, -0.205), (0.266, -0.285)],
-    "ru": [0.045, 0.052, 0.058, 0.060, 0.062], "rv": [0.058, 0.056, 0.055, 0.055, 0.056]}
+    "pts": [(0.112, -0.088), (0.155, -0.096), (0.184, -0.128), (0.208, -0.205), (0.230, -0.292)],
+    "ru": [0.045, 0.050, 0.055, 0.057, 0.058], "rv": [0.058, 0.056, 0.055, 0.055, 0.056]}
 
 
 def _ring_loft(bm, anelli, chiudi_alto=True, chiudi_basso=True):
@@ -117,7 +117,7 @@ def unisci_e_taglia():
     bmesh.ops.bisect_plane(bm, geom=bm.verts[:] + bm.edges[:] + bm.faces[:], plane_co=(0, 0, Z_ORLO), plane_no=(0, 0, 1),
                            clear_outer=False, clear_inner=True)
     for lato, (e, d) in ((1, (e1, d1)), (-1, (e2, d2))):
-        fs = [f for f in bm.faces if lato * f.calc_center_median().x > 0.192]          # solo la manica: il piano non deve toccare il busto
+        fs = [f for f in bm.faces if lato * f.calc_center_median().x > 0.158 and f.calc_center_median().z > -0.40]          # solo la manica: il piano non deve toccare il busto
         es = list({ed for f in fs for ed in f.edges})
         vs = list({v for f in fs for v in f.verts})
         bmesh.ops.bisect_plane(bm, geom=vs + es + fs, plane_co=tuple(e), plane_no=tuple(d), clear_outer=True, clear_inner=False)
@@ -177,7 +177,7 @@ def pesi_orlo(ob):
         x, y, z = pos[i]
         wp = max(math.exp(-(((abs(x) - 0.17) ** 2 + (z + 0.12) ** 2) / 0.08 ** 2)),            # ascelle
                  math.exp(-((x ** 2 + (z + 0.05) ** 2) / 0.09 ** 2)),                           # sotto il collo
-                 math.exp(-((z + 0.70) ** 2) / 0.07 ** 2))                                       # sopra l'orlo
+                 0.45 * math.exp(-((z + 0.70) ** 2) / 0.07 ** 2))                                       # sopra l'orlo
         vp.add([i], wp, "REPLACE")
         wcu = math.exp(-(((d2 - 0.020) / 0.0055) ** 2))
         ca.data[i].color = (wcu, wcu, wcu, 1.0)
@@ -247,7 +247,7 @@ def collo(ob_parent):
 
 
 # ------------------------------------------------------------------ materiali, luci, resa
-def materiale(nome, colore, rough=0.85, sheen=0.55, bump=0.4, scala=600.0, interno_scuro=False, cuciture=False, fres=0.40, ao_dist=0.07):
+def materiale(nome, colore, rough=0.85, sheen=0.55, bump=0.4, scala=600.0, interno_scuro=False, cuciture=False, fres=0.55, ao_dist=0.07):
     m = bpy.data.materials.new(nome)
     m.use_nodes = True
     nt = m.node_tree
@@ -313,7 +313,15 @@ def materiale(nome, colore, rough=0.85, sheen=0.55, bump=0.4, scala=600.0, inter
     m2.blend_type = "MULTIPLY"
     m2.inputs[0].default_value = 1.0
     nt.links.new(ao.outputs["Color"], m2.inputs[6])
-    nt.links.new(fa.outputs["Value"], m2.inputs[7])
+    cb = nt.nodes.new("ShaderNodeCombineColor")           # le ombre sono lavanda/blu come nel riferimento: il rosso cala di piu' del blu
+    for ch, (k, off) in zip(("Red", "Green", "Blue"), ((1.0, 0.0), (0.72, 0.28), (0.38, 0.62))):
+        mk = nt.nodes.new("ShaderNodeMath")
+        mk.operation = "MULTIPLY_ADD"
+        mk.inputs[1].default_value = k
+        mk.inputs[2].default_value = off
+        nt.links.new(fa.outputs["Value"], mk.inputs[0])
+        nt.links.new(mk.outputs["Value"], cb.inputs[ch])
+    nt.links.new(cb.outputs["Color"], m2.inputs[7])
     ultimo = m2
     if interno_scuro:                       # dentro lo scollo il retro e' in ombra (sfumatura grigia come nel riferimento)
         gp = nt.nodes.new("ShaderNodeNewGeometry")
@@ -331,7 +339,7 @@ def materiale(nome, colore, rough=0.85, sheen=0.55, bump=0.4, scala=600.0, inter
         nt.links.new(mz.outputs["Result"], mm.inputs[1])
         mf = nt.nodes.new("ShaderNodeMath")
         mf.operation = "MULTIPLY_ADD"
-        mf.inputs[1].default_value = -0.55
+        mf.inputs[1].default_value = -0.28
         mf.inputs[2].default_value = 1.0
         nt.links.new(mm.outputs["Value"], mf.inputs[0])
         m3 = nt.nodes.new("ShaderNodeMix")
@@ -366,9 +374,9 @@ def materiale(nome, colore, rough=0.85, sheen=0.55, bump=0.4, scala=600.0, inter
         ax = M("ABSOLUTE", sq.outputs["X"])
         zz = sq.outputs["Z"]
         # polsino: distanza lungo l'asse della manica dal piano di taglio (asse (0.309, -0.951) in (|x|, z))
-        dc = M("ADD", M("MULTIPLY", M("SUBTRACT", ax, 0.266), 0.309), M("MULTIPLY", M("ADD", zz, 0.285), -0.951))
+        dc = M("ADD", M("MULTIPLY", M("SUBTRACT", ax, 0.230), 0.245), M("MULTIPLY", M("ADD", zz, 0.268), -0.961))
         lc = M("EXPONENT", M("MULTIPLY", M("POWER", M("DIVIDE", M("ADD", dc, 0.020), 0.0035), 2.0), -1.0))
-        mc_ = M("MULTIPLY", MR(ax, 0.20, 0.23), MR(zz, -0.42, -0.38))
+        mc_ = M("MULTIPLY", MR(ax, 0.16, 0.18), MR(zz, -0.42, -0.38))
         lh = M("EXPONENT", M("MULTIPLY", M("POWER", M("DIVIDE", M("ADD", zz, 0.720), 0.0035), 2.0), -1.0))
         mh_ = M("MULTIPLY", MR(ax, 0.23, 0.20), MR(zz, -0.50, -0.55))
         riga = M("MAXIMUM", M("MULTIPLY", lc, mc_), M("MULTIPLY", lh, mh_))
@@ -474,7 +482,7 @@ def main():
     d2.mid_level = 0.5
     for p in ob.data.polygons:
         p.use_smooth = True
-    bianco = materiale("Cotone", (0.80, 0.81, 0.86, 1.0), interno_scuro=True, cuciture=True)
+    bianco = materiale("Cotone", (0.78, 0.80, 0.88, 1.0), interno_scuro=True, cuciture=True)
     ob.data.materials.append(bianco)
     c = collo(ob)
     c.data.materials.append(materiale("Costine", (0.92, 0.93, 0.97, 1.0), bump=0.6, scala=1400.0, interno_scuro=True, fres=0.10, ao_dist=0.012))
