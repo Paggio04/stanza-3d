@@ -33,7 +33,7 @@ Z_ORLO = -0.740
 NECK_RX, NECK_RY, NECK_Z = 0.0775, 0.062, -0.006
 SLEEVE = {  # manica "set-in": parte quasi orizzontale sulla spalla e poi cade, svasata verso il polsino
     "pts": [(0.120, -0.090), (0.170, -0.098), (0.205, -0.130), (0.230, -0.200), (0.248, -0.285)],
-    "ru": [0.045, 0.052, 0.058, 0.062, 0.065], "rv": [0.058, 0.056, 0.055, 0.055, 0.056]}
+    "ru": [0.045, 0.052, 0.058, 0.064, 0.073], "rv": [0.058, 0.056, 0.055, 0.055, 0.056]}
 
 
 def _ring_loft(bm, anelli, chiudi_alto=True, chiudi_basso=True):
@@ -225,7 +225,7 @@ def collo(ob_parent):
 
 
 # ------------------------------------------------------------------ materiali, luci, resa
-def materiale(nome, colore, rough=0.85, sheen=0.55, bump=0.35, scala=900.0):
+def materiale(nome, colore, rough=0.85, sheen=0.55, bump=0.7, scala=600.0):
     m = bpy.data.materials.new(nome)
     m.use_nodes = True
     nt = m.node_tree
@@ -254,7 +254,7 @@ def materiale(nome, colore, rough=0.85, sheen=0.55, bump=0.35, scala=900.0):
     mi.inputs[1].default_value = 0.5
     bp = nt.nodes.new("ShaderNodeBump")
     bp.inputs["Strength"].default_value = bump
-    bp.inputs["Distance"].default_value = 0.0004
+    bp.inputs["Distance"].default_value = 0.0012
     nt.links.new(tc.outputs["Object"], ma.inputs["Vector"])
     nt.links.new(ma.outputs["Vector"], wv.inputs["Vector"])
     nt.links.new(ma.outputs["Vector"], no.inputs["Vector"])
@@ -341,6 +341,13 @@ def main():
     ds.texture = tx
     ds.strength = 0.0042
     ds.mid_level = 0.5
+    tx2 = bpy.data.textures.new("Drappeggio", "CLOUDS")      # ondulazioni larghe del tessuto che cade
+    tx2.noise_scale = 0.28
+    tx2.noise_depth = 2
+    d2 = ob.modifiers.new("Drappeggio", "DISPLACE")
+    d2.texture = tx2
+    d2.strength = 0.0
+    d2.mid_level = 0.5
     for p in ob.data.polygons:
         p.use_smooth = True
     bianco = materiale("Cotone", (0.80, 0.81, 0.86, 1.0))
