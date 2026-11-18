@@ -165,13 +165,13 @@ def pieghe_frontali(ob):
         return amp * np.exp(-d2 / w ** 2) * np.sin(np.pi * np.clip(t, 0, 1)) ** 0.5
     dy = np.zeros(n)
     for sg, k in ((1, 1.0), (-1, 0.8)):                         # il lato sinistro e' un po' diverso dal destro
-        dy += k * cresta((sg * 0.172, -0.125), (sg * 0.035, -0.235), 0.0037, 0.017)
-        dy += k * cresta((sg * 0.176, -0.160), (sg * 0.075, -0.345), 0.0030, 0.020)
-        dy += k * cresta((sg * 0.168, -0.098), (sg * 0.060, -0.172), -0.0030, 0.015)
-        dy += k * cresta((sg * 0.080, -0.045), (sg * 0.135, -0.105), -0.0027, 0.016)
-        dy += k * cresta((sg * 0.060, -0.390), (sg * 0.085, -0.640), 0.0027, 0.030)
-        dy += k * cresta((sg * 0.130, -0.420), (sg * 0.150, -0.600), -0.0023, 0.026)
-    dy += cresta((-0.12, -0.625), (0.10, -0.600), 0.0019, 0.020)
+        dy += k * cresta((sg * 0.172, -0.125), (sg * 0.035, -0.235), 0.0028, 0.017)
+        dy += k * cresta((sg * 0.176, -0.160), (sg * 0.075, -0.345), 0.0023, 0.020)
+        dy += k * cresta((sg * 0.168, -0.098), (sg * 0.060, -0.172), -0.0023, 0.015)
+        dy += k * cresta((sg * 0.080, -0.045), (sg * 0.135, -0.105), -0.0020, 0.016)
+        dy += k * cresta((sg * 0.060, -0.390), (sg * 0.085, -0.640), 0.0020, 0.030)
+        dy += k * cresta((sg * 0.130, -0.420), (sg * 0.150, -0.600), -0.0017, 0.026)
+    dy += cresta((-0.12, -0.625), (0.10, -0.600), 0.0014, 0.020)
     fronte = pos[:, 1] > 0
     for i in range(n):
         v = me.vertices[i]
@@ -280,7 +280,7 @@ def collo(ob_parent):
 
 
 # ------------------------------------------------------------------ materiali, luci, resa
-def materiale(nome, colore, rough=0.90, sheen=0.60, bump=0.6, scala=800.0, interno_scuro=False, cuciture=False, fres=0.45, ao_dist=0.07):
+def materiale(nome, colore, rough=0.90, sheen=0.60, bump=0.6, scala=800.0, interno_scuro=False, cuciture=False, fres=0.45, ao_dist=0.07, emiss=0.0):
     m = bpy.data.materials.new(nome)
     m.use_nodes = True
     nt = m.node_tree
@@ -290,6 +290,9 @@ def materiale(nome, colore, rough=0.90, sheen=0.60, bump=0.6, scala=800.0, inter
     if "Sheen Weight" in pb.inputs:
         pb.inputs["Sheen Weight"].default_value = sheen
         pb.inputs["Sheen Roughness"].default_value = 0.55
+    if emiss > 0 and "Emission Strength" in pb.inputs:
+        pb.inputs["Emission Color"].default_value = (1, 1, 1, 1)
+        pb.inputs["Emission Strength"].default_value = emiss
         if "Sheen Tint" in pb.inputs:
             pb.inputs["Sheen Tint"].default_value = (0.92, 0.94, 1.0, 1.0)
     if "Subsurface Weight" in pb.inputs:
@@ -322,8 +325,8 @@ def materiale(nome, colore, rough=0.90, sheen=0.60, bump=0.6, scala=800.0, inter
     # leggera variazione di tono della maglia (maglia a punto jersey): moltiplica il colore di base
     mg = nt.nodes.new("ShaderNodeMath")
     mg.operation = "MULTIPLY_ADD"
-    mg.inputs[1].default_value = 0.26
-    mg.inputs[2].default_value = 0.84
+    mg.inputs[1].default_value = 0.34
+    mg.inputs[2].default_value = 0.80
     nt.links.new(mi.outputs["Value"], mg.inputs[0])
     mx = nt.nodes.new("ShaderNodeMix")
     mx.data_type = "RGBA"
@@ -349,7 +352,7 @@ def materiale(nome, colore, rough=0.90, sheen=0.60, bump=0.6, scala=800.0, inter
     m2.inputs[0].default_value = 1.0
     nt.links.new(ao.outputs["Color"], m2.inputs[6])
     cb = nt.nodes.new("ShaderNodeCombineColor")           # le ombre sono lavanda/blu come nel riferimento: il rosso cala di piu' del blu
-    for ch, (k, off) in zip(("Red", "Green", "Blue"), ((1.0, 0.0), (0.80, 0.20), (0.55, 0.45))):
+    for ch, (k, off) in zip(("Red", "Green", "Blue"), ((1.0, 0.0), (0.86, 0.14), (0.70, 0.30))):
         mk = nt.nodes.new("ShaderNodeMath")
         mk.operation = "MULTIPLY_ADD"
         mk.inputs[1].default_value = k
@@ -414,6 +417,16 @@ def materiale(nome, colore, rough=0.90, sheen=0.60, bump=0.6, scala=800.0, inter
         mc_ = M("MULTIPLY", MR(ax, 0.18, 0.20), MR(zz, -0.42, -0.38))
         lh = M("EXPONENT", M("MULTIPLY", M("POWER", M("DIVIDE", M("ADD", zz, 0.720), 0.0035), 2.0), -1.0))
         mh_ = M("MULTIPLY", MR(ax, 0.23, 0.20), MR(zz, -0.50, -0.55))
+        # fianchi del busto piu' scuri (lavanda), luce a clessidra come nel riferimento
+        fianco = M("MULTIPLY", M("MULTIPLY", MR(ax, 0.09, 0.17), MR(ax, 0.215, 0.185)), MR(zz, -0.12, -0.17))
+        cbs = nt.nodes.new("ShaderNodeCombineColor")
+        for ch, kk in (("Red", 0.30), ("Green", 0.25), ("Blue", 0.13)):
+            mk = nt.nodes.new("ShaderNodeMath")
+            mk.operation = "MULTIPLY_ADD"
+            mk.inputs[1].default_value = -kk
+            mk.inputs[2].default_value = 1.0
+            nt.links.new(fianco, mk.inputs[0])
+            nt.links.new(mk.outputs["Value"], cbs.inputs[ch])
         riga = M("MAXIMUM", M("MULTIPLY", lc, mc_), M("MULTIPLY", lh, mh_))
         mc = nt.nodes.new("ShaderNodeMath")
         mc.operation = "MULTIPLY_ADD"
@@ -426,7 +439,13 @@ def materiale(nome, colore, rough=0.90, sheen=0.60, bump=0.6, scala=800.0, inter
         m4.inputs[0].default_value = 1.0
         nt.links.new(ultimo.outputs[2], m4.inputs[6])
         nt.links.new(mc.outputs["Value"], m4.inputs[7])
-        ultimo = m4
+        m5 = nt.nodes.new("ShaderNodeMix")
+        m5.data_type = "RGBA"
+        m5.blend_type = "MULTIPLY"
+        m5.inputs[0].default_value = 1.0
+        nt.links.new(m4.outputs[2], m5.inputs[6])
+        nt.links.new(cbs.outputs["Color"], m5.inputs[7])
+        ultimo = m5
     nt.links.new(ultimo.outputs[2], pb.inputs["Base Color"])
     return m
 
@@ -518,10 +537,10 @@ def main():
     d2.mid_level = 0.5
     for p in ob.data.polygons:
         p.use_smooth = True
-    bianco = materiale("Cotone", (0.78, 0.80, 0.88, 1.0), interno_scuro=True, cuciture=True)
+    bianco = materiale("Cotone", (0.76, 0.79, 0.90, 1.0), interno_scuro=True, cuciture=True)
     ob.data.materials.append(bianco)
     c = collo(ob)
-    c.data.materials.append(materiale("Costine", (0.92, 0.93, 0.97, 1.0), bump=0.9, scala=1400.0, interno_scuro=True, fres=0.10, ao_dist=0.012))
+    c.data.materials.append(materiale("Costine", (1.0, 1.0, 1.0, 1.0), bump=0.9, scala=1400.0, interno_scuro=True, fres=0.10, ao_dist=0.012, emiss=0.18))
     sc.render.engine = "CYCLES"
     sc.cycles.device = "CPU"
     sc.cycles.samples = camp
