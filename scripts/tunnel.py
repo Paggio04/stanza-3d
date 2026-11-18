@@ -814,6 +814,13 @@ def _anta(nome, m_anta, m_vetro, cx, u, larg, alt, colore):
     V = [(-hx, -hy, -hz), (hx, -hy, -hz), (hx, hy, -hz), (-hx, hy, -hz), (-hx, -hy, hz), (hx, -hy, hz), (hx, hy, hz), (-hx, hy, hz)]
     F = [(0, 3, 2, 1), (4, 5, 6, 7), (0, 1, 5, 4), (1, 2, 6, 5), (2, 3, 7, 6), (3, 0, 4, 7)]
     wx, wz0, wz1 = larg * 0.28, hz * 0.05, hz * 0.85                      # finestra: sul lato +u del tunnel = -y mondo
+    # maniglione antipanico verticale sul bordo interno dell'anta (lato +u) e zoccolo paracolpi in basso
+    bx = hx - 0.07 if cx < 0 else -hx + 0.07
+    for (x0, x1, z0, z1, d0) in ((bx - 0.018, bx + 0.018, -0.35, 0.55, 0.05), (-hx, hx, -hz, -hz + 0.22, 0.012)):
+        o = len(V)
+        y0, y1 = -hy - d0, -hy
+        V += [(x0, y0, z0), (x1, y0, z0), (x1, y1, z0), (x0, y1, z0), (x0, y0, z1), (x1, y0, z1), (x1, y1, z1), (x0, y1, z1)]
+        F += [(o, o + 3, o + 2, o + 1), (o + 4, o + 5, o + 6, o + 7), (o, o + 1, o + 5, o + 4), (o + 1, o + 2, o + 6, o + 5), (o + 2, o + 3, o + 7, o + 6), (o + 3, o, o + 4, o + 7)]
     off = len(V)
     V += [(-wx, -hy - 0.004, wz0), (wx, -hy - 0.004, wz0), (wx, -hy - 0.004, wz1), (-wx, -hy - 0.004, wz1)]
     F += [(off, off + 1, off + 2, off + 3)]

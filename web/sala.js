@@ -540,6 +540,11 @@ export async function avviaSala(host, opz = {}) {
           cam.rotateY(env * (0.0035 * Math.sin(Math.PI * d + 0.7) + 0.0025 * Math.sin(tt * 0.63)));
           cam.rotateX(env * (0.0030 * Math.sin(2 * Math.PI * d + 1.1) + 0.0020 * Math.sin(tt * 0.41 + 2.0)));
         }
+        // lo sguardo: si alza un attimo verso le tribune uscendo sul campo, poi cerca la bocca del tunnel (destra, poi sinistra)
+        if (!RIDUCI()) {
+          cam.rotateX(0.07 * Math.sin(Math.PI * liscio(0.02, 0.24, p)));
+          cam.rotateY(-0.05 * Math.sin(2 * Math.PI * liscio(0.08, 0.42, p)));
+        }
         apriPorta(RIDUCI() ? 1 : liscio(0.84, 0.935, p));
         // adattamento dell'occhio: nello stadio al sole l'esposizione e' un po' piu' bassa; entrando nel tunnel risale piano
         // (si parte "abbagliati" e il tunnel si apre), uscendo dal tunnel (scorrimento all'indietro) si richiude in fretta
