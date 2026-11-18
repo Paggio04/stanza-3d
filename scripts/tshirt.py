@@ -419,7 +419,7 @@ def materiale(nome, colore, rough=0.90, sheen=0.60, bump=0.6, scala=800.0, inter
         mh_ = M("MULTIPLY", MR(ax, 0.23, 0.20), MR(zz, -0.50, -0.55))
         # fianchi del busto piu' scuri (lavanda), luce a clessidra come nel riferimento
         fianco = M("MULTIPLY", M("MULTIPLY", MR(ax, 0.09, 0.17), MR(ax, 0.215, 0.185)), MR(zz, -0.12, -0.17))
-        fianco = M("MAXIMUM", fianco, M("MULTIPLY", MR(ax, 0.19, 0.23), 0.55))      # maniche piu' scure del busto
+        fianco = M("MAXIMUM", fianco, M("MULTIPLY", MR(ax, 0.19, 0.23), M("MULTIPLY", M("ADD", M("MULTIPLY", MR(sq.outputs["X"], 0.05, -0.05), 0.85), 0.15), 0.62)))      # maniche piu' scure del busto, di piu' a destra dell'immagine (la luce arriva da sinistra)
         cbs = nt.nodes.new("ShaderNodeCombineColor")
         for ch, kk in (("Red", 0.30), ("Green", 0.25), ("Blue", 0.13)):
             mk = nt.nodes.new("ShaderNodeMath")
@@ -554,6 +554,19 @@ def main():
     sc.render.image_settings.file_format = "PNG"
     bpy.ops.render.render(write_still=True)
     bpy.ops.wm.save_as_mainfile(filepath=os.path.join(out, "tshirt.blend"))
+    # grana fine della stoffa (come nel rendering di riferimento): rumore di luminanza solo sulla maglia
+    img = bpy.data.images.load(os.path.join(out, "tshirt.png"))
+    w_, h_ = img.size
+    px_ = np.array(img.pixels[:], dtype=np.float32).reshape(h_, w_, 4)
+    maglia_ = ((px_[..., 2] - px_[..., 0]) > 0.04) | (px_[..., :3].mean(2) > 0.82)
+    rng = np.random.default_rng(7)
+    gr = rng.normal(0.0, 0.011, (h_, w_)).astype(np.float32)
+    gr = 0.6 * gr + 0.4 * (np.roll(gr, 1, 0) + np.roll(gr, 1, 1)) / 2        # leggera correlazione: grana, non neve
+    px_[..., :3] = np.clip(px_[..., :3] + (gr * maglia_)[..., None], 0.0, 1.0)
+    img.pixels = px_.ravel()
+    img.filepath_raw = os.path.join(out, "tshirt.png")
+    img.file_format = "PNG"
+    img.save()
     print("TSHIRT_OK", os.path.join(out, "tshirt.png"))
 
 
