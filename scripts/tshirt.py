@@ -243,7 +243,7 @@ def collo(ob_parent):
 
 
 # ------------------------------------------------------------------ materiali, luci, resa
-def materiale(nome, colore, rough=0.85, sheen=0.55, bump=0.4, scala=600.0):
+def materiale(nome, colore, rough=0.85, sheen=0.55, bump=0.4, scala=600.0, interno_scuro=False):
     m = bpy.data.materials.new(nome)
     m.use_nodes = True
     nt = m.node_tree
@@ -310,7 +310,34 @@ def materiale(nome, colore, rough=0.85, sheen=0.55, bump=0.4, scala=600.0):
     m2.inputs[0].default_value = 1.0
     nt.links.new(ao.outputs["Color"], m2.inputs[6])
     nt.links.new(fa.outputs["Value"], m2.inputs[7])
-    nt.links.new(m2.outputs[2], pb.inputs["Base Color"])
+    ultimo = m2
+    if interno_scuro:                       # dentro lo scollo il retro e' in ombra (sfumatura grigia come nel riferimento)
+        gp = nt.nodes.new("ShaderNodeNewGeometry")
+        sp = nt.nodes.new("ShaderNodeSeparateXYZ")
+        nt.links.new(gp.outputs["Position"], sp.inputs["Vector"])
+        my = nt.nodes.new("ShaderNodeMapRange")
+        my.inputs["From Min"].default_value, my.inputs["From Max"].default_value = -0.02, -0.06
+        mz = nt.nodes.new("ShaderNodeMapRange")
+        mz.inputs["From Min"].default_value, mz.inputs["From Max"].default_value = -0.16, -0.04
+        nt.links.new(sp.outputs["Y"], my.inputs["Value"])
+        nt.links.new(sp.outputs["Z"], mz.inputs["Value"])
+        mm = nt.nodes.new("ShaderNodeMath")
+        mm.operation = "MULTIPLY"
+        nt.links.new(my.outputs["Result"], mm.inputs[0])
+        nt.links.new(mz.outputs["Result"], mm.inputs[1])
+        mf = nt.nodes.new("ShaderNodeMath")
+        mf.operation = "MULTIPLY_ADD"
+        mf.inputs[1].default_value = -0.55
+        mf.inputs[2].default_value = 1.0
+        nt.links.new(mm.outputs["Value"], mf.inputs[0])
+        m3 = nt.nodes.new("ShaderNodeMix")
+        m3.data_type = "RGBA"
+        m3.blend_type = "MULTIPLY"
+        m3.inputs[0].default_value = 1.0
+        nt.links.new(m2.outputs[2], m3.inputs[6])
+        nt.links.new(mf.outputs["Value"], m3.inputs[7])
+        ultimo = m3
+    nt.links.new(ultimo.outputs[2], pb.inputs["Base Color"])
     return m
 
 
@@ -324,7 +351,7 @@ def luci_e_camera(sc, bersaglio=(0.0, 0.0, -0.355)):
     nt = w.node_tree                                                    # sfondo visibile grigio chiaro, luce ambiente piu' scura (ombre morbide sul tessuto)
     amb = nt.nodes.new("ShaderNodeBackground")
     amb.inputs["Color"].default_value = (0.60, 0.62, 0.68, 1.0)
-    amb.inputs["Strength"].default_value = 1.05
+    amb.inputs["Strength"].default_value = 0.92
     lp = nt.nodes.new("ShaderNodeLightPath")
     mx = nt.nodes.new("ShaderNodeMixShader")
     outn = nt.nodes["World Output"]
@@ -344,7 +371,7 @@ def luci_e_camera(sc, bersaglio=(0.0, 0.0, -0.355)):
         d = Vector(bersaglio) - Vector(loc)
         lo.rotation_euler = d.to_track_quat("-Z", "Y").to_euler()
 
-    area("Key", (-1.6, 3.0, 1.0), 150.0, 3.5, (1.0, 0.99, 0.98))
+    area("Key", (-1.6, 3.0, 1.0), 112.0, 3.5, (1.0, 0.99, 0.98))
     area("Fill", (2.8, 2.4, -0.4), 16.0, 3.5, (0.90, 0.94, 1.0))
     area("Alto", (0.0, 1.2, 2.2), 20.0, 2.5, (0.96, 0.97, 1.0))
     area("Rim", (0.0, -2.2, 0.3), 14.0, 2.0)
@@ -400,10 +427,10 @@ def main():
     d2.mid_level = 0.5
     for p in ob.data.polygons:
         p.use_smooth = True
-    bianco = materiale("Cotone", (0.80, 0.81, 0.86, 1.0))
+    bianco = materiale("Cotone", (0.80, 0.81, 0.86, 1.0), interno_scuro=True)
     ob.data.materials.append(bianco)
     c = collo(ob)
-    c.data.materials.append(materiale("Costine", (0.92, 0.93, 0.97, 1.0), bump=0.6, scala=1400.0))
+    c.data.materials.append(materiale("Costine", (0.92, 0.93, 0.97, 1.0), bump=0.6, scala=1400.0, interno_scuro=True))
     sc.render.engine = "CYCLES"
     sc.cycles.device = "CPU"
     sc.cycles.samples = camp
