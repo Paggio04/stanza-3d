@@ -39,6 +39,10 @@ ST_ALTEZZA0 = 6.0                         # quota del primo anello sopra il camp
 ST_TETTO_R0 = 58.0                        # raggio interno del tetto ad anello
 ST_TETTO_R1 = 78.0                        # raggio esterno del tetto
 ST_TETTO_Z = 34.0                         # quota del tetto
+# ---- scalinata finale stile Camp Nou: ultimi 6 m in salita verso la luce (+90 cm)
+ST_SCALA_U0 = 14.0                        # dove iniziano i gradini
+ST_N_GRADINI = 12
+ST_ALZATA = 0.075                         # 7,5 cm a gradino x 12 = +90 cm alla bocca
 
 
 def w(p):
@@ -82,21 +86,53 @@ def tex_erba(cartella, n=1024):  # HD: 1024 invece di 512
     return _img("erba", np.clip(base * fine * zolle, 0, 1), cartella)
 
 
-def tex_spalti(cartella, blu="#1d3f96", rosso="#a3122e", w_=1024, h_=512):
-    """Spalti coi colori della squadra: anelli blu/rossi, striscia bianca col nome (mosaico)."""
+def tex_spalti(cartella, blu="#1d3f96", rosso="#a3122e", nome="", w_=1024, h_=512):
+    """Spalti coi colori della squadra: anelli blu/rossi/blu, nome a mosaico bianco su fondo rosso."""
     rng = np.random.default_rng(5)
-    b, r, bianco = _lin(blu), _lin(rosso), _lin("#e9edf3")
+    b, r, bianco, scuro = _lin(blu), _lin(rosso), _lin("#e9edf3"), _lin("#101319")
     img = np.zeros((h_, w_, 3)) + _lin("#14161a")
     sw, sh = 16, 16                                       # 64 x 32 posti per tile
+    lettere = [c for c in (nome or "").upper() if c != " "]
     for rr in range(h_ // sh):
         fascia = rr / (h_ // sh)
         base_col = b if fascia < 0.38 else (r if fascia < 0.72 else b)  # blu / rossi / blu
         for c in range(w_ // sw):
             x = rng.random()
             col = bianco if (x < 0.06 or rr % 16 == 0) else base_col
+            # mosaico: banda bianca col nome scuro sull'anello centrale (2 tile sopra/sotto)
+            if lettere and 0.44 <= fascia <= 0.56:
+                banda = (fascia - 0.44) / 0.12            # 0..1 dentro la banda
+                n = len(lettere) * 6
+                pos = (c / (w_ // sw)) * n * 2            # il nome gira 2 volte per tile
+                idx = int(pos) % 6
+                ch = lettere[(int(pos) // 6) % len(lettere)]
+                blocchi = _lettera(ch)
+                lx = idx if idx < 5 else -1               # 5 px lettera + 1 spazio
+                ly = int(np.clip(banda, 0, 0.999) * 7)
+                if lx >= 0 and blocchi[ly][lx]:
+                    col = scuro                            # lettera scura su fondo bianco
+                else:
+                    col = bianco                           # fondo banda bianco
             col = col * (0.90 + 0.10 * rng.random())
             img[rr * sh:(rr + 1) * sh, c * sw:(c + 1) * sw] = col
     return _img("spalti", np.clip(img, 0, 1), cartella)
+
+
+def _lettera(ch):
+    """Matrice 7x5 per A-Z (font a blocchi). Sconosciute = blocco pieno."""
+    F = {
+        "A": [0, 1, 1, 1, 0, 1, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1, 1, 0, 0, 0, 1, 1, 0, 0, 0, 1, 1, 0, 0, 0, 1],
+        "B": [1, 1, 1, 1, 0, 1, 0, 0, 0, 1, 1, 1, 1, 1, 0, 1, 0, 0, 0, 1, 1, 1, 1, 1, 0, 1, 0, 0, 0, 1, 1, 1, 1, 1, 0],
+        "C": [0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 1, 1, 1],
+        "E": [1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0, 1, 0, 0, 0, 0, 1, 1, 1, 1, 1],
+        "G": [0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 1, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 1, 1, 1, 0],
+        "L": [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 1, 1, 1, 1],
+        "O": [0, 1, 1, 1, 0, 1, 0, 0, 0, 1, 1, 0, 0, 0, 1, 1, 0, 0, 0, 1, 1, 0, 0, 0, 1, 1, 0, 0, 0, 1, 0, 1, 1, 1, 0],
+        "R": [1, 1, 1, 1, 0, 1, 0, 0, 0, 1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 0, 1],
+        "S": [0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0],
+    }
+    v = F.get(ch, [1] * 35)
+    return [v[i * 5:(i + 1) * 5] for i in range(7)]
 
 
 def tex_cartelloni(cartella, blu="#1d3f96", w_=1024, h_=128):
@@ -320,7 +356,7 @@ def costruisci(dati, cartella):
     blu = dati["colori"]["dettagli"]
     R = Raccolta()
     erba_i = tex_erba(cartella)
-    spalti_i = tex_spalti(cartella, blu=blu)
+    spalti_i = tex_spalti(cartella, blu=blu, nome=dati["nome"])
     cart_i = tex_cartelloni(cartella, blu=blu)
     # ---- tunnel stile Camp Nou: pareti blu squadra, pavimento chiaro, corrimano oro, LED a soffitto
     m_blu = mat("Tunnel_Muro", blu, None, 0.55)
@@ -333,9 +369,17 @@ def costruisci(dati, cartella):
     m_filo = mat("Tunnel_Filetto", "#ffffff", None, 0.5)
     hw = W / 2
     # pavimento chiaro con corsia e riga oro centrale (come la foto del Camp Nou)
-    R.parete(m_pav, -hw, hw, 0.0, L, 0.0, 0.0, (0, 0, 1), mx=0.8, uvs=(3.2, 3.2))
+    R.parete(m_pav, -hw, hw, 0.0, ST_SCALA_U0, 0.0, 0.0, (0, 0, 1), mx=0.8, uvs=(3.2, 3.2))
     R.parete(m_corsia, -0.55, 0.55, 0.0, L - 3.0, 0.004, 0.004, (0, 0, 1), mx=1.0)
-    R.parete(m_oro, -0.03, 0.03, 0.0, L, 0.006, 0.006, (0, 0, 1), mx=4.0)
+    R.parete(m_oro, -0.03, 0.03, 0.0, ST_SCALA_U0, 0.006, 0.006, (0, 0, 1), mx=4.0)
+    # scalinata finale: 12 gradini da 7,5 cm (sale di 90 cm verso la luce, come al Camp Nou)
+    du = (L - ST_SCALA_U0) / ST_N_GRADINI
+    for g in range(ST_N_GRADINI):
+        zg = (g + 1) * ST_ALZATA
+        R.parete(m_pav, -hw, hw, ST_SCALA_U0 + g * du, ST_SCALA_U0 + (g + 1) * du, zg, zg,
+                 (0, 0, 1), mx=0.8, uvs=(3.2, 3.2))
+        R.parete(m_pav, -hw, hw, ST_SCALA_U0 + (g + 1) * du, ST_SCALA_U0 + (g + 1) * du,
+                 zg - ST_ALZATA, zg, (0, -1, 0), mx=0.8)
     # soffitto scuro con 5 lame di luce (come la foto: strisce LED sul blu)
     R.parete(m_sof, -hw, hw, 0.0, L, H, H, (0, 0, -1), mx=0.8)
     for fu in (2.5, 6.5, 10.5, 14.5, 17.5):
@@ -417,7 +461,7 @@ def percorso():
         ((0.70, 34.0, 1.80), (0.0, 18.0, 1.85), 70),
         ((0.45, 27.0, 1.72), (0.0, 12.0, 1.75), 68),
         ((0.20, 21.0, 1.68), (0.0, 6.0, 1.65), 67),
-        ((0.00, 12.0, 1.66), (0.0, 0.0, 1.62), 66),
+        ((0.00, 12.0, 2.10), (0.0, 0.0, 1.62), 66),   # sulla scalinata: la camera sale (+90 cm alla bocca)
         ((0.00, 3.5, 1.62), (0.0, -6.0, 1.55), 66),
         ((0.00, -1.0, 1.60), (0.0, -9.0, 1.50), 66),
     ]
