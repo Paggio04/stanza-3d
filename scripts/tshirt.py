@@ -154,12 +154,18 @@ def pesi_orlo(ob):
     bp = pos[sorted(bordo)]
     vg = ob.vertex_groups.new(name="orlo")
     vc = ob.vertex_groups.new(name="cucitura")
+    vp = ob.vertex_groups.new(name="pieghe")
     bp2 = np.array([p for p in bp if not (p[2] > -0.09 and abs(p[0]) < 0.1)])     # bordi liberi tranne il collo
     for i in range(n):
         d = float(np.sqrt(((bp - pos[i]) ** 2).sum(1)).min()) if len(bp) else 1.0
         w = 0.42 + 0.58 * (1.0 - float(_smooth(0.012, 0.034, d)))
         vg.add([i], w, "REPLACE")
         d2 = float(np.sqrt(((bp2 - pos[i]) ** 2).sum(1)).min()) if len(bp2) else 1.0
+        x, y, z = pos[i]
+        wp = max(math.exp(-(((abs(x) - 0.17) ** 2 + (z + 0.12) ** 2) / 0.05 ** 2)),            # ascelle
+                 math.exp(-((x ** 2 + (z + 0.05) ** 2) / 0.07 ** 2)),                           # sotto il collo
+                 math.exp(-((z + 0.70) ** 2) / 0.04 ** 2))                                       # sopra l'orlo
+        vp.add([i], wp, "REPLACE")
         vc.add([i], math.exp(-(((d2 - 0.020) / 0.0055) ** 2)), "REPLACE")          # riga di cucitura del risvolto a 2 cm dal bordo
     return vg
 
@@ -210,7 +216,8 @@ def collo(ob_parent):
         ring = []
         for s in range(nsec):
             a = 2 * math.pi * s / nsec
-            ro, rz = 0.0078 * math.cos(a), 0.0115 * math.sin(a)
+            c_, s_ = math.cos(a), math.sin(a)
+            ro, rz = 0.0050 * math.copysign(abs(c_) ** 0.6, c_), 0.0105 * math.copysign(abs(s_) ** 0.6, s_)
             q = Vector(P[k]) + out * (ro + 0.0015) + up * (rz - 0.003)
             ring.append(tuple(q))
         anelli.append(ring)
@@ -275,7 +282,7 @@ def luci_e_camera(sc, bersaglio=(0.0, 0.0, -0.355)):
     nt = w.node_tree                                                    # sfondo visibile grigio chiaro, luce ambiente piu' scura (ombre morbide sul tessuto)
     amb = nt.nodes.new("ShaderNodeBackground")
     amb.inputs["Color"].default_value = (0.60, 0.62, 0.68, 1.0)
-    amb.inputs["Strength"].default_value = 0.70
+    amb.inputs["Strength"].default_value = 1.1
     lp = nt.nodes.new("ShaderNodeLightPath")
     mx = nt.nodes.new("ShaderNodeMixShader")
     outn = nt.nodes["World Output"]
@@ -295,9 +302,9 @@ def luci_e_camera(sc, bersaglio=(0.0, 0.0, -0.355)):
         d = Vector(bersaglio) - Vector(loc)
         lo.rotation_euler = d.to_track_quat("-Z", "Y").to_euler()
 
-    area("Key", (-1.6, 3.0, 1.0), 66.0, 3.5, (1.0, 0.99, 0.98))
-    area("Fill", (2.8, 2.4, -0.4), 24.0, 3.5, (0.90, 0.94, 1.0))
-    area("Alto", (0.0, 1.2, 2.2), 14.0, 2.5, (0.96, 0.97, 1.0))
+    area("Key", (-1.6, 3.0, 1.0), 98.0, 3.5, (1.0, 0.99, 0.98))
+    area("Fill", (2.8, 2.4, -0.4), 30.0, 3.5, (0.90, 0.94, 1.0))
+    area("Alto", (0.0, 1.2, 2.2), 20.0, 2.5, (0.96, 0.97, 1.0))
     area("Rim", (0.0, -2.2, 0.3), 14.0, 2.0)
     cd = bpy.data.cameras.new("Cam")
     cd.lens = 85
@@ -342,11 +349,12 @@ def main():
     ds.strength = 0.0042
     ds.mid_level = 0.5
     tx2 = bpy.data.textures.new("Drappeggio", "CLOUDS")      # ondulazioni larghe del tessuto che cade
-    tx2.noise_scale = 0.28
-    tx2.noise_depth = 2
+    tx2.noise_scale = 0.05
+    tx2.noise_depth = 3
     d2 = ob.modifiers.new("Drappeggio", "DISPLACE")
     d2.texture = tx2
-    d2.strength = 0.0
+    d2.strength = 0.0075
+    d2.vertex_group = "pieghe"
     d2.mid_level = 0.5
     for p in ob.data.polygons:
         p.use_smooth = True
