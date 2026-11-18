@@ -49,8 +49,8 @@ ST_QUOTA = ST_N_GRADINI * ST_ALZATA       # il campo e' 90 cm sopra il pavimento
 ST_MURETTO = 2.2                          # parete verticale fra un anello e il successivo (vomitori)
 ST_TETTO_SPESSORE = 1.8                   # il tetto e' una lastra fra Z-0.3 e Z+1.5
 # ---- sole unico (stessa direzione nel cielo di Blender e nella luce cotta): locale (x, u, z)
-SOLE_EL = math.radians(46.0)              # altezza sull'orizzonte
-SOLE_ORIZZ = (0.6, 0.8)                   # direzione orizzontale (x, u) verso il sole: da +x e +u (alle spalle della camera di partenza)
+SOLE_EL = math.radians(55.0)              # altezza sull'orizzonte
+SOLE_ORIZZ = (0.9, -0.436)                # direzione orizzontale (x, u) verso il sole: da +x e un po' da -u (di lato, appena davanti alla camera di partenza)
 SOLE = np.array([math.cos(SOLE_EL) * SOLE_ORIZZ[0], math.cos(SOLE_EL) * SOLE_ORIZZ[1], math.sin(SOLE_EL)])
 
 
