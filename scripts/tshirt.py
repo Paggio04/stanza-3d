@@ -265,7 +265,7 @@ def collo(ob_parent):
         for s in range(nsec):
             a = 2 * math.pi * s / nsec
             c_, s_ = math.cos(a), math.sin(a)
-            ro, rz = 0.0036 * math.copysign(abs(c_) ** 0.85, c_), 0.0088 * math.copysign(abs(s_) ** 0.85, s_)
+            ro, rz = 0.0042 * math.copysign(abs(c_) ** 0.7, c_), 0.0125 * math.copysign(abs(s_) ** 0.7, s_)
             q = Vector(P[k]) + out * (ro + 0.0015) + up * (rz - 0.003)
             ring.append(tuple(q))
         anelli.append(ring)
@@ -413,9 +413,11 @@ def materiale(nome, colore, rough=0.90, sheen=0.60, bump=0.6, scala=800.0, inter
         zz = sq.outputs["Z"]
         # polsino: distanza lungo l'asse della manica dal piano di taglio (asse (0.309, -0.951) in (|x|, z))
         dc = M("ADD", M("MULTIPLY", M("SUBTRACT", ax, 0.258), 0.221), M("MULTIPLY", M("ADD", zz, 0.268), -0.961))
-        lc = M("EXPONENT", M("MULTIPLY", M("POWER", M("DIVIDE", M("ADD", dc, 0.020), 0.0035), 2.0), -1.0))
+        lc = M("EXPONENT", M("MULTIPLY", M("POWER", M("DIVIDE", M("ADD", dc, 0.014), 0.0028), 2.0), -1.0))
         mc_ = M("MULTIPLY", MR(ax, 0.18, 0.20), MR(zz, -0.42, -0.38))
-        lh = M("EXPONENT", M("MULTIPLY", M("POWER", M("DIVIDE", M("ADD", zz, 0.720), 0.0035), 2.0), -1.0))
+        lc2 = M("EXPONENT", M("MULTIPLY", M("POWER", M("DIVIDE", M("ADD", dc, 0.026), 0.0028), 2.0), -1.0))
+        lc = M("MAXIMUM", lc, M("MULTIPLY", lc2, 0.7))
+        lh = M("EXPONENT", M("MULTIPLY", M("POWER", M("DIVIDE", M("ADD", zz, 0.724), 0.0030), 2.0), -1.0))
         mh_ = M("MULTIPLY", MR(ax, 0.23, 0.20), MR(zz, -0.50, -0.55))
         # fianchi del busto piu' scuri (lavanda), luce a clessidra come nel riferimento
         fianco = M("MULTIPLY", M("MULTIPLY", MR(ax, 0.09, 0.17), MR(ax, 0.215, 0.185)), MR(zz, -0.12, -0.17))
@@ -541,7 +543,7 @@ def main():
     bianco = materiale("Cotone", (0.76, 0.79, 0.90, 1.0), interno_scuro=True, cuciture=True)
     ob.data.materials.append(bianco)
     c = collo(ob)
-    c.data.materials.append(materiale("Costine", (1.0, 1.0, 1.0, 1.0), bump=0.9, scala=1400.0, interno_scuro=True, fres=0.10, ao_dist=0.012, emiss=0.18))
+    c.data.materials.append(materiale("Costine", (0.88, 0.90, 0.98, 1.0), bump=0.9, scala=1400.0, interno_scuro=True, fres=0.10, ao_dist=0.012, emiss=0.30))
     sc.render.engine = "CYCLES"
     sc.cycles.device = "CPU"
     sc.cycles.samples = camp
