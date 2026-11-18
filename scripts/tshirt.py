@@ -169,6 +169,9 @@ def pieghe_frontali(ob):
         dy += k * cresta((sg * 0.176, -0.160), (sg * 0.075, -0.345), 0.0023, 0.020)
         dy += k * cresta((sg * 0.168, -0.098), (sg * 0.060, -0.172), -0.0023, 0.015)
         dy += k * cresta((sg * 0.080, -0.045), (sg * 0.135, -0.105), -0.0020, 0.016)
+        dy += k * cresta((sg * 0.205, -0.105), (sg * 0.240, -0.265), 0.0030, 0.012)       # pieghe di caduta sulle maniche
+        dy += k * cresta((sg * 0.188, -0.115), (sg * 0.214, -0.250), -0.0032, 0.011)
+        dy += k * cresta((sg * 0.232, -0.125), (sg * 0.252, -0.215), 0.0020, 0.010)
         dy += k * cresta((sg * 0.060, -0.390), (sg * 0.085, -0.640), 0.0020, 0.030)
         dy += k * cresta((sg * 0.130, -0.420), (sg * 0.150, -0.600), -0.0017, 0.026)
     dy += cresta((-0.12, -0.625), (0.10, -0.600), 0.0014, 0.020)
@@ -252,7 +255,7 @@ def collo(ob_parent):
         P = 0.5 * P + 0.25 * (np.roll(P, 1, 0) + np.roll(P, -1, 0))
     cen = P.mean(0)
     bm = bmesh.new()
-    nsegc, nsec = len(P), 14
+    nsegc, nsec = len(P), 48
     anelli = []
     for k in range(nsegc):
         tg = Vector(P[(k + 1) % nsegc] - P[k - 1]).normalized()
@@ -266,6 +269,7 @@ def collo(ob_parent):
             a = 2 * math.pi * s / nsec
             c_, s_ = math.cos(a), math.sin(a)
             ro, rz = 0.0042 * math.copysign(abs(c_) ** 0.7, c_), 0.0125 * math.copysign(abs(s_) ** 0.7, s_)
+            ro += 0.0009 * math.cos(2 * math.pi * 3.5 * (rz / 0.025 + 0.5)) * (1 if c_ > 0.2 else 0.0)      # nervature della costina sul lato esterno
             q = Vector(P[k]) + out * (ro + 0.0015) + up * (rz - 0.003)
             ring.append(tuple(q))
         anelli.append(ring)
