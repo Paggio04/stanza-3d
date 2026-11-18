@@ -200,19 +200,25 @@ def tex_spalti(cartella, blu="#1d3f96", rosso="#3a6fd0", nome="", w_=2048, h_=10
             grid[rr, c] = col
     for rr in (21, 41, 0):
         kind[rr, :] = 2
-    for rr in range(27, 36):                                  # banda bianca col nome
-        grid[rr, :] = bianco * (0.94 + 0.06 * rng.random((C, 1)))
-        kind[rr, [c for c in range(C) if c % 16 == 0]] = 1
-    testo = (nome or "").upper()
-    start = (C - 6 * len(testo)) // 2
-    for i, ch in enumerate(testo):
-        if ch == " ":
-            continue
-        gl = _lettera(ch)
-        for ly in range(7):
-            for lx in range(5):
-                if gl[ly][lx]:
-                    grid[28 + ly, start + 6 * i + lx] = scuro
+    con_nome = bool((nome or "").strip())
+    if con_nome:                                              # banda bianca (righe 44-59: v=1 e' la riga 0, quindi il primo anello, v basso, sta in fondo all'immagine) con il nome su due righe
+        for rr in range(44, 60):
+            grid[rr, :] = bianco * (0.94 + 0.06 * rng.random((C, 1)))
+            kind[rr, :] = 0                                       # nella banda niente corridoi: le lettere restano intere
+        parole = (nome or "").upper().split()
+        righe = [parole[0], " ".join(parole[1:])] if len(parole) > 1 else [parole[0]]
+        for nr, testo in enumerate(righe):
+            start = (C - 6 * len(testo) + 1) // 2
+            y0 = 45 + nr * 8
+            for i, ch in enumerate(testo):
+                if ch == " ":
+                    continue
+                gl = _lettera(ch)
+                for ly in range(7):
+                    for lx in range(5):
+                        if gl[ly][lx]:
+                            grid[y0 + ly, start + 6 * i + lx] = scuro
+                            kind[y0 + ly, start + 6 * i + lx] = 0     # la lettera vince sul gradino del corridoio
     seg = _seggiolino(cell)
     rng_f = np.random.default_rng(55)
     occ = _rumore(rng_f, Rr, C, 7)                            # gruppi di tifosi: zone piene e zone rade
@@ -224,7 +230,7 @@ def tex_spalti(cartella, blu="#1d3f96", rosso="#3a6fd0", nome="", w_=2048, h_=10
             k = kind[rr, c]
             if k == 0:
                 cella = grid[rr, c][None, None, :] * seg[..., None]
-                if not 27 <= rr <= 35 and rng_f.random() < 0.06 + 0.50 * occ[rr, c]:
+                if not (con_nome and 44 <= rr <= 59) and rng_f.random() < 0.06 + 0.50 * occ[rr, c]:
                     cella = _spettatore(cella, seg, cell, rng_f)
                 img[ys, xs] = cella
             elif k == 1:                                       # gradino del corridoio: pedata chiara + alzata scura
@@ -767,7 +773,7 @@ def scudo_parete(k, m, loc_local, nome, rot):
 
 
 # ------------------------------------------------------------------ anelli della ciotola
-def _anello_ciotola(R, m, r0, z0, r1, z1, n, uvscala=0.12, modo="ext", salta=None, doppia=False, uvm=None, sub=(1, 1), uvk=None, poli=None):
+def _anello_ciotola(R, m, r0, z0, r1, z1, n, uvscala=0.12, modo="ext", salta=None, doppia=False, uvm=None, sub=(1, 1), uvk=None, poli=None, ks=None, uspic=None):
     """Anello di spalti (ciotola): n spicchi, normale verso il campo, ognuno suddiviso in sub = (nu, nv) per la luce cotta.
     salta(a_medio) = True per saltare lo spicchio (varco tunnel). doppia = facce da entrambi i lati.
     uvm = (metri per ripetizione in u, quota di riferimento, metri per ripetizione in v): UV continue
@@ -776,7 +782,7 @@ def _anello_ciotola(R, m, r0, z0, r1, z1, n, uvscala=0.12, modo="ext", salta=Non
     nu, nv = sub
     if BASSA:
         nu, nv = max(2, nu // 2), max(1, (nv + 1) // 2)
-    for k in range(n):
+    for k in (range(n) if ks is None else ks):
         a0 = 2 * math.pi * k / n
         a1 = 2 * math.pi * (k + 1) / n
         if salta is not None and salta((a0 + a1) / 2):
@@ -813,7 +819,7 @@ def _anello_ciotola(R, m, r0, z0, r1, z1, n, uvscala=0.12, modo="ext", salta=Non
                     elif uvm is None:
                         d["uv"].append(((k + s_) * uvscala, (z0 + (z1 - z0) * t_) * uvscala))
                     else:
-                        d["uv"].append(((k + s_) * lseg / uvm[0], (z0 + (z1 - z0) * t_ - uvm[1]) / uvm[2]))
+                        d["uv"].append((((k + s_) / uspic) if uspic else ((k + s_) * lseg / uvm[0]), (z0 + (z1 - z0) * t_ - uvm[1]) / uvm[2]))
                     d["modo"].append(modo)
             for j in range(nv):
                 for i in range(nu):
@@ -828,7 +834,7 @@ def costruisci(dati, cartella):
     blu = dati["colori"]["dettagli"]
     R = Raccolta()
     erba_i = tex_erba(cartella)
-    spalti_i = tex_spalti(cartella, blu=blu, nome=dati["nome"])
+    spalti_i = (tex_spalti(cartella, blu=blu, nomefile="spalti"), tex_spalti(cartella, blu=blu, nome=dati["nome"], nomefile="spalti_nome"))
     cart_i = tex_cartelloni(cartella, blu=blu)
     # ---- tunnel stile Camp Nou: pareti blu squadra, pavimento chiaro, corrimano oro, LED a soffitto
     m_blu = mat("Tunnel_Muro", "#ffffff", tex_muro_tunnel(cartella, _scuro_hex(blu, 0.62), "tunnel_muro"), 0.55)
@@ -906,7 +912,8 @@ def _costruisci_esterno(R, dati, cartella, erba_i, spalti_i, cart_i):
     blu = dati["colori"]["dettagli"]
     m_erba = mat("Esterno_Erba", "#ffffff", erba_i, 0.95)
     m_linea = mat("Esterno_Linea", "#f4f4f4", None, 0.8)
-    m_spalti = mat("Esterno_Spalti", "#ffffff", spalti_i, 0.85)
+    m_spalti = mat("Esterno_Spalti", "#ffffff", spalti_i[0], 0.85)
+    m_spalti_nome = mat("Esterno_SpaltiNome", "#ffffff", spalti_i[1], 0.85)
     m_cart = mat("Esterno_Cartelloni", "#ffffff", cart_i, 0.6)
     m_cem = mat("Esterno_Cemento", "#ffffff", tex_cemento(cartella), 0.9)
     m_vomi = mat("Esterno_Muro", "#ffffff", tex_muro(cartella), 0.9)
@@ -999,8 +1006,14 @@ def _costruisci_esterno(R, dati, cartella, erba_i, spalti_i, cart_i):
     for i, t in enumerate(livelli):
         lseg = 2 * math.pi * ((t["r0"] + t["r1"]) / 2) / 48
         lung = math.hypot(t["r1"] - t["r0"], t["z1"] - t["z0"])
-        _anello_ciotola(R, m_spalti, t["r0"], t["z0"], t["r1"], t["z1"], 48, modo="ext",
-                        uvm=(8 * lseg, ST_ALTEZZA0, 24.0), sub=(14, max(4, int(lung * 2.0))))
+        # il nome della squadra sta una sola volta, nel primo anello, nel tile di 8 spicchi centrato sul tunnel (k 32-39:
+        # l'asse del tunnel e' a 270 gradi = confine fra gli spicchi 35 e 36, centro del tile); tutto il resto usa la texture senza nome
+        kn = range(32, 40) if i == 0 else range(0)
+        resto = [k for k in range(48) if k not in kn]
+        kw = dict(modo="ext", uvm=(8 * lseg, ST_ALTEZZA0, 24.0), uspic=8, sub=(14, max(4, int(lung * 2.0))))
+        _anello_ciotola(R, m_spalti, t["r0"], t["z0"], t["r1"], t["z1"], 48, ks=resto, **kw)
+        if len(kn):
+            _anello_ciotola(R, m_spalti_nome, t["r0"], t["z0"], t["r1"], t["z1"], 48, ks=kn, **kw)
         _anello_ciotola(R, m_cem, t["r1"], t["z1"], t["pr1"], t["pz1"], 48, modo="ext", uvk=(4.0, 1.2), sub=(6, 1))
         if i < len(livelli) - 1:
             _anello_ciotola(R, m_vomi, t["pr1"], t["pz1"], t["pr1"], t["zmuro"], 48, modo="ext", uvk=(2.0, ST_MURETTO), sub=(6, 2))

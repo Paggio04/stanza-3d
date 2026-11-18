@@ -92,3 +92,6 @@ Il video iniziale e' un drone reale: il 3D parte dal punto attuale (camera a ter
 - **Dettaglio dove si vede**: spalti 2048x1024 (cella 16 px), celle d'ombra 14 x 2/m, tifosi in bianco/azzurro/grigio con rari rossi.
 - Il codice del campo (linee, panchine, schermi) resta nello script ma viene tagliato a ogni build.
 
+### Nome in mosaico (18/11/2026)
+- "RESCO REGGELLO" su due righe (RESCO / REGGELLO) con i seggiolini, **una sola volta**, nel primo anello (l'unico che si vede dalla partenza), nel tile degli spicchi 32-39 centrato sull'asse del tunnel; prima stava nel secondo anello, tagliato dal bordo alto dell'inquadratura e ripetuto 6 volte. Tutto il resto degli spalti usa la texture senza nome (`spalti` / `spalti_nome`, materiali `Esterno_Spalti` / `Esterno_SpaltiNome`). Trappole pagate: l'immagine ha v=1 sulla riga 0 (la banda va nelle righe 44-59 per stare in basso), le UV in u devono contare gli spicchi (`uspic=8`), non i metri (la corda cambia col raggio e il tile slittava), niente corridoi dentro la banda. tunnel.glb 2,8 MB (due texture spalti), bassa 0,87 MB.
+
