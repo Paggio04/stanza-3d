@@ -72,6 +72,7 @@ const CSS = `
 .sala.intro .top,.sala.intro .nastro,.sala.intro .etichetta{opacity:0;pointer-events:none}
 .sala .salta{all:unset;cursor:pointer;position:absolute;right:16px;bottom:48px;padding:8px 16px;border-radius:999px;background:#0009;border:1px solid #fff5;font-size:13px;opacity:0;pointer-events:none;transition:opacity .5s;backdrop-filter:blur(6px)}
 .sala.intro.corre .salta{opacity:1;pointer-events:auto}
+.sala.intro::after{content:'';position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse at center,transparent 58%,rgba(0,0,0,.30) 100%)}
 .sala .intro-video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;pointer-events:none;transition:opacity 1.2s;background:#000}
 @media (max-aspect-ratio:1/1){.sala .scheda{top:auto;bottom:32px;left:0;width:100%;max-height:46%;padding:18px 20px;transform:translateY(105%)}.sala .scheda.aperta{transform:none}.sala .scheda .num{font-size:64px;margin-top:0}.sala .scheda .nome{font-size:20px}}
 `;

@@ -80,3 +80,8 @@ Ancora diverso dalle foto:
 - **Adattamento dell'occhio**: esposizione 0,88 x nello stadio, sale a 1,0 entrando nel tunnel (costante di tempo 1,2 s), torna a 0,9 nella sala.
 - **Cielo**: cumuli procedurali (rumore frattale proiettato, ombreggiati rispetto al sole) in `cielo.py`.
 
+### Sesto giro (18/11/2026): tifosi, vignettatura, qualita' alta
+- **Tifosi nelle tribune** (`tex_spalti` -> `_spettatore`): testa + busto sulle celle dei seggiolini, occupazione a gruppi (6-56%, rumore a 7 celle), vestiti per lo piu' bianchi/azzurri/grigi con qualche rosso e giallo; esclusa la banda del nome. Solo texture: nessun costo di render. tunnel.glb 2,4 MB, bassa 0,89 MB.
+- **Vignettatura** leggera (CSS `.sala.intro::after`) solo durante l'ingresso.
+- **Qualita' alta (`?q=alta`)**: SAO acceso solo da p=0,92; il calo automatico non spegne le ombre durante il percorso; dt dell'animazione filtrato. Sul PC dell'utente l'automatica e' fluida, `?q=alta` scatta ancora un poco: default del sito = automatica, alta solo per foto/video. Diagnostica: `?fps=1`.
+

@@ -151,6 +151,30 @@ def _seggiolino(cell):
     return np.outer(riga, col)
 
 
+_VESTITI = [_lin(c) for c in ("#e8ecf2", "#e8ecf2", "#e8ecf2", "#e8ecf2", "#6fa4e6", "#6fa4e6", "#14234f", "#1a1d24", "#7d838d", "#7d838d", "#c8302f", "#e0b81c")]
+_PELLI = [_lin(c) for c in ("#e0b293", "#c98f6b", "#a56a47", "#7a4a30", "#efc9a8")]
+
+
+def _spettatore(cella, seg, cell, rng):
+    """Sovrappone a un seggiolino un tifoso (testa + busto) nei colori della tifoseria; l'ombra di fila resta."""
+    c = cell
+    yy, xx = np.mgrid[0:c, 0:c]
+    yy, xx = (yy + 0.5) / c, (xx + 0.5) / c
+    busto = (xx > 0.17) & (xx < 0.83) & (yy > 0.45) & (yy < 0.93)
+    busto |= (xx > 0.27) & (xx < 0.73) & (yy > 0.38) & (yy <= 0.45)          # collo/spalle
+    testa = (xx - 0.5) ** 2 + (yy - 0.28) ** 2 < 0.17 ** 2
+    capelli = testa & (yy < 0.26)
+    vestito = _VESTITI[rng.integers(len(_VESTITI))] * (0.85 + 0.2 * rng.random())
+    pelle = _PELLI[rng.integers(len(_PELLI))]
+    capello = np.array([0.10, 0.08, 0.07]) if rng.random() < 0.6 else np.array([0.45, 0.33, 0.2])
+    out = cella.copy()
+    ombra = seg[:, c // 2][:, None] * 0.9 + 0.1                                # fessura/ombra della fila anche sul tifoso
+    out[busto] = (vestito[None, :] * ombra.repeat(c, axis=1)[..., None][busto])
+    out[testa] = (pelle[None, :] * ombra.repeat(c, axis=1)[..., None][testa])
+    out[capelli] = (capello[None, :] * ombra.repeat(c, axis=1)[..., None][capelli])
+    return out
+
+
 def tex_spalti(cartella, blu="#1d3f96", rosso="#3a6fd0", nome="", w_=1536, h_=768, nomefile="spalti"):
     """Spalti: 128 x 64 seggiolini (cella = w_/128 px). Ogni seggiolino ha schienale, seduta, fessure e ombra per fila.
     Fasce blu / azzurro / blu con diagonali di cemento, corridoi a gradini fra gli spicchi e, sull'azzurro,
@@ -190,6 +214,8 @@ def tex_spalti(cartella, blu="#1d3f96", rosso="#3a6fd0", nome="", w_=1536, h_=76
                 if gl[ly][lx]:
                     grid[28 + ly, start + 6 * i + lx] = scuro
     seg = _seggiolino(cell)
+    rng_f = np.random.default_rng(55)
+    occ = _rumore(rng_f, Rr, C, 7)                            # gruppi di tifosi: zone piene e zone rade
     img = np.zeros((h_, w_, 3))
     conc = _lin("#a9acb3")
     for rr in range(Rr):
@@ -197,7 +223,10 @@ def tex_spalti(cartella, blu="#1d3f96", rosso="#3a6fd0", nome="", w_=1536, h_=76
             ys, xs = slice(rr * cell, (rr + 1) * cell), slice(c * cell, (c + 1) * cell)
             k = kind[rr, c]
             if k == 0:
-                img[ys, xs] = grid[rr, c][None, None, :] * seg[..., None]
+                cella = grid[rr, c][None, None, :] * seg[..., None]
+                if not 27 <= rr <= 35 and rng_f.random() < 0.06 + 0.50 * occ[rr, c]:
+                    cella = _spettatore(cella, seg, cell, rng_f)
+                img[ys, xs] = cella
             elif k == 1:                                       # gradino del corridoio: pedata chiara + alzata scura
                 y = np.arange(cell)[:, None] / cell
                 sh = np.where(y < 0.35, 0.62, np.where(y < 0.5, 0.95, 1.05))
