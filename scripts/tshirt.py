@@ -108,7 +108,7 @@ def unisci_e_taglia():
     bpy.ops.object.modifier_apply(modifier="Remesh")
     sm = ob.modifiers.new("Liscia", "SMOOTH")
     sm.factor = 0.8
-    sm.iterations = 34
+    sm.iterations = 70
     bpy.ops.object.modifier_apply(modifier="Liscia")
     # taglio delle aperture: orlo e polsini con piani esatti (bordi puliti), collo con scollo piu' basso davanti
     bm = bmesh.new()
@@ -130,6 +130,17 @@ def unisci_e_taglia():
         if c.z > quota:
             togli.append(f)
     bmesh.ops.delete(bm, geom=togli, context="FACES")
+    # bordo del collo senza scalini: lisciatura laplaciana solo lungo l'anello di bordo
+    bv = [v for v in bm.verts if any(e.is_boundary for e in v.link_edges) and v.co.z > -0.09 and abs(v.co.x) < 0.1]
+    for _ in range(40):
+        nuovi = {}
+        for v in bv:
+            vic = [e.other_vert(v) for e in v.link_edges if e.is_boundary]
+            if len(vic) == 2:
+                nuovi[v] = (v.co + 0.5 * (vic[0].co + vic[1].co)) / 2.0 * 1.0
+                nuovi[v] = 0.5 * v.co + 0.25 * (vic[0].co + vic[1].co)
+        for v, c in nuovi.items():
+            v.co = c
     # niente vertici sciolti; poi il peso dell'orlo (distanza dai bordi liberi)
     bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context="VERTS")
     bm.to_mesh(ob.data)
@@ -200,7 +211,7 @@ def collo(ob_parent):
         if len(ordine) > len(adj):
             break
     P = np.array([me.vertices[i].co[:] for i in ordine])
-    for _ in range(6):                                                         # leviga il contorno
+    for _ in range(30):                                                        # leviga il contorno
         P = 0.5 * P + 0.25 * (np.roll(P, 1, 0) + np.roll(P, -1, 0))
     cen = P.mean(0)
     bm = bmesh.new()
@@ -282,7 +293,7 @@ def luci_e_camera(sc, bersaglio=(0.0, 0.0, -0.355)):
     nt = w.node_tree                                                    # sfondo visibile grigio chiaro, luce ambiente piu' scura (ombre morbide sul tessuto)
     amb = nt.nodes.new("ShaderNodeBackground")
     amb.inputs["Color"].default_value = (0.60, 0.62, 0.68, 1.0)
-    amb.inputs["Strength"].default_value = 1.1
+    amb.inputs["Strength"].default_value = 0.9
     lp = nt.nodes.new("ShaderNodeLightPath")
     mx = nt.nodes.new("ShaderNodeMixShader")
     outn = nt.nodes["World Output"]
@@ -302,7 +313,7 @@ def luci_e_camera(sc, bersaglio=(0.0, 0.0, -0.355)):
         d = Vector(bersaglio) - Vector(loc)
         lo.rotation_euler = d.to_track_quat("-Z", "Y").to_euler()
 
-    area("Key", (-1.6, 3.0, 1.0), 98.0, 3.5, (1.0, 0.99, 0.98))
+    area("Key", (-1.6, 3.0, 1.0), 125.0, 3.5, (1.0, 0.99, 0.98))
     area("Fill", (2.8, 2.4, -0.4), 30.0, 3.5, (0.90, 0.94, 1.0))
     area("Alto", (0.0, 1.2, 2.2), 20.0, 2.5, (0.96, 0.97, 1.0))
     area("Rim", (0.0, -2.2, 0.3), 14.0, 2.0)
