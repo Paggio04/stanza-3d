@@ -50,3 +50,22 @@ Ancora diverso dalle foto (lavoro per la prossima sessione, vedi nota di passagg
 - Barre grigie viste una volta all'arrivo nella sala: NON riprodotte (canvas 1024x768, aspect e fov costanti per tutto il percorso): probabile artefatto dello screenshot.
 - Maglia, spogliatoio, gesti: invariati in questo giro.
 
+## Stato del 18/11/2026 (Claude Code, terzo giro: luce, cielo, materiali; collaudato nel browser)
+
+Fatto (commit 4e58915, c7734a6, 7c48287):
+- **Luce cotta con sole unico** (`tunnel.py`: `SOLE`, `luce_esterna`, `_bloccato`): direzione sole fissa (da +x, +u, 46 gradi), ombra di spalti e tetto per raggio contro il profilo della ciotola (`_profilo`), occlusione del cielo a 8 raggi, cielo/terra emisferici. Ciotola, campo e tetto suddivisi (6 x ~10 per spicchio, campo a 2,5 m) per portare l'ombra nei vertici. **Bug trovato**: le normali degli anelli erano capovolte (`cross(e2,e1)` in un mondo con y specchiata): prima la luce "esterna" era piatta 0,62-0,92 e dipendeva solo da n.z; ora `cross(e1,e2)`.
+- **Cielo**: `scripts/cielo.py` (Sky Texture a scattering multiplo, equirettangolare 2048x1024, sole ruotato nell'azimut di `SOLE`, spalla morbida) -> `web/cielo.jpg` come `scena.background`; nebbia color orizzonte 90-260 m.
+- **Texture**: seggiolini 128x64 con schienale/seduta/fessure/ombra per fila (1536x768), corridoi a gradini fra gli spicchi, diagonali di cemento, nome a mosaico; erba con fili + macchie + strisce e shader di dettaglio in `sala.js` (sfuma oltre 20-80 m); cartelloni LED a pixel (modo `piena`, x1,7); cemento dei corridoi, pareti con vomitori (tile 2 spicchi), facciata a finestre a nastro che chiude gli spalti sotto il tetto, intradosso con travi radiali e fascia con nastro LED, maxischermi con telaio, tiranti e nome della squadra.
+- **Tunnel**: pareti a pannelli con zoccolo, pavimento a giunti, luce cotta divisa per `GAIN_INTERNO` (1,8, prima saturava a 1 e dava pareti piatte), pareti della scalinata blu squadra, corrimani oro inclinati sui gradini (`Raccolta.sbarra`). `sala.js`: oro/pavimento/pareti in `MeshStandardMaterial` con la luce cotta come emissione (`onBeforeCompile`) e riflessi dell'ambiente; stadio resta `MeshBasicMaterial` cotto.
+- **Peso**: `tunnel.glb` 2,0 MB (17,4k facce, meshopt), `tunnel_bassa.glb` 0,73 MB (7,8k facce, texture dimezzate; scelto da `?q=bassa`/auto debole via `opz.tunnelBassa`). `sala.stat()` con `?q=bassa`: 324k triangoli (di cui tunnel 15,7k); alta 721k come prima. Nessun errore nuovo in console.
+- Percorso e animazione NON toccati (2,6 m/s).
+
+Sostituito/rimosso: seggiolini 3D sparsi (`_seggiolini`), texture spalti 8 px, erba a macchie, gradiente di cielo canvas (resta solo come fallback), colori piatti dell'esterno, pannelli chiari/corsia del tunnel, `Esterno_Muro/Cemento` a tinta unita.
+
+Ancora diverso dalle foto:
+- Le ombre nette del tetto sulle tribune non si vedono dalle inquadrature del percorso: col sole alle spalle della camera le tribune del tunnel sono tutte in luce; compaiono ai lati (+x). Cambiare `SOLE_ORIZZ` per vederle sul fondo.
+- Seggiolini = texture piatta (nessuna geometria), niente spettatori, niente scritta gigante a tutto spicchio, tetto senza struttura a vista, maxischermi senza contenuto animato.
+- Il tunnel non ha pareti rosse (le ho fatte blu squadra), niente LED lineari a parete, nessuna ombra nel tunnel dal sole.
+- Fps non misurabili (pannello senza GPU).
+- Screenshot del pannello: dopo qualche `__v` la scena compare rimpicciolita nell'angolo; ricaricare la pagina prima di catturare.
+

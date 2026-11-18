@@ -7,14 +7,15 @@ Cartella pronta da copiare nel sito. Three.js r160 (importmap in `index.html`).
 | `sala.js` | modulo: `avviaSala(contenitore, opzioni)` |
 | `sala.glb` / `sala_bassa.glb` | sala (5,3 MB, ~720k triangoli misurati con `sala.stat()` con tunnel) e versione per telefoni (2,2 MB, ~320k); meshopt |
 | `sala.json` | rosa (numero, nome, reparto, slot, angolo), porta, parametri dei gesti (molle) |
-| `tunnel.glb` / `tunnel.json` | tunnel dei giocatori, facciata sotto gli spalti, bordo campo; percorso della camera |
+| `tunnel.glb` / `tunnel_bassa.glb` / `tunnel.json` | tunnel dei giocatori e stadio con luce cotta (2,0 MB / 0,73 MB per telefoni, meshopt); percorso della camera |
+| `cielo.jpg` | cielo equirettangolare (Sky Texture di Blender), sfondo; sole nella direzione della luce cotta |
 | `index.html` | pagina di prova (`?q=alta|bassa`, `?intro=1`, `?scroll=1`, `?video=URL`) |
 
 ```js
 import { avviaSala } from './sala.js';
 const sala = await avviaSala(document.getElementById('sala'), {
   glb: 'sala.glb', glbBassa: 'sala_bassa.glb', dati: 'sala.json',
-  tunnel: 'tunnel.glb', percorso: 'tunnel.json',          // facoltativi
+  tunnel: 'tunnel.glb', tunnelBassa: 'tunnel_bassa.glb', percorso: 'tunnel.json', cielo: 'cielo.jpg',   // facoltativi
   qualita: 'auto',                                          // 'alta' | 'bassa' | 'auto'
   video: { src: 'drone.mp4', poster: 'drone.jpg' },        // facoltativo: il video del drone
   velocita: 2.6,                                            // m/s di crociera dell ingresso (default); oppure durataPercorso in ms
@@ -37,5 +38,7 @@ Formato 9:16: l'angolo orizzontale si stringe da solo e la scheda diventa un pan
 blender -b -P scripts/sala.py   -- web <cartella assoluta>        # sala.glb + sala.json
 blender -b -P scripts/sala.py   -- web <cartella assoluta> lod    # sala_bassa.glb
 blender -b -P scripts/tunnel.py -- <cartella assoluta>            # tunnel.glb + tunnel.json
+blender -b -P scripts/tunnel.py -- <cartella assoluta> bassa      # tunnel_bassa.glb
+blender -b -P scripts/cielo.py  -- <cartella assoluta>            # cielo.jpg
 ```
 I dati della squadra stanno solo in `squadra.json`. Prova locale: `python -I -m http.server 8765 --bind 127.0.0.1` dentro `web/`.
