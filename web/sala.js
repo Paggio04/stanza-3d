@@ -845,6 +845,12 @@ export async function avviaSala(host, opz = {}) {
     const target = scelta !== null ? 2.6 : 0;
     faro.intensity += (target - faro.intensity) * Math.min(1, dt * 4);
   };
+  const dbg = opz.fps ? Object.assign(document.createElement('div'), { className: 'dbg-fps' }) : null;
+  const dbgAcc = { n: 0, t: 0, max: 0 };
+  if (dbg) {
+    dbg.style.cssText = 'position:absolute;left:8px;bottom:8px;z-index:9;font:12px/1.3 monospace;color:#9f9;background:#000a;padding:4px 8px;border-radius:4px;pointer-events:none';
+    host.appendChild(dbg);
+  }
   const giro = (now) => {
     raf = requestAnimationFrame(giro);
     const dt = Math.min(0.25, (now - ultimo) / 1000);
@@ -852,6 +858,15 @@ export async function avviaSala(host, opz = {}) {
     passo(now, dt);
     segnaFps(dt); // HD: calo di qualita automatico se fps < 45
     disegna();
+    if (dbg) {                     // ?fps=1: fps, fotogramma piu' lungo, triangoli e chiamate, posizione sul percorso
+      dbgAcc.n++; dbgAcc.t += dt; dbgAcc.max = Math.max(dbgAcc.max, dt);
+      if (dt > 0.06) console.warn('fotogramma lento', Math.round(dt * 1000) + ' ms', 'p=' + (perc ? perc.p.toFixed(3) : '-'));
+      if (dbgAcc.t >= 1) {
+        dbg.textContent = Math.round(dbgAcc.n / dbgAcc.t) + ' fps · max ' + Math.round(dbgAcc.max * 1000) + ' ms · '
+          + renderer.info.render.triangles + ' tri · ' + renderer.info.render.calls + ' call · p ' + (perc ? perc.p.toFixed(2) : '-') + ' · calo ' + cali;
+        dbgAcc.n = 0; dbgAcc.t = 0; dbgAcc.max = 0;
+      }
+    }
   };
   // riscaldamento: tutti gli shader e le texture (tunnel, stadio, sala) pronti prima di muovere la camera, senza scatti al primo ingresso
   renderer.compile(scena, cam);
