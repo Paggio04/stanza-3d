@@ -1,60 +1,53 @@
-# REGISTRO.md — Realismo sito (video 18/11/2026, fotogrammi campo + tunnel + sala)
+# REGISTRO.md — Realismo sito v2 (video 18/11/2026 09:54, 10 fotogrammi + 2 utente)
 
-Fotogrammi dal video `Videos/Registrazione 2026-11-18 091754.mp4` (503 fotogrammi, Blender VSE):
-f0 = nero "Carico la sala...", f1 = tunnel, f2 = sala; `render/video_campo_*.png` (campo subito
-dopo il nero). Piu `render/prova_realismo_campo.png`, `render/prova_realismo_tunnel.png`,
-`render/prova_sala_34.png` (Cycles, stessa scena con sole + mondo chiaro, per separare
-geometria vera da difetti del viewer).
+Fotogrammi dal video `Videos/Registrazione 2026-11-18 095402.mp4` (10 scatti Blender VSE,
+`render/video2_*.png`) + 2 fotogrammi utente: tunnel (interno con scalinata) e sala (arco titolari).
 
-Confronto col riferimento Getty (spogliatoio Man Utd femminile, 10 baie rosse, sedute bianche,
-stemma grande chiaro sul pavimento chiaro) e col tunnel vero (Camp Nou: pareti blu, corrimano oro,
-LED a soffitto).
-
-Misure: TUNNEL_OK out_prova/tunnel.glb 515420 facce 2395; WEB_OK out_prova/sala.glb 5565532;
+Misure: TUNNEL_OK out_prova/tunnel.glb 512488 facce 2371; WEB_OK out_prova/sala.glb 5565532;
 SALA_MISURE triangoli_stimati 403994 figli_maglia 180 peso 5565532 (budget 6.0 MB / 900k tri).
 Nessun SALA_ERRORE, nessun TUNNEL_ERRORE.
 
-Cosa si vede nei fotogrammi del sito (fatti, niente giudizi).
-- video_campo f003-f010: nero con scritta "Carico la sala..." al centro.
-- video_campo f016-f150: campo dall'uscita del tunnel: erba verde con macchie scure, righe
-  bianche sottili, cartelloni a blocchi colorati ai lati, spalti a mosaico blu/rossi con
-  scritte a blocchi, tetto con facce chiare e macchie nere sui bordi, facciata grigia con
-  scritta blu "RESCO REGGELLO" sopra la bocca nera del tunnel.
-- video_frame f1: interno tunnel: pareti blu uniformi, strisce LED bianche a soffitto, pavimento
-  grigio con righe bianche longitudinali, riga oro centrale, figure scure sullo sfondo.
-- video_frame f2: sala circolare: pareti/pilastri/sedute/pavimento bianchi senza ombre,
-  legno chiaro uniforme, maglie bianche piatte appese, targhe blu, stemma blu piatto a terra.
-- prova_realismo_campo (Cycles): erba con macchie scure, cartelloni a blocchi, spalti a mosaico,
-  facciata grigia piatta con scritta blu, cielo grigio uniforme.
-- prova_realismo_tunnel (Cycles): pareti blu con filetto bianco e corrimano oro, pavimento grigio
-  con corsia chiara e riga oro, LED a soffitto, fondo con porta e armadietti.
-- prova_sala_34 (Cycles): 11 titolari in arco leggibili, pilastri bianchi, sedute bianche,
-  legno chiaro, maglie bianche appese di schiena, stemma blu a pavimento.
+Cosa si vede nei 12 fotogrammi del sito (fatti, niente giudizi).
+- video2 f047: nero con scritta "Carico la sala..." al centro.
+- video2 f094-f188: campo dall'uscita del tunnel: erba verde con macchie, righe bianche,
+  cartelloni a blocchi ai lati, spalti a mosaico blu/rossi, scritte a blocchi, tetto chiaro,
+  facciata grigia con scritta blu "RESCO REGGELLO" sopra la bocca buia del tunnel.
+- video2 f235-f283 (tunnel dritto): pareti blu uniformi, strisce LED bianche a soffitto
+  e lungo le pareti, pavimento grigio con 2 righe bianche che corrono e riga oro centrale,
+  scalinata finale grigia senza stacchi fra pedate e alzate, fondo scuro con porta.
+- video2 f330 (curva tunnel): parete blu che curva verso la porta, porta azzurra con armadietti
+  e maglie sullo sfondo, quadretti neri sulle pareti (aliasing delle strisce LED lontane).
+- video2 f377-f471 (sala): arco degli 11 titolari, pareti/pilastri/sedute/pavimento bianchi
+  senza ombre, legno chiaro uniforme, maglie bianche piatte appese, targhe blu, stemma blu
+  piatto a terra.
+- foto utente tunnel: scalinata grigia con riga chiara che corre al centro fino in fondo,
+  senza profondita fra un gradino e l'altro.
+- foto utente sala: 10 armadietti, bianchi tutti uguali, legno chiaro, maglie piatte,
+  stemma blu piatto.
 
 Differenze dai riferimenti.
-- Campo: erba con rumore forte e strisce poco visibili; mosaico spalti con moire da lontano;
-  tetto con buchi neri sui bordi; cartelloni a blocchi invece di scritte vere.
-- Tunnel: pareti blu piatte nel sito (luce cotta + materiale piatto); scalinata tagliata
-  a fette bianche dalla corsia; LED a filo del soffitto.
-- Sala: bianchi bruciati e appiattiti (pareti/pilastri/sedute/pavimento stessa luce); legno
-  slavato; maglie piatte; soffitto troppo emissivo.
+- Scalinata: riga chiara che corre al centro senza stacchi (sembra una strada, non gradini);
+  pedate e alzate stesso grigio = niente profondita.
+- Tunnel: pareti blu piatte (luce cotta senza volume); strisce LED sulle pareti fanno
+  quadretti neri da lontano; corsia grigia troppo vicina al pavimento.
+- Sala: bianchi tutti uguali (pareti/pilastri/sedute/pavimento); legno chiaro slavato;
+  maglie bianche piatte; soffitto ancora emissivo.
 
 Correzioni di questo giro (fatti, nei file indicati).
-- scripts/tunnel.py: faccia posteriore ciotole (A,D,C,B) invece di (A,C,B,D) che era
-  autointersecata; erba con meno rumore; cartelloni con scritte stessa tinta scurita;
-  corsia/oro anche sui gradini mai sulle alzate; LED 15 mm sotto il soffitto.
-- web/sala.js: tunnel a doppia faccia, guadagno 1.3 -> 1.0, LED 3.2 -> 2.0,
-  esposizione 1.0 -> 0.9, ambiente 0.38 -> 0.30, luce centrale 22 -> 18.
-- scripts/sala.py: parete/pavimento/bianchi/cuscino/legno/nicchia/soffitto scuriti
-  e resi meno emissivi (vedi diff git).
-- web/tunnel.glb + web/sala.glb + web/tunnel.json + web/sala.json rigenerati da
-  scripts/tunnel.py e scripts/sala.py -- web e copiati in web/.
-
-Rimane diverso (secondo giro, dopo verifica nel browser).
-- Campo: strisce erba con piu tile, mosaico spalti meno grossolano, cielo sfumato.
-- Tunnel: pareti blu meno piatte nel sito, figure scure sullo sfondo da controllare.
-- Sala: bianchi ancora vicini fra loro, legno procedurale, maglie poco modellate.
+- scripts/tunnel.py: tolta ogni riga che corre sulla scalinata (corsia/oro solo sul piano);
+  alzate scure #2b2e34 contro pedate chiare = i 12 gradini si leggono da costruzione;
+  luce cotta con componente laterale (le pareti blu prendono volume); luce esterna
+  0.80 -> 0.62 (niente piu bruciato); corsia scurita #8f97a3 -> #838b96.
+- scripts/sala.py: parete #e4e5e6 -> #d5d7da (staccata dai pilastri); pilastri/cuscino
+  scuriti (#dedfe2/#cfd1d4); pavimento #b9bdc4 -> #a9adb6; soffitto emis 0.55 -> 0.35,
+  centro 0.40 -> 0.25, tamburo 0.35 -> 0.20.
+- web/tunnel.glb + web/sala.glb + json rigenerati (vedi Misure) e copiati in web/.
 - maglia.py NON toccata (congelata).
+
+Rimane diverso (terzo giro, dopo verifica nel browser).
+- Strisce LED sulle pareti del tunnel: da valutare se toglierle (fanno quadretti neri).
+- Legno procedurale invece di foto vera; maglie poco modellate dalla luce.
+- video2 + render di prova cancellati da render/ prima del commit (solo web/ + script).
 
 
 Dati: bake_all ok 100f; mesh 7429V/8863F sald=157; pin spalla 120;

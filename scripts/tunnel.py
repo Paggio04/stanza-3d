@@ -198,21 +198,25 @@ def luce_interna(pw, nw):
     x, u, z = pw[0], -pw[1] - T0, pw[2]
     n = np.array([nw[0], -nw[1], nw[2]])
     tot = 0.0
+    lato = 0.0  # luce che arriva dai fianchi (pareti blu): modella il volume
     for fx, fu in FISSI:
         l = np.array([fx - x, fu - u, H - 0.06 - z])
         d = float(np.linalg.norm(l)) + 1e-6
-        tot += max(0.0, float(np.dot(n, l / d))) / (1.0 + (d / 2.3) ** 2)
-    amb = 0.17 + 0.07 * max(0.0, n[2])
+        cos = max(0.0, float(np.dot(n, l / d)))
+        tot += cos / (1.0 + (d / 2.3) ** 2)
+        lato += abs(float(np.dot(n, np.array([1.0, 0.0, 0.0])))) / (1.0 + (d / 3.0) ** 2)
+    amb = 0.13 + 0.06 * max(0.0, n[2])
     day = 0.72 * math.exp(-(L - u) / 4.5) if u <= L else 0.0
     room = 0.55 * math.exp(-max(u, 0.0) / 3.2)
-    c = np.array([amb, amb, amb]) + 0.95 * tot * np.array([1.0, 0.97, 0.92]) \
-        + day * np.array([0.88, 0.95, 1.05]) + room * np.array([1.0, 0.92, 0.80])
+    c = (np.array([amb, amb, amb]) + 0.95 * tot * np.array([1.0, 0.97, 0.92])
+         + 0.25 * lato * np.array([0.75, 0.82, 0.95])
+         + day * np.array([0.88, 0.95, 1.05]) + room * np.array([1.0, 0.92, 0.80]))
     return np.clip(c, 0.0, 1.0)
 
 
 def luce_esterna(nw):
     n = np.array([nw[0], -nw[1], nw[2]])
-    return np.clip(np.array([0.80 + 0.20 * max(0, n[2])] * 3), 0, 1)
+    return np.clip(np.array([0.62 + 0.30 * max(0, n[2])] * 3), 0, 1)
 
 
 # ------------------------------------------------------------------ raccolta delle facce
@@ -377,14 +381,16 @@ def costruisci(dati, cartella):
     # ---- tunnel stile Camp Nou: pareti blu squadra, pavimento chiaro, corrimano oro, LED a soffitto
     m_blu = mat("Tunnel_Muro", blu, None, 0.55)
     m_pav = mat("Tunnel_Pavimento", "#b9c0cc", None, 0.5)
-    m_corsia = mat("Tunnel_Corsia", "#8f97a3", None, 0.5)
+    m_alzata = mat("Tunnel_Alzata", "#2b2e34", None, 0.85)
+    m_corsia = mat("Tunnel_Corsia", "#838b96", None, 0.62)
     m_oro = mat("Tunnel_Oro", "#c9a227", None, 0.3)
     m_sof = mat("Tunnel_Soffitto", "#101318", None, 0.9)
     m_led = mat("Tunnel_Luce", "#fff3de", None, 0.5, emis=8.0)
     m_filo = mat("Tunnel_Filetto", "#ffffff", None, 0.5)
     hw = W / 2
     # pavimento chiaro con corsia e riga oro centrale (come la foto del Camp Nou)
-    # NOTA: corsia/oro solo sul piano e sui gradini (mai sulle alzate = righe bianche nel sito)
+    # NOTA: corsia/oro SOLO sul piano. Sulla scalinata niente righe che corrono:
+    # pedate chiare + alzate scure = i gradini si leggono da costruzione, con profondita vera
     R.parete(m_pav, -hw, hw, 0.0, ST_SCALA_U0, 0.0, 0.0, (0, 0, 1), mx=0.8, uvs=(3.2, 3.2))
     R.parete(m_corsia, -0.55, 0.55, 0.0, ST_SCALA_U0, 0.004, 0.004, (0, 0, 1), mx=1.0)
     R.parete(m_oro, -0.03, 0.03, 0.0, ST_SCALA_U0, 0.006, 0.006, (0, 0, 1), mx=4.0)
@@ -394,11 +400,7 @@ def costruisci(dati, cartella):
         zg = (g + 1) * ST_ALZATA
         R.parete(m_pav, -hw, hw, ST_SCALA_U0 + g * du, ST_SCALA_U0 + (g + 1) * du, zg, zg,
                  (0, 0, 1), mx=0.8, uvs=(3.2, 3.2))
-        R.parete(m_corsia, -0.55, 0.55, ST_SCALA_U0 + g * du, ST_SCALA_U0 + (g + 1) * du,
-                 zg + 0.004, zg + 0.004, (0, 0, 1), mx=1.0)
-        R.parete(m_oro, -0.03, 0.03, ST_SCALA_U0 + g * du, ST_SCALA_U0 + (g + 1) * du,
-                 zg + 0.006, zg + 0.006, (0, 0, 1), mx=4.0)
-        R.parete(m_pav, -hw, hw, ST_SCALA_U0 + (g + 1) * du, ST_SCALA_U0 + (g + 1) * du,
+        R.parete(m_alzata, -hw, hw, ST_SCALA_U0 + (g + 1) * du, ST_SCALA_U0 + (g + 1) * du,
                  zg - ST_ALZATA, zg, (0, -1, 0), mx=0.8)
     # soffitto scuro con 5 lame di luce (come la foto: strisce LED sul blu)
     R.parete(m_sof, -hw, hw, 0.0, L, H, H, (0, 0, -1), mx=0.8)
