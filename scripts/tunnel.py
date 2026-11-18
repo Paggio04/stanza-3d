@@ -33,12 +33,14 @@ SPALTI_ALT = 7.5
 BLU = None                                # usato dal blu squadra (dati squadra.json), non fisso
 FISSI = [(sx * 0.75, fu) for fu in (2.0, 5.0, 8.0, 11.0, 14.0, 17.0) for sx in (-1, 1)]
 # ---- stadio (ciotola vera, stile Camp Nou): misure in metri
-ST_RAGGIO = 42.0                          # raggio interno della ciotola (bordo campo -> primo anello)
+ST_RAGGIO = 50.0                          # raggio interno della ciotola (deve contenere il campo 68x70)
+ST_CENTRO_U = L + APRON + 35.0              # centro ciotola al centro del campo (u=59)
 ST_ANELLI = ((9.0, 8.0), (8.0, 7.0), (7.0, 6.0))  # (profondita, alzata) dei 3 anelli di spalti
 ST_ALTEZZA0 = 6.0                         # quota del primo anello sopra il campo
-ST_TETTO_R0 = 58.0                        # raggio interno del tetto ad anello
-ST_TETTO_R1 = 78.0                        # raggio esterno del tetto
+ST_TETTO_R0 = 66.0                        # raggio interno del tetto ad anello
+ST_TETTO_R1 = 86.0                        # raggio esterno del tetto
 ST_TETTO_Z = 34.0                         # quota del tetto
+ST_VOMITORIO_HALF = 0.10                  # semi-ampiezza angolare del varco tunnel (rad ~5.7 gradi)
 # ---- scalinata finale stile Camp Nou: ultimi 6 m in salita verso la luce (+90 cm)
 ST_SCALA_U0 = 14.0                        # dove iniziano i gradini
 ST_N_GRADINI = 12
@@ -328,16 +330,19 @@ def scudo_parete(k, m, loc_local, nome, rot):
 
 
 # ------------------------------------------------------------------ costruzione
-def _anello_ciotola(R, m, r0, z0, r1, z1, n, uvscala=0.12, modo="ext"):
-    """Anello di spalti inclinato (ciotola): n spicchi, normale verso il campo."""
+def _anello_ciotola(R, m, r0, z0, r1, z1, n, uvscala=0.12, modo="ext", salta=None, doppia=True):
+    """Anello di spalti inclinato (ciotola): n spicchi, normale verso il campo.
+    salta(a_medio) = True per saltare lo spicchio (varco tunnel). doppia = facce da entrambi i lati."""
     for k in range(n):
         a0 = 2 * math.pi * k / n
         a1 = 2 * math.pi * (k + 1) / n
+        if salta is not None and salta((a0 + a1) / 2):
+            continue
         p00 = (r0 * math.cos(a0), r0 * math.sin(a0), z0)
         p10 = (r0 * math.cos(a1), r0 * math.sin(a1), z0)
         p11 = (r1 * math.cos(a1), r1 * math.sin(a1), z1)
         p01 = (r1 * math.cos(a0), r1 * math.sin(a0), z1)
-        P = [w((p[0], L + APRON + 10.0 + p[1], p[2])) for p in (p00, p10, p11, p01)]
+        P = [w((p[0], ST_CENTRO_U + p[1], p[2])) for p in (p00, p10, p11, p01)]
         d = R.d.setdefault(m, {"v": [], "n": [], "uv": [], "f": [], "modo": []})
         base = len(d["v"])
         e1, e2 = P[1] - P[0], P[3] - P[0]
@@ -349,7 +354,17 @@ def _anello_ciotola(R, m, r0, z0, r1, z1, n, uvscala=0.12, modo="ext"):
                 d["n"].append(nrm)
                 d["uv"].append((k * uvscala, (z0 + (z1 - z0) * j) * uvscala))
                 d["modo"].append(modo)
-        d["f"].append((base, base + 1, base + 3, base + 2))
+        if doppia:
+            # retro: stessi vertici UV della faccia buona, solo normale opposta (niente strisce)
+            for q in range(4):
+                d["v"].append(P[0] + e1 * (q in (1, 2)) + e2 * (q >= 2))
+                d["n"].append(-nrm)
+                d["uv"].append((k * uvscala + (0.05 if q in (1, 2) else 0.0), z0 * uvscala + (0.05 if q >= 2 else 0.0)))
+                d["modo"].append(modo)
+            d["f"].append((base, base + 1, base + 3, base + 2))
+            d["f"].append((base + 4, base + 6, base + 5, base + 7))
+        else:
+            d["f"].append((base, base + 1, base + 3, base + 2))
 
 
 def costruisci(dati, cartella):
@@ -365,7 +380,6 @@ def costruisci(dati, cartella):
     m_oro = mat("Tunnel_Oro", "#c9a227", None, 0.3)
     m_sof = mat("Tunnel_Soffitto", "#101318", None, 0.9)
     m_led = mat("Tunnel_Luce", "#fff3de", None, 0.5, emis=8.0)
-    m_bocc = mat("Tunnel_Bagliore", "#f4f8ff", None, 0.5, emis=3.0)
     m_filo = mat("Tunnel_Filetto", "#ffffff", None, 0.5)
     hw = W / 2
     # pavimento chiaro con corsia e riga oro centrale (come la foto del Camp Nou)
@@ -398,10 +412,11 @@ def costruisci(dati, cartella):
     for (xa, xb) in ((-hw, -pw), (pw, hw)):
         R.parete(m_blu, xa, xb, 0.0, 0.0, 0.0, H, (0, 1, 0), mx=0.6)
     R.parete(m_blu, -pw, pw, 0.0, 0.0, ph, H, (0, 1, 0), mx=0.6)
-    # bagliore del campo alla bocca (u = L): in fondo si vede la luce, non il grigio
-    R.parete(m_bocc, -hw, hw, L, L, 0.0, H, (0, 1, 0), mx=1.0, modo="piena")
+    # bagliore del campo alla bocca (u = L): NIENTE parete, la bocca resta aperta
+    # (la luce viene dal campo vero dietro: un muro qui coprirebbe l'entrata)
     return _costruisci_esterno(R, dati, cartella, erba_i, spalti_i, cart_i)
-    # ---- facciata sotto gli spalti (u = L) con la bocca del tunnel
+
+
 def _costruisci_esterno(R, dati, cartella, erba_i, spalti_i, cart_i):
     """Ciotola vera stile Camp Nou: 3 anelli di spalti, tetto ad anello, 4 maxischermi, campo con righe."""
     m_erba = mat("Esterno_Erba", "#ffffff", erba_i, 0.95)
@@ -416,31 +431,37 @@ def _costruisci_esterno(R, dati, cartella, erba_i, spalti_i, cart_i):
     m_testo = mat("Esterno_Testo", dati["colori"]["dettagli"], None, 0.6)
     FW = LARG_FACCIATA
     u0 = L + APRON
+    campo_w = 34.0  # semi-larghezza del campo giocabile (il resto e' erba)
     # campo vero: erba a strisce, righe (fondo, laterali, centrocampo)
     R.parete(m_erba, -FW, FW, u0, u0 + 70.0, 0.0, 0.0, (0, 0, 1), mx=10.0, modo="ext", uvs=(8.0, 8.0), uv0=(0.0, 0.0))
-    R.parete(m_linea, -FW, FW, u0, u0 + 0.15, 0.004, 0.004, (0, 0, 1), mx=40.0, modo="ext")
-    R.parete(m_linea, -25.0, -25.0 + 0.15, u0, u0 + 44.0, 0.004, 0.004, (0, 0, 1), mx=40.0, modo="ext")
-    R.parete(m_linea, 25.0 - 0.15, 25.0, u0, u0 + 44.0, 0.004, 0.004, (0, 0, 1), mx=40.0, modo="ext")
-    R.parete(m_linea, -FW, FW, u0 + 22.0, u0 + 22.15, 0.004, 0.004, (0, 0, 1), mx=40.0, modo="ext")
+    R.parete(m_linea, -campo_w, campo_w, u0, u0 + 0.15, 0.004, 0.004, (0, 0, 1), mx=40.0, modo="ext")
+    R.parete(m_linea, -campo_w, -campo_w + 0.15, u0, u0 + 44.0, 0.004, 0.004, (0, 0, 1), mx=40.0, modo="ext")
+    R.parete(m_linea, campo_w - 0.15, campo_w, u0, u0 + 44.0, 0.004, 0.004, (0, 0, 1), mx=40.0, modo="ext")
+    R.parete(m_linea, -campo_w, campo_w, u0 + 22.0, u0 + 22.15, 0.004, 0.004, (0, 0, 1), mx=40.0, modo="ext")
     R.parete(m_asfalto, -FW, FW, L, u0, 0.0, 0.0, (0, 0, 1), mx=2.0, modo="ext")
-    # cartelloni a bordo campo (fascia continua come allo stadio vero)
-    R.parete(m_cart, -FW, FW, u0 + 1.0, u0 + 1.0, 0.0, 0.9, (0, -1, 0), mx=1.5, modo="ext", uvs=(12.0, 0.9), uv0=(0, 0))
-    # ciotola: 3 anelli di spalti attorno al campo
+    # cartelloni a bordo campo coi VARCHI (il tunnel esce al centro: niente muro davanti ai giocatori)
+    for (xa, xb) in ((-FW, -4.0), (4.0, FW)):
+        R.parete(m_cart, xa, xb, u0 + 1.0, u0 + 1.0, 0.0, 0.9, (0, -1, 0), mx=1.5, modo="ext", uvs=(12.0, 0.9), uv0=(0, 0))
+    # ciotola: 3 anelli di spalti attorno al campo, col varco del vomitorio a sud (dietro la camera)
+    def e_sud(a):
+        d = (a + math.pi) % (2 * math.pi) - math.pi  # 0 = sud (dietro la camera in uscita)
+        return abs(d) < ST_VOMITORIO_HALF
+    # ciotola: 3 anelli di spalti attorno al campo (il varco del tunnel e' a sud, dietro la camera)
     z = ST_ALTEZZA0
     r = ST_RAGGIO
     for (prof, alz) in ST_ANELLI:
-        _anello_ciotola(R, m_spalti, r, z, r + prof, z + alz, 48, modo="ext")
-        _anello_ciotola(R, m_cem, r + prof, z + alz, r + prof + 1.2, z + alz + 0.4, 48, modo="ext")
+        _anello_ciotola(R, m_spalti, r, z, r + prof, z + alz, 48, modo="ext", salta=e_sud)
+        _anello_ciotola(R, m_cem, r + prof, z + alz, r + prof + 1.2, z + alz + 0.4, 48, modo="ext", salta=e_sud)
         r += prof + 1.2
         z += alz + 0.4
     # tetto ad anello con intradosso (come il Camp Nou nuovo)
-    _anello_ciotola(R, m_tetto, ST_TETTO_R0, ST_TETTO_Z, ST_TETTO_R1, ST_TETTO_Z + 1.5, 64, modo="ext")
-    _anello_ciotola(R, m_tetto_s, ST_TETTO_R0, ST_TETTO_Z - 0.3, ST_TETTO_R1, ST_TETTO_Z, 64, modo="ext")
-    # 4 maxischermi appesi al tetto
+    _anello_ciotola(R, m_tetto, ST_TETTO_R0, ST_TETTO_Z, ST_TETTO_R1, ST_TETTO_Z + 1.5, 64, modo="ext", salta=e_sud)
+    _anello_ciotola(R, m_tetto_s, ST_TETTO_R0, ST_TETTO_Z - 0.3, ST_TETTO_R1, ST_TETTO_Z, 64, modo="ext", salta=e_sud)
+    # 4 maxischermi appesi al tetto (mai dietro la camera: a 45 gradi)
     for k in range(4):
         a = math.pi / 4 + k * math.pi / 2
         cx = 62.0 * math.cos(a)
-        cy = u0 + 35.0 + 62.0 * math.sin(a) - (L + APRON + 10.0)
+        cy = ST_CENTRO_U + 62.0 * math.sin(a) - (L + APRON + 10.0) + 10.0
         R.scatola(m_schermo, (cx, cy, 26.0), (10.0, 0.6, 6.0), modo="ext")
     # nome della squadra sulla facciata sopra la bocca (come prima, ma piu grande)
     testo_facciata(dati["nome"].upper(), 0.60, 8.0, m_testo, (0.0, L + 0.01, H + FASCIA / 2 + 0.4))
