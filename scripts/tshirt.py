@@ -289,7 +289,7 @@ def collo(ob_parent):
 
 
 # ------------------------------------------------------------------ materiali, luci, resa
-def materiale(nome, colore, rough=0.90, sheen=0.60, bump=0.6, scala=800.0, interno_scuro=False, cuciture=False, fres=0.45, ao_dist=0.07, emiss=0.0, coste=False):
+def materiale(nome, colore, rough=0.90, sheen=0.60, bump=0.6, scala=800.0, interno_scuro=False, cuciture=False, fres=0.36, ao_dist=0.07, emiss=0.0, coste=False):
     m = bpy.data.materials.new(nome)
     m.use_nodes = True
     nt = m.node_tree
@@ -448,9 +448,21 @@ def materiale(nome, colore, rough=0.90, sheen=0.60, bump=0.6, scala=800.0, inter
         mh_ = M("MULTIPLY", MR(ax, 0.23, 0.20), MR(zz, -0.50, -0.55))
         # fianchi del busto piu' scuri (lavanda), luce a clessidra come nel riferimento
         fianco = M("MULTIPLY", M("MULTIPLY", MR(ax, 0.09, 0.17), MR(ax, 0.215, 0.185)), MR(zz, -0.12, -0.17))
-        fianco = M("MAXIMUM", fianco, M("MULTIPLY", MR(ax, 0.19, 0.23), M("MULTIPLY", M("ADD", M("MULTIPLY", MR(sq.outputs["X"], 0.05, -0.05), 0.85), 0.15), 0.62)))      # maniche piu' scure del busto, di piu' a destra dell'immagine (la luce arriva da sinistra)
+        fianco = M("MULTIPLY", fianco, M("ADD", M("MULTIPLY", MR(sq.outputs["X"], 0.04, -0.04), 0.9), 0.85))    # lato destro dell'immagine (-x) piu' scuro
+        fianco = M("MAXIMUM", fianco, M("MULTIPLY", MR(ax, 0.19, 0.23), M("MULTIPLY", M("ADD", M("MULTIPLY", MR(sq.outputs["X"], 0.05, -0.05), 1.5), 0.0), 0.62)))      # maniche piu' scure del busto, di piu' a destra dell'immagine (la luce arriva da sinistra)
+        lw2 = nt.nodes.new("ShaderNodeLayerWeight")                  # bordo destro dell'immagine in ombra marcata (nel riferimento e' molto piu' scuro del sinistro)
+        lw2.inputs["Blend"].default_value = 0.45
+        bordo_d = M("MULTIPLY", lw2.outputs["Fresnel"], MR(sq.outputs["X"], 0.0, -0.06))
+        cbe = nt.nodes.new("ShaderNodeCombineColor")
+        for ch, kk in (("Red", 0.60), ("Green", 0.54), ("Blue", 0.36)):
+            mk = nt.nodes.new("ShaderNodeMath")
+            mk.operation = "MULTIPLY_ADD"
+            mk.inputs[1].default_value = -kk
+            mk.inputs[2].default_value = 1.0
+            nt.links.new(bordo_d, mk.inputs[0])
+            nt.links.new(mk.outputs["Value"], cbe.inputs[ch])
         cbs = nt.nodes.new("ShaderNodeCombineColor")
-        for ch, kk in (("Red", 0.30), ("Green", 0.25), ("Blue", 0.13)):
+        for ch, kk in (("Red", 0.24), ("Green", 0.21), ("Blue", 0.14)):
             mk = nt.nodes.new("ShaderNodeMath")
             mk.operation = "MULTIPLY_ADD"
             mk.inputs[1].default_value = -kk
@@ -475,7 +487,13 @@ def materiale(nome, colore, rough=0.90, sheen=0.60, bump=0.6, scala=800.0, inter
         m5.inputs[0].default_value = 1.0
         nt.links.new(m4.outputs[2], m5.inputs[6])
         nt.links.new(cbs.outputs["Color"], m5.inputs[7])
-        ultimo = m5
+        m6 = nt.nodes.new("ShaderNodeMix")
+        m6.data_type = "RGBA"
+        m6.blend_type = "MULTIPLY"
+        m6.inputs[0].default_value = 1.0
+        nt.links.new(m5.outputs[2], m6.inputs[6])
+        nt.links.new(cbe.outputs["Color"], m6.inputs[7])
+        ultimo = m6
     nt.links.new(ultimo.outputs[2], pb.inputs["Base Color"])
     return m
 
@@ -510,7 +528,7 @@ def luci_e_camera(sc, bersaglio=(0.0, 0.0, -0.355)):
         d = Vector(bersaglio) - Vector(loc)
         lo.rotation_euler = d.to_track_quat("-Z", "Y").to_euler()
 
-    area("Key", (-1.2, 3.1, 0.9), 125.0, 3.5, (1.0, 0.99, 0.98))
+    area("Key", (-1.2, 3.1, 0.9), 120.0, 3.5, (1.0, 0.99, 0.98))
     area("Fill", (1.8, 2.8, -0.2), 24.0, 3.5, (0.90, 0.94, 1.0))
     area("Alto", (0.0, 1.2, 2.2), 20.0, 2.5, (0.96, 0.97, 1.0))
     area("Rim", (0.0, -2.2, 0.3), 14.0, 2.0)
@@ -570,7 +588,7 @@ def main():
     bianco = materiale("Cotone", (0.76, 0.79, 0.90, 1.0), interno_scuro=True, cuciture=True, coste=True)
     ob.data.materials.append(bianco)
     c = collo(ob)
-    c.data.materials.append(materiale("Costine", (0.88, 0.90, 0.98, 1.0), bump=0.9, scala=1400.0, interno_scuro=True, fres=0.10, ao_dist=0.012, emiss=0.30))
+    c.data.materials.append(materiale("Costine", (0.74, 0.80, 0.97, 1.0), bump=0.9, scala=1400.0, interno_scuro=True, fres=0.10, ao_dist=0.012, emiss=0.15))
     sc.render.engine = "CYCLES"
     sc.cycles.device = "CPU"
     sc.cycles.samples = camp
