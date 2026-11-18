@@ -94,4 +94,5 @@ Il video iniziale e' un drone reale: il 3D parte dal punto attuale (camera a ter
 
 ### Nome in mosaico (18/11/2026)
 - "RESCO REGGELLO" su due righe (RESCO / REGGELLO) con i seggiolini, **una sola volta**, nel primo anello (l'unico che si vede dalla partenza), nel tile degli spicchi 32-39 centrato sull'asse del tunnel; prima stava nel secondo anello, tagliato dal bordo alto dell'inquadratura e ripetuto 6 volte. Tutto il resto degli spalti usa la texture senza nome (`spalti` / `spalti_nome`, materiali `Esterno_Spalti` / `Esterno_SpaltiNome`). Trappole pagate: l'immagine ha v=1 sulla riga 0 (la banda va nelle righe 44-59 per stare in basso), le UV in u devono contare gli spicchi (`uspic=8`), non i metri (la corda cambia col raggio e il tile slittava), niente corridoi dentro la banda. tunnel.glb 2,8 MB (due texture spalti), bassa 0,87 MB.
+- Muro di base e facciata a pannelli blu (prima nero), rimbalzo dal campo piu' alto (`AMB_TERRA`) per le superfici all'ombra.
 

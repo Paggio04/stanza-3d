@@ -368,7 +368,7 @@ def tex_basso(cartella, blu, w_=512, h_=160):
     """Muro di base e facciata (tile 8 m x 2,5 m): pannelli blu notte da 2 m con fughe, zoccolo scuro, filetto chiaro in alto."""
     rng = np.random.default_rng(41)
     g = 0.90 + 0.10 * rng.random((h_, w_)) + 0.06 * _rumore(rng, h_, w_, 20)
-    rgb = _lin(_scuro_hex(blu, 0.62))[None, None, :] * g[..., None]
+    rgb = _lin(_scuro_hex(blu, 1.0))[None, None, :] * g[..., None]
     for x in range(0, w_, w_ // 4):
         rgb[:, x:x + 2] *= 0.5
         rgb[:, x + 2:x + 4] *= 1.15
@@ -480,7 +480,7 @@ GAIN_INTERNO = 1.8                        # idem per il tunnel: la luce cotta st
 GAIN_ESTERNO = 1.35                       # la luce cotta esterna e' divisa per questo; lo stesso fattore la ripristina nel sito
 SOLE_COL = np.array([1.0, 0.93, 0.80]) * 1.45
 AMB_CIELO = np.array([0.34, 0.42, 0.60])
-AMB_TERRA = np.array([0.20, 0.19, 0.17])
+AMB_TERRA = np.array([0.34, 0.38, 0.28])     # rimbalzo dal campo al sole: le pareti all'ombra non restano nere
 SOTTO_TETTO = np.array([0.62, 0.62, 0.60])   # intradosso del tetto: luce di rimbalzo da campo e spalti
 
 
